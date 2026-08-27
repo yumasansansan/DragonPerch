@@ -1,7 +1,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Every compiler and linker flag in the project lives here, on one interface target that
-# each real target links. Nothing else in the tree should call add_compile_options.
+# Every compiler and linker flag in the project lives here. Nothing else in the tree sets
+# one.
+#
+# They divide into two scopes, and which scope a flag belongs in is a real decision:
+#
+#   optimisation  -> add_compile_options / add_link_options, so it reaches every target
+#                    built in this tree, third-party dependencies included
+#   policy        -> the DragonPerch::options interface target, linked PRIVATE, so it
+#                    applies to our code and to nothing else
+#
+# Warnings-as-errors and -fno-rtti are policy: imposing them on somebody else's source
+# fails builds that have nothing wrong with them. Optimisation is not -- there is no reason
+# for one target to be built slower than another because of where its source came from.
 #
 # ---------------------------------------------------------------------------------------
 # How flags reach the tools
@@ -65,6 +76,18 @@ endif()
 # ---------------------------------------------------------------------------------------
 # This is the block to extend. Release-only flags go inside $<$<CONFIG:Release>:...>;
 # anything outside applies to Debug too, which is almost never wanted.
+#
+# Applied with add_compile_options rather than to the interface target, so it reaches
+# *everything built in this tree*, third-party dependencies included -- Catch2 arrives
+# through FetchContent, which is an add_subdirectory underneath tests/, and directory
+# options are inherited. There is no reason for one target in a build to be optimised
+# differently from another just because of where its source came from.
+#
+# Warnings and conformance stay on the interface target above, and that distinction is
+# deliberate: -Werror on somebody else's code fails a build that has nothing wrong with it,
+# which is exactly what Clang 22 diagnosing Catch2's __COUNTER__ already demonstrated.
+# /GR- and -fno-rtti stay there too. They read as optimisations but they remove a language
+# feature, and a third-party library is entitled to use typeid.
 if(MSVC)
     # CMake's own Release flags are "/O2 /Ob2 /DNDEBUG". /Ob3 below is a stronger form of
     # /Ob2, and cl warns (D9025) when it is handed both -- a command-line warning, which
@@ -73,30 +96,37 @@ if(MSVC)
     # explicit, because this file is meant to show the whole optimisation set in one place.
     string(REPLACE "/Ob2" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 
-    target_compile_options(dragonperch_options INTERFACE
+    add_compile_options(
         $<$<CONFIG:Release>:/O2>    # maximise speed
         $<$<CONFIG:Release>:/Oi>    # emit intrinsics
         $<$<CONFIG:Release>:/Ot>    # favour fast code over small code
         $<$<CONFIG:Release>:/Gy>    # function-level linking, so /OPT:ICF has something to fold
         $<$<CONFIG:Release>:/Ob3>   # inline anything the compiler judges worthwhile, not just __inline
-        $<$<CONFIG:Release>:/Gw>    # each global into its own COMDAT, so /OPT:REF can drop unused data
-        $<$<CONFIG:Release>:/GR->)  # no RTTI; nothing here uses dynamic_cast or typeid
+        $<$<CONFIG:Release>:/Gw>)   # each global into its own COMDAT, so /OPT:REF can drop unused data
 
-    target_link_options(dragonperch_options INTERFACE
+    add_link_options(
         $<$<CONFIG:Release>:/OPT:REF>         # discard unreferenced functions and data
         $<$<CONFIG:Release>:/OPT:ICF>         # fold identical COMDATs
         $<$<CONFIG:Release>:/INCREMENTAL:NO>) # incremental linking defeats both of the above
-else()
+
+    # Ours only: removes a language feature rather than merely optimising, so it is not
+    # something to impose on a dependency.
     target_compile_options(dragonperch_options INTERFACE
+        $<$<CONFIG:Release>:/GR->)  # no RTTI; nothing here uses dynamic_cast or typeid
+else()
+    add_compile_options(
         $<$<CONFIG:Release>:-O3>
-        $<$<CONFIG:Release>:-fno-rtti>
         # Paired with --gc-sections below: the compiler has to put each function and object
         # in its own section before the linker can drop the unused ones.
         $<$<CONFIG:Release>:-ffunction-sections>
         $<$<CONFIG:Release>:-fdata-sections>)
 
-    target_link_options(dragonperch_options INTERFACE
+    add_link_options(
         $<$<CONFIG:Release>:-Wl,--gc-sections>)
+
+    # Ours only, for the same reason as /GR- above.
+    target_compile_options(dragonperch_options INTERFACE
+        $<$<CONFIG:Release>:-fno-rtti>)
 endif()
 
 # ---------------------------------------------------------------------------------------
