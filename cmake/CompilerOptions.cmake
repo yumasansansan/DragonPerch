@@ -25,6 +25,12 @@
 # multiple lines happens to work, but relies on how CMake splits unquoted arguments; one
 # flag per expression cannot be misread.
 
+# Link this PRIVATE, always. It carries our build policy -- warnings as errors, no RTTI,
+# optimisation choices -- and policy is not a usage requirement: code that merely links us
+# should not inherit it. Linking it PUBLIC from the core once meant the test binary
+# inherited -Werror and then failed on Catch2's use of __COUNTER__, which Clang 22
+# diagnoses as a C2y extension. Requirements that genuinely must propagate, such as the
+# language standard, belong on the consuming target as PUBLIC compile features.
 add_library(dragonperch_options INTERFACE)
 add_library(DragonPerch::options ALIAS dragonperch_options)
 

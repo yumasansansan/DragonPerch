@@ -20,8 +20,12 @@ add_executable(dragonperch_tests
     world_test.cpp)
 
 # Deliberately not DragonPerch::options. The project builds with warnings as errors and
-# without RTTI, and neither belongs on a test binary: a Catch2 header tripping /W4 would
-# fail a build that has nothing wrong with it.
+# without RTTI, and neither belongs on a test binary: a third-party header tripping our
+# warning policy fails a build that has nothing wrong with it. Clang 22 diagnosing Catch2's
+# __COUNTER__ as a C2y extension is exactly that.
+#
+# This only works because dragonperch_core links the options target PRIVATE. It used to be
+# PUBLIC, and the flags arrived here anyway.
 target_link_libraries(dragonperch_tests PRIVATE
     DragonPerch::core
     Catch2::Catch2WithMain)

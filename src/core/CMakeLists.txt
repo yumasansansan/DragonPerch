@@ -13,8 +13,16 @@ add_library(dragonperch_core STATIC
 
 target_include_directories(dragonperch_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-# PUBLIC, not PRIVATE: the standard and the warning policy have to reach anything that
-# links this, or a head could quietly build the shared headers under different rules.
-target_link_libraries(dragonperch_core PUBLIC DragonPerch::options)
+# Two different kinds of requirement, which is why they are stated separately.
+#
+# The language standard is a *usage requirement*: anything that includes these headers has
+# to compile as C++23, so it propagates.
+target_compile_features(dragonperch_core PUBLIC cxx_std_23)
+
+# Warnings and optimisation are *our build policy*, and PRIVATE on purpose. They were
+# PUBLIC, which meant every consumer inherited -Werror -- including the test binary, where
+# Catch2's use of __COUNTER__ is diagnosed by Clang 22 as a C2y extension and killed the
+# build. Our code is held to the policy; code that merely links us is not.
+target_link_libraries(dragonperch_core PRIVATE DragonPerch::options)
 
 add_library(DragonPerch::core ALIAS dragonperch_core)
