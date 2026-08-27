@@ -40,7 +40,10 @@ std::filesystem::path executable_directory()
 bool call(sd_bus* bus, const char* method, const char* signature, const char* first,
           const char* second)
 {
-    sd_bus_error error = SD_BUS_ERROR_NULL;
+    // Not SD_BUS_ERROR_NULL: that macro is a C99 compound literal, which C++ does not
+    // have. Value-initialising means the same thing -- both fields null, the free flag
+    // clear -- and does not need an extension.
+    sd_bus_error error{};
     sd_bus_message* reply = nullptr;
 
     int failed = 0;
