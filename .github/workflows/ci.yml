@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # The portability guard. If this job breaks, a backend has leaked into the core, which is
+  # the one rule the whole cross-platform design rests on.
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake g++-14
+      - name: Configure
+        run: cmake --preset linux-x64 -DCMAKE_CXX_COMPILER=g++-14
+      - name: Build core only
+        run: cmake --build build/linux-x64 --config Debug --target dragonperch_core
+
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v5
+      # The Visual Studio 18 2026 generator is not on the hosted images yet, so CI uses
+      # Ninja with the same compiler. The .sln is a local convenience, not a build input.
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Configure
+        run: cmake --preset windows-x64-ninja
+      - name: Build
+        run: cmake --build build/windows-x64-ninja --config Debug
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cmake g++-14
+      - name: Configure
+        run: cmake --preset linux-x64 -DCMAKE_CXX_COMPILER=g++-14
+      - name: Build
+        run: cmake --build build/linux-x64 --config Debug

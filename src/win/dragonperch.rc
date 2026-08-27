@@ -1,0 +1,8 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+#include <winuser.h>
+
+// Embed the manifest as a resource rather than letting the linker hand it to mt.exe.
+// Passing a .manifest as a source makes MSBuild run mt.exe as a post-link step, which
+// fails here (LNK1327) without saying why. The resource route is what the linker would
+// ultimately produce anyway, works identically under Ninja, and has one less tool in it.
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"

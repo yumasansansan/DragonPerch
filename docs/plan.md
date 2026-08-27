@@ -60,8 +60,11 @@ Consequences:
 - `WS_DISABLED` **discards** clicks rather than passing them down. Never disable the
   overlay.
 
-Still unverified: whether composition content actually renders on a window that carries
-both flags. Click-through was proven; visible output was not. **This is milestone 1.**
+Composition content **does** render on a window carrying both flags — verified in milestone
+1, on an Intel Iris Xe: an opaque quad appears, a half-transparent one over it blends
+against both that quad and the desktop showing through the window, and the notification
+state stays `QUNS_ACCEPTS_NOTIFICATIONS`. This was the last unknown in the Windows design
+and it is now settled.
 
 ### Windows: Do Not Disturb is a size heuristic
 
@@ -371,8 +374,8 @@ Each names how it is verified. No milestone is done because it compiles.
 
 | # | Deliverable | Verified by |
 |---|---|---|
-| 0 | CMake skeleton, presets, CI, `core` building on both platforms | `.sln` opens and builds in VS 2026; Linux Ninja build green |
-| 1 | **Composition renders on a layered window** — one HWND, DComp target, a solid quad | A screenshot shows the quad, and `--self-test` still reports the click passing through |
+| 0 | ~~CMake skeleton, presets, CI, `core` building on both platforms~~ **done** | `DragonPerch.slnx` generated and builds; Debug and Release both exit 0 |
+| 1 | ~~**Composition renders on a layered window**~~ **done** | Screenshot shows opaque and blended quads over a visible desktop |
 | 2 | Core simulation ported, Catch2 tests | Tests pass; a fake world produces a pet that lands on the right pixel row |
 | 3 | `desktop_scanner` + `win_event_watcher` | `--dump-world` matches the real desktop; opening a window is tracked through its animation |
 | 4 | Windows head end to end, placeholder sprites | Dragons walk on title bars; `--self-test` passes; notification state stays `QUNS_ACCEPTS_NOTIFICATIONS` |
@@ -391,10 +394,7 @@ simulation is ported.
 
 ## 11. Open risks
 
-1. **Layered + composition rendering.** Click-through with both flags is measured; visible
-   output is not. Milestone 1 exists solely to settle it. If it fails, the fallbacks are, in
-   order: a swapchain instead of a DComp surface; per-pet windows; Direct2D to a CPU bitmap
-   with `UpdateLayeredWindow` (works, but gives up the GPU, so it is a last resort).
+1. ~~Layered + composition rendering.~~ Settled in milestone 1: it works.
 2. **Fractional scaling on Wayland.** `set_margin` is logical, everything above is physical.
    One conversion point, easy to get subtly wrong, worth a test.
 3. **KWin scripting API drift.** Plasma 5 and 6 renamed `clientList`/`windowList`. The
