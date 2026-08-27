@@ -2,6 +2,7 @@
 #pragma once
 
 #include "dragonperch/geometry.hpp"
+#include "dragonperch/world.hpp"
 #include "egl_context.hpp"
 
 #include <cstdint>

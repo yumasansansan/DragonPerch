@@ -29,11 +29,18 @@ function(dragonperch_add_wayland_protocol target stem xml)
     set(header ${CMAKE_CURRENT_BINARY_DIR}/wayland-generated/${stem}-client-protocol.h)
     set(code ${CMAKE_CURRENT_BINARY_DIR}/wayland-generated/${stem}-protocol.c)
 
+    # The rename pass is not optional for C++. Wayland protocols are specified for C, and
+    # `zwlr_layer_shell_v1.get_layer_surface` takes an argument called `namespace` -- so the
+    # header wayland-scanner writes does not compile here at all until it is renamed. See
+    # RenameCxxKeywords.cmake.
+    set(rename ${CMAKE_SOURCE_DIR}/cmake/RenameCxxKeywords.cmake)
+
     add_custom_command(
         OUTPUT ${header}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/wayland-generated
         COMMAND ${WAYLAND_SCANNER_EXECUTABLE} client-header ${xml} ${header}
-        DEPENDS ${xml}
+        COMMAND ${CMAKE_COMMAND} -DHEADER=${header} -P ${rename}
+        DEPENDS ${xml} ${rename}
         COMMENT "wayland-scanner client-header ${stem}"
         VERBATIM)
 
@@ -48,6 +55,10 @@ function(dragonperch_add_wayland_protocol target stem xml)
         VERBATIM)
 
     target_sources(${target} PRIVATE ${header} ${code})
+
+    # SYSTEM, so that our warning policy does not apply to a machine-written header. The
+    # project builds with -Werror, and a future protocol update tripping a warning we
+    # cannot fix in a file we do not write would break the build for no reason.
     target_include_directories(${target}
-        PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/wayland-generated)
+        SYSTEM PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/wayland-generated)
 endfunction()
