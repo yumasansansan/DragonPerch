@@ -132,9 +132,15 @@ workflow.)
 
 | | Windows | Linux |
 |---|---|---|
-| Compiler | MSVC 19.4x (VS 2026) | GCC 14+ or Clang 18+ |
-| Generator | Visual Studio 18 2026 | Ninja |
+| Compiler | MSVC 19.51 (VS 2026) | Clang 22 and GCC 15, both in CI |
+| Generator | Visual Studio 18 2026 | Ninja Multi-Config |
 | Standard | C++23 | C++23 |
+| CI image | `windows-2025-vs2026` | `ubuntu-26.04` |
+
+Both runner images ship the whole toolchain, so CI installs nothing: adding an install step
+could only pin something older than the image already has. Two Linux compilers rather than
+one, because they disagree about enough of C++23 that building with both is the cheapest
+portability check available.
 
 Warnings as errors on both (`/W4 /WX`, `-Wall -Wextra -Wpedantic -Werror`), matching the
 prototype's policy, which caught real problems.

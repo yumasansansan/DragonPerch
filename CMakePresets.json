@@ -2,33 +2,80 @@
   "version": 6,
   "configurePresets": [
     {
+      "name": "base",
+      "hidden": true,
+      "binaryDir": "${sourceDir}/build/${presetName}"
+    },
+
+    {
+      "name": "windows-base",
+      "hidden": true,
+      "inherits": "base",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+    },
+    {
       "name": "windows-x64",
       "displayName": "Windows x64 (Visual Studio 2026)",
+      "inherits": "windows-base",
       "generator": "Visual Studio 18 2026",
-      "architecture": "x64",
-      "binaryDir": "${sourceDir}/build/windows-x64",
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+      "architecture": "x64"
     },
     {
       "name": "windows-x64-ninja",
-      "displayName": "Windows x64 (Ninja, for fast command-line iteration)",
+      "displayName": "Windows x64 (Ninja + MSVC, needs a Developer Command Prompt)",
+      "inherits": "windows-base",
       "generator": "Ninja Multi-Config",
-      "binaryDir": "${sourceDir}/build/windows-x64-ninja",
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl",
+        "CMAKE_LINKER": "link",
+        "CMAKE_RC_COMPILER": "rc"
+      }
+    },
+
+    {
+      "name": "linux-base",
+      "hidden": true,
+      "inherits": "base",
+      "generator": "Ninja Multi-Config",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
     },
     {
       "name": "linux-x64",
-      "displayName": "Linux x64 (Ninja)",
-      "generator": "Ninja Multi-Config",
-      "binaryDir": "${sourceDir}/build/linux-x64",
-      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" }
+      "displayName": "Linux x64 (whatever compiler is on PATH)",
+      "inherits": "linux-base"
+    },
+    {
+      "name": "linux-clang",
+      "displayName": "Linux x64 (Clang 22)",
+      "inherits": "linux-base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang-22",
+        "CMAKE_CXX_COMPILER": "clang++-22"
+      }
+    },
+    {
+      "name": "linux-gcc",
+      "displayName": "Linux x64 (GCC 15)",
+      "inherits": "linux-base",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc-15",
+        "CMAKE_CXX_COMPILER": "g++-15"
+      }
     }
   ],
+
   "buildPresets": [
     { "name": "windows-x64-debug", "configurePreset": "windows-x64", "configuration": "Debug" },
     { "name": "windows-x64-release", "configurePreset": "windows-x64", "configuration": "Release" },
     { "name": "windows-ninja-debug", "configurePreset": "windows-x64-ninja", "configuration": "Debug" },
+    { "name": "windows-ninja-release", "configurePreset": "windows-x64-ninja", "configuration": "Release" },
+
     { "name": "linux-x64-debug", "configurePreset": "linux-x64", "configuration": "Debug" },
-    { "name": "linux-x64-release", "configurePreset": "linux-x64", "configuration": "Release" }
+    { "name": "linux-x64-release", "configurePreset": "linux-x64", "configuration": "Release" },
+    { "name": "linux-clang-debug", "configurePreset": "linux-clang", "configuration": "Debug" },
+    { "name": "linux-clang-release", "configurePreset": "linux-clang", "configuration": "Release" },
+    { "name": "linux-gcc-debug", "configurePreset": "linux-gcc", "configuration": "Debug" },
+    { "name": "linux-gcc-release", "configurePreset": "linux-gcc", "configuration": "Release" }
   ]
 }

@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <winuser.h>
 
-// Embed the manifest as a resource rather than letting the linker hand it to mt.exe.
-// Passing a .manifest as a source makes MSBuild run mt.exe as a post-link step, which
-// fails here (LNK1327) without saying why. The resource route is what the linker would
-// ultimately produce anyway, works identically under Ninja, and has one less tool in it.
+// Embed the manifest as a resource rather than handing a .manifest file to the linker.
+//
+// Both routes end in the same resource; this one just has one less tool in it. The other
+// goes through mt.exe, and mt.exe is a liability: the copy under Windows Kits 10.0.28000.0
+// on this machine fails to start at all (0xc0000135, a missing DLL), which surfaces as a
+// bare "LNK1327: error executing mt.exe" with no reason attached. The 10.0.26100.0 copy is
+// fine, so the preset and the developer environment both pin that SDK -- but not depending
+// on the tool in the first place is better than depending on picking the right one.
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"

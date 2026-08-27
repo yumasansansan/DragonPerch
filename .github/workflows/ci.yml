@@ -6,45 +6,50 @@ on:
     branches: [main]
   pull_request:
 
+# Both images ship everything this project needs, so there is no install step anywhere in
+# this file. windows-2025-vs2026 carries Visual Studio Enterprise 2026, CMake 4.4 and
+# Ninja; ubuntu-26.04 carries Clang 22, GCC 15, CMake 4.4 and Ninja. Installing any of it
+# again would only pin an older version than the image already has.
 jobs:
-  # The portability guard. If this job breaks, a backend has leaked into the core, which is
-  # the one rule the whole cross-platform design rests on.
+  # The portability guard. The core must build with no platform anything; if this job
+  # breaks, a backend has leaked upwards, which is the one rule the cross-platform design
+  # rests on. It runs on its own so the failure is unambiguous.
   core:
-    runs-on: ubuntu-latest
+    name: core only (Clang 22)
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v5
-      - name: Install toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build cmake g++-14
-      - name: Configure
-        run: cmake --preset linux-x64 -DCMAKE_CXX_COMPILER=g++-14
-      - name: Build core only
-        run: cmake --build build/linux-x64 --config Debug --target dragonperch_core
+      - uses: actions/checkout@v7
+      - run: cmake --preset linux-clang
+      - run: cmake --build build/linux-clang --config Debug --target dragonperch_core
 
   windows:
-    runs-on: windows-2025
+    name: windows (MSVC, VS 2026)
+    runs-on: windows-2025-vs2026
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Debug, Release]
     steps:
-      - uses: actions/checkout@v5
-      # The Visual Studio 18 2026 generator is not on the hosted images yet, so CI uses
-      # Ninja with the same compiler. The .sln is a local convenience, not a build input.
-      - uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-      - name: Configure
-        run: cmake --preset windows-x64-ninja
-      - name: Build
-        run: cmake --build build/windows-x64-ninja --config Debug
+      - uses: actions/checkout@v7
+      # The Visual Studio generator, not Ninja: the image has VS 2026, so CI can build
+      # through exactly the same solution a developer opens locally rather than a parallel
+      # configuration that drifts. It also sets up its own environment, so no
+      # msvc-dev-cmd step is needed.
+      - run: cmake --preset windows-x64
+      - run: cmake --build build/windows-x64 --config ${{ matrix.configuration }}
 
   linux:
-    runs-on: ubuntu-latest
+    name: linux (${{ matrix.compiler }})
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Two compilers rather than one. They disagree about enough of C++23 that building
+        # with both is the cheapest portability check available, and warnings-as-errors
+        # means each one's diagnostics are enforced.
+        compiler: [clang, gcc]
+        configuration: [Debug, Release]
     steps:
-      - uses: actions/checkout@v5
-      - name: Install toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build cmake g++-14
-      - name: Configure
-        run: cmake --preset linux-x64 -DCMAKE_CXX_COMPILER=g++-14
-      - name: Build
-        run: cmake --build build/linux-x64 --config Debug
+      - uses: actions/checkout@v7
+      - run: cmake --preset linux-${{ matrix.compiler }}
+      - run: cmake --build build/linux-${{ matrix.compiler }} --config ${{ matrix.configuration }}

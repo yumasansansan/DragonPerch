@@ -44,11 +44,25 @@ them — so build settings belong in `CMakeLists.txt`.
 cmake --build --preset windows-x64-debug
 ```
 
-On Linux, or for faster command-line iteration on Windows:
+On Linux:
 
 ```bash
 cmake --preset linux-x64 && cmake --build --preset linux-x64-debug
 ```
+
+`linux-clang` and `linux-gcc` pin Clang 22 and GCC 15 respectively; CI builds both.
+
+For faster command-line iteration on Windows there is a Ninja preset, which needs a
+developer environment **with the SDK pinned**:
+
+```bat
+call "%VSINSTALLDIR%VC\Auxiliary\Buildcvarsall.bat" x64 10.0.26100.0
+```
+
+The version matters. `vcvars64.bat` selects the newest SDK on the machine, and the
+`mt.exe` shipped under Windows Kits `10.0.28000.0` here fails to start at all
+(`0xc0000135`), which CMake reports as a try-compile failure with the real cause buried.
+`10.0.26100.0` is the SDK that is actually installed, and its `mt.exe` works.
 
 ## Trying it
 
