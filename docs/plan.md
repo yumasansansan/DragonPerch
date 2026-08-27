@@ -165,7 +165,7 @@ Deliberately few. Almost everything needed is a platform SDK.
 | `d3d11`, `dcomp`, `d2d1`, `dxgi`, `dwmapi`, `shell32`, `user32` | Windows | Windows SDK |
 | `wayland-client`, `wayland-egl`, `wayland-protocols`, `wayland-scanner` | Linux | pkg-config |
 | `egl`, `glesv2` | Linux | pkg-config |
-| `wlr-layer-shell-unstable-v1.xml` | Linux | **vendored** under `protocols/` |
+| `wlr-layer-shell-unstable-v1.xml`, `xdg-shell.xml` | Linux | **submodules** under `external/`, fed to `wayland-scanner` |
 | sd-bus (`libsystemd`) | Linux | pkg-config |
 | Catch2 | tests | vcpkg manifest |
 
@@ -204,7 +204,7 @@ DragonPerch/
 │      ├─ gl_renderer.*        sprite batcher
 │      ├─ kwin_world.*         D-Bus receiver for the KWin script
 │      └─ x11_world.*          EWMH fallback (later)
-├─ protocols/                vendored Wayland XML
+├─ external/                 upstream Wayland protocol XML, as submodules
 ├─ kwin/dragonperch-geometry/ KWin script (JavaScript, runs inside the compositor)
 ├─ assets/konqi/             CC BY-SA 4.0 artwork
 ├─ tests/                    Catch2, core only

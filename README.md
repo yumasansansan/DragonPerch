@@ -10,7 +10,10 @@ practical.
 
 > Status: **Windows works.** Konqi, Katie and Kori walk on your title bars and taskbar,
 > drawn on the GPU from KDE's own artwork; clicks pass through them, and they get out of the
-> way of full-screen apps. Linux is next. See [docs/plan.md](docs/plan.md).
+> way of full-screen apps.
+>
+> **Linux is written but unproven.** The Wayland head and the KWin script build, and nothing
+> has yet run them on a real Plasma session. See [docs/plan.md](docs/plan.md).
 
 ---
 
@@ -45,7 +48,15 @@ them — so build settings belong in `CMakeLists.txt`.
 cmake --build --preset windows-x64-debug
 ```
 
-On Linux:
+On Linux, the protocol definitions are submodules and the head has dependencies:
+
+```bash
+git submodule update --init --depth 1
+```
+
+```bash
+sudo apt install libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev
+```
 
 ```bash
 cmake --preset linux-x64 && cmake --build --preset linux-x64-debug
@@ -55,6 +66,11 @@ The Linux preset names `clang-22` rather than `clang`, because on Ubuntu 26.04 p
 `clang` is 21. Both are on the image, so nothing is installed — but picking up a different
 compiler than intended is the kind of thing that surfaces much later as a confusing
 diagnostic, so it is stated rather than inferred.
+
+`external/` holds `wayland-protocols` and `wlr-protocols` as submodules rather than copies
+of the two XML files, so that where each came from is recorded and updating is one command.
+`wayland-scanner` turns them into C at build time — a Wayland protocol is a data file, not
+a library, so there is nothing to link against.
 
 Ninja is the generator on Linux because there is no solution to open there -- it is a build
 executor, the counterpart to MSBuild, and CMake writes its input. On Windows the Visual
@@ -89,7 +105,8 @@ ctest --test-dir build/windows-x64 --build-config Debug --output-on-failure
 
 The simulation takes a world snapshot and a delta time and produces sprite positions, and a
 fake world is just a list of line segments — so the physics is tested with no compositor,
-no windows and no platform involved at all.
+no windows and no platform involved at all. Occlusion clipping is tested the same way: it
+is rectangles and a stacking order, and it is shared by both backends.
 
 ## Trying it
 
@@ -105,11 +122,29 @@ no windows and no platform involved at all.
 ./build/windows-x64/src/win/Debug/dragonperch.exe --pets 6
 ```
 
+On Linux the geometry has to come from the compositor, so install the KWin script first:
+
+```bash
+./kwin/install.sh
+```
+
+```bash
+./build/linux-x64/src/linux/dragonperch-wl --dump-world --hold
+```
+
+```bash
+./build/linux-x64/src/linux/dragonperch-wl --pets 6
+```
+
 The first draws an opaque quad, a half-transparent one overlapping it, and an outline,
 through DirectComposition on a click-through window. The second prints the walkable edges
 and reprints them whenever the desktop changes — drag a window and watch the numbers follow
 its title bar. The third is the app: it loads every mascot in `assets/` and shares the pets
 out between them, so that is six dragons, two of each.
+
+`--dump-world` on Linux is the same idea and the thing to run first on a new machine: it
+prints what KWin says and starts no renderer at all, so if the numbers follow a dragged
+window then the hard half works and anything still wrong on screen belongs to the renderer.
 
 Diagnostics go to stdout **and** to `dragonperch.log` beside the executable, because a
 GUI-subsystem binary cannot rely on having a console.
@@ -121,7 +156,7 @@ src/core/     portable. No OS headers — CI builds this alone to keep it that w
 src/win/      Windows head: DirectComposition + Direct2D + Win32.
 src/linux/    Linux head: layer-shell + EGL/GL.            (milestone 6)
 kwin/         KWin script. Runs inside the compositor, pushes geometry over D-Bus.
-protocols/    vendored Wayland XML.
+external/     upstream Wayland protocol XML, as submodules.
 tools/        the sprite-pack generators. Inkscape and Pillow, run by hand, not by CMake.
 assets/       one directory per mascot. CC BY-SA 4.0, not GPL — see assets/README.md.
 docs/plan.md  the plan of record, including findings that cost real time to establish.
