@@ -396,7 +396,7 @@ Each names how it is verified. No milestone is done because it compiles.
 | 2 | ~~Core simulation ported, Catch2 tests~~ **done** | 20 tests pass on both configurations; a fake world lands a pet exactly on the edge's row |
 | 3 | ~~`desktop_scanner` + `win_event_watcher`~~ **done** | `--dump-world` tracks a scripted window 12px per step; occlusion clips a maximised window to its visible run |
 | 4 | ~~Windows head end to end, placeholder sprites~~ **done** | Dragons render on the taskbar through DirectComposition; `--self-test` PASSes with a sprite over the click point; notification state stays `QUNS_ACCEPTS_NOTIFICATIONS` |
-| 5 | Fullscreen detection — hide pets on a monitor showing a fullscreen app | A fullscreen video hides them; leaving it brings them back |
+| 5 | ~~Fullscreen detection~~ **done** | A borderless full-screen window hides the pets on that monitor and closing it brings them back, in exactly two transitions |
 | 6 | Wayland layer-shell surface + EGL on Plasma | Dragons visible on Plasma Wayland; clicks pass through |
 | 7 | KWin script + sd-bus geometry | Pets stand on real Plasma title bars and ride dragged windows |
 | 8 | Konqi artwork replaces the placeholder | Looks like Konqi |

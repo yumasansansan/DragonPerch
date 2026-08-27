@@ -6,6 +6,7 @@ add_executable(dragonperch WIN32
     win_event_watcher.cpp
     overlay_window.cpp
     frame_clock.cpp
+    fullscreen.cpp
     gpu_device.cpp
     output_surface.cpp
     self_test.cpp

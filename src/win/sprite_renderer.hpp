@@ -29,11 +29,27 @@ public:
     [[nodiscard]] GpuDevice& device() noexcept { return device_; }
 
 private:
+    struct Overlay {
+        OutputSurface surface;
+
+        /// The real monitor rectangle. The overlay itself is a pixel shorter, and the
+        /// full-screen test has to compare against what the monitor actually is.
+        PixelRect monitor{};
+
+    };
+
     /// One pixel shorter than the monitor. See set_outputs.
     static constexpr int fullscreen_inset = 1;
 
+    // There is deliberately no hysteresis here. A borderless full-screen window opening and
+    // closing produces exactly two transitions, measured on an idle machine, so the signal
+    // does not need smoothing. If a real game turns out to flicker its foreground window
+    // while starting up, the remedy is to delay only the reappearance -- being hidden a
+    // moment too long costs nothing, and showing the pets over somebody's cutscene is the
+    // whole thing this exists to prevent.
+
     GpuDevice device_;
-    std::vector<OutputSurface> surfaces_;
+    std::vector<Overlay> overlays_;
     std::vector<ComPtr<ID2D1Bitmap1>> atlases_;
 
     std::vector<SpriteDraw> pending_;

@@ -52,6 +52,11 @@ public:
 
     void move_to(const PixelRect& bounds);
 
+    /// Hiding rather than merely skipping the draw: a hidden window is not composited at
+    /// all, so a monitor showing a full-screen game costs nothing.
+    void set_visible(bool visible);
+    [[nodiscard]] bool visible() const noexcept { return visible_; }
+
     /// Drains this thread's queue. Returns false once `WM_QUIT` has arrived.
     static bool pump();
 
@@ -63,6 +68,7 @@ private:
 
     HWND hwnd_ = nullptr;
     PixelRect bounds_{};
+    bool visible_ = true;
 };
 
 } // namespace dp::win

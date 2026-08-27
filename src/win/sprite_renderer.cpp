@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "sprite_renderer.hpp"
 
+#include "fullscreen.hpp"
+#include "log.hpp"
+
+#include <format>
+
 #include <utility>
 
 namespace dp::win {
@@ -12,13 +17,13 @@ SpriteRenderer::SpriteRenderer()
 
 void SpriteRenderer::set_outputs(std::span<const OutputInfo> outputs)
 {
-    surfaces_.clear();
-    surfaces_.reserve(outputs.size());
+    overlays_.clear();
+    overlays_.reserve(outputs.size());
 
     for (const OutputInfo& output : outputs) {
         PixelRect bounds = output.bounds;
         bounds.height -= fullscreen_inset;
-        surfaces_.push_back(OutputSurface::create(device_, bounds));
+        overlays_.push_back(Overlay{OutputSurface::create(device_, bounds), output.bounds});
     }
 
     previous_damage_ = {};
@@ -51,13 +56,28 @@ void SpriteRenderer::end_frame()
     // A pixel of slack so nothing is left behind by rounding at the edges.
     damage = damage.inflated(1, 1);
 
-    for (OutputSurface& surface : surfaces_) {
-        const PixelRect on_this_output = damage.intersect(surface.bounds());
+    for (Overlay& overlay : overlays_) {
+        // Checked every frame rather than on a timer: a game going full screen is exactly
+        // the moment the pets have to be gone.
+        const bool should_show = !fullscreen::covers(overlay.monitor);
+
+        if (should_show != overlay.surface.visible()) {
+            log_line(std::format("output ({},{}): {} a full-screen app",
+                                 overlay.monitor.left(), overlay.monitor.top(),
+                                 should_show ? "showing after" : "hiding for"));
+        }
+        overlay.surface.set_visible(should_show);
+
+        if (!should_show) {
+            continue;
+        }
+
+        const PixelRect on_this_output = damage.intersect(overlay.surface.bounds());
         if (on_this_output.empty()) {
             continue;
         }
 
-        surface.draw(on_this_output, [this](ID2D1DeviceContext* d2d) {
+        overlay.surface.draw(on_this_output, [this](ID2D1DeviceContext* d2d) {
             for (const SpriteDraw& sprite : pending_) {
                 if (sprite.atlas_id < 0
                     || static_cast<std::size_t>(sprite.atlas_id) >= atlases_.size()) {
@@ -106,7 +126,7 @@ void SpriteRenderer::end_frame()
 
     // One commit for every surface, rather than one per surface: the frame lands on all
     // monitors together.
-    if (!surfaces_.empty()) {
+    if (!overlays_.empty()) {
         check(device_.dcomp()->Commit(), "IDCompositionDesktopDevice::Commit");
     }
 

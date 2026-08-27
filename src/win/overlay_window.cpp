@@ -101,6 +101,18 @@ void OverlayWindow::move_to(const PixelRect& bounds)
     bounds_ = bounds;
 }
 
+void OverlayWindow::set_visible(bool visible)
+{
+    if (visible == visible_) {
+        return;
+    }
+
+    // SW_SHOWNA, not SW_SHOW: coming back must not steal focus from whatever the user
+    // switched to.
+    ShowWindow(hwnd_, visible ? SW_SHOWNA : SW_HIDE);
+    visible_ = visible;
+}
+
 bool OverlayWindow::pump()
 {
     MSG msg{};

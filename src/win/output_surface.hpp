@@ -27,6 +27,9 @@ public:
 
     [[nodiscard]] const PixelRect& bounds() const noexcept { return window_.bounds(); }
 
+    void set_visible(bool visible) { window_.set_visible(visible); }
+    [[nodiscard]] bool visible() const noexcept { return window_.visible(); }
+
     /// Opens a drawing session over `dirty` (in global coordinates), hands the Direct2D
     /// context to `draw`, then closes it. The caller commits once for all surfaces.
     ///
