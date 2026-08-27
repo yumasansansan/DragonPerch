@@ -51,3 +51,6 @@ target_link_libraries(dragonperch-wl PRIVATE
 
 target_include_directories(dragonperch-wl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(dragonperch-wl PRIVATE DRAGONPERCH_VERSION="${PROJECT_VERSION}")
+
+include(GNUInstallDirs)
+install(TARGETS dragonperch-wl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

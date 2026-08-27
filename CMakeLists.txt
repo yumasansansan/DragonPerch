@@ -43,3 +43,27 @@ include(CTest)
 if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
+
+if(UNIX AND NOT APPLE)
+    include(GNUInstallDirs)
+
+    # The artwork. Found relative to the executable rather than through a configure-time
+    # path, so /usr/bin/dragonperch-wl looks in /usr/share/dragonperch and the same binary
+    # unpacked into a home directory still finds it -- see find_sprite_packs.
+    install(DIRECTORY assets/
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/dragonperch/assets
+        FILES_MATCHING PATTERN "*.ini" PATTERN "*.png"
+        PATTERN "source" EXCLUDE)
+
+    # Into KWin's own script directory, so it appears in System Settings -> Window
+    # Management -> KWin Scripts and only has to be ticked. It is still not enabled by
+    # installing it: a package that starts running code inside somebody's compositor
+    # without being asked would deserve everything it got.
+    install(DIRECTORY kwin/dragonperch-geometry
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/kwin/scripts)
+
+    install(FILES packaging/dragonperch.desktop
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+
+    include(Packaging)
+endif()

@@ -149,6 +149,29 @@ window then the hard half works and anything still wrong on screen belongs to th
 Diagnostics go to stdout **and** to `dragonperch.log` beside the executable, because a
 GUI-subsystem binary cannot rely on having a console.
 
+## Packages
+
+Every build of `main` publishes a rolling **`nightly`** pre-release, and every CI run
+attaches the same files as artifacts for fourteen days. Both come from the one set of
+`install()` rules, so what is tested is what is shipped.
+
+| File | What to do with it |
+|---|---|
+| `dragonperch_0.1.0_amd64.deb` | `sudo apt install ./dragonperch_*.deb` |
+| `dragonperch-0.1.0-Linux.tar.gz` | unpack anywhere and run `usr/bin/dragonperch-wl` |
+| `dragonperch-windows-x64.zip` | unpack and run `dragonperch.exe` |
+
+The artwork is found relative to the executable, so an unpacked tarball works without being
+installed and without an environment variable. Installing the package does **not** enable
+the KWin script and does **not** start anything at login — a program that puts dragons on
+somebody's screen because a dependency pulled it in is a program that gets uninstalled.
+
+To build them yourself:
+
+```bash
+cmake --build --preset linux-x64-release && cd build/linux-x64 && cpack -C Release
+```
+
 ## Layout
 
 ```
@@ -158,6 +181,7 @@ src/linux/    Linux head: layer-shell + EGL/GL.            (milestone 6)
 kwin/         KWin script. Runs inside the compositor, pushes geometry over D-Bus.
 external/     upstream Wayland protocol XML, as submodules.
 tools/        the sprite-pack generators. Inkscape and Pillow, run by hand, not by CMake.
+packaging/    the .desktop file. Everything else about packaging is cmake/Packaging.cmake.
 assets/       one directory per mascot. CC BY-SA 4.0, not GPL — see assets/README.md.
 docs/plan.md  the plan of record, including findings that cost real time to establish.
 ```

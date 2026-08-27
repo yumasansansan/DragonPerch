@@ -56,10 +56,29 @@ std::vector<std::filesystem::path> find_sprite_packs(const std::filesystem::path
 {
     // Konqi is what identifies the directory: an `assets` folder that does not contain him
     // is somebody else's.
-    std::filesystem::path directory = start;
+    const auto holds_artwork = [](const std::filesystem::path& assets) {
+        return std::filesystem::exists(assets / "konqi/konqi.ini");
+    };
+
+    std::filesystem::path assets;
     bool found = false;
-    for (int i = 0; i < 8; ++i) {
-        if (std::filesystem::exists(directory / "assets/konqi/konqi.ini")) {
+
+    // An installed copy first, and relative to the executable rather than to a path baked
+    // in at configure time -- `/usr/bin/dragonperch-wl` looks in `/usr/share/dragonperch`,
+    // and the same binary unpacked anywhere else still finds its own artwork.
+    for (const char* relative : {"assets", "../share/dragonperch/assets"}) {
+        if (holds_artwork(start / relative)) {
+            assets = start / relative;
+            found = true;
+            break;
+        }
+    }
+
+    // Then up the tree, which is what running straight out of a build directory needs.
+    std::filesystem::path directory = start;
+    for (int i = 0; i < 8 && !found; ++i) {
+        if (holds_artwork(directory / "assets")) {
+            assets = directory / "assets";
             found = true;
             break;
         }
@@ -78,7 +97,7 @@ std::vector<std::filesystem::path> find_sprite_packs(const std::filesystem::path
     // dragon spawns where does not depend on the order the filesystem hands them back.
     std::vector<std::filesystem::path> packs;
     std::error_code failed;
-    for (const auto& entry : std::filesystem::directory_iterator{directory / "assets", failed}) {
+    for (const auto& entry : std::filesystem::directory_iterator{assets, failed}) {
         std::filesystem::path candidate =
             entry.path() / (entry.path().filename().string() + ".ini");
         if (entry.is_directory() && std::filesystem::exists(candidate)) {
