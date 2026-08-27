@@ -397,10 +397,17 @@ Each names how it is verified. No milestone is done because it compiles.
 | 3 | ~~`desktop_scanner` + `win_event_watcher`~~ **done** | `--dump-world` tracks a scripted window 12px per step; occlusion clips a maximised window to its visible run |
 | 4 | ~~Windows head end to end, placeholder sprites~~ **done** | Dragons render on the taskbar through DirectComposition; `--self-test` PASSes with a sprite over the click point; notification state stays `QUNS_ACCEPTS_NOTIFICATIONS` |
 | 5 | ~~Fullscreen detection~~ **done** | A borderless full-screen window hides the pets on that monitor and closing it brings them back, in exactly two transitions |
-| 6 | Wayland layer-shell surface + EGL on Plasma | Dragons visible on Plasma Wayland; clicks pass through |
-| 7 | KWin script + sd-bus geometry | Pets stand on real Plasma title bars and ride dragged windows |
+| 6 | Wayland layer-shell surface + EGL on Plasma | **written, unverified** -- builds in CI, but nothing has run it on a compositor. Dragons visible on Plasma Wayland; clicks pass through |
+| 7 | KWin script + sd-bus geometry | **written, unverified** -- `--dump-world` is the check. Pets stand on real Plasma title bars and ride dragged windows |
 | 8 | ~~KDE mascot artwork replaces the placeholder~~ **done** | Konqi, Katie and Kori walk on the taskbar together, each facing the way it is going; the two that carry KDE's K draw both directions rather than mirroring |
 | 9 | X11 fallback, wlroots adapters, settings apps | — |
+
+Milestones 6 and 7 are written but **not** ticked off, and will not be until they have run
+on a Plasma session. CI compiles them, which on the Windows side was never once enough:
+every real finding in this document came from running something and reading a number back.
+The order to check them in is `--dump-world` first -- that is milestone 7 alone, with no
+EGL, no surfaces and no pets, so a failure there cannot be blamed on the renderer -- and
+only then the pets.
 
 Milestone 1 is deliberately tiny and first, because it is the one remaining unknown in the
 Windows design. If composition content will not render on a layered window, the whole

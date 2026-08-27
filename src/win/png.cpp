@@ -8,7 +8,7 @@
 
 namespace dp::win {
 
-DecodedImage decode_image(const std::filesystem::path& file)
+dp::DecodedImage decode_image(const std::filesystem::path& file)
 {
     // WIC rather than a bundled decoder. It is part of Windows, it reads PNG, and asking it
     // for 32bppPBGRA gets the premultiplied layout the renderer wants without a conversion
@@ -46,7 +46,7 @@ DecodedImage decode_image(const std::filesystem::path& file)
     }
 
     const UINT stride = width * 4;
-    DecodedImage image;
+    dp::DecodedImage image;
     image.size = PixelSize{static_cast<int>(width), static_cast<int>(height)};
     image.pixels.resize(static_cast<std::size_t>(stride) * height);
 

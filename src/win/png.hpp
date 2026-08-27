@@ -2,18 +2,13 @@
 #pragma once
 
 #include "dragonperch/geometry.hpp"
+#include "dragonperch/pack_library.hpp"
 
 #include <cstddef>
 #include <filesystem>
 #include <span>
-#include <vector>
 
 namespace dp::win {
-
-struct DecodedImage {
-    std::vector<std::byte> pixels; ///< Premultiplied BGRA, top-down, stride = width * 4.
-    PixelSize size{};
-};
 
 /// Decodes an image file into the layout the renderer registers atlases in.
 /// Throws std::system_error or std::runtime_error on failure.

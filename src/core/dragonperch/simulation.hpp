@@ -34,7 +34,7 @@ public:
     [[nodiscard]] int id() const noexcept { return id_; }
     [[nodiscard]] const SpritePack& pack() const noexcept { return *pack_; }
 
-    /// Feet position, global physical pixels.
+    /// Feet position, in the shared desktop space.
     [[nodiscard]] PixelPoint position() const noexcept { return position_; }
 
     [[nodiscard]] PetState state() const noexcept { return state_; }

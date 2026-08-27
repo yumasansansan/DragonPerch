@@ -9,7 +9,7 @@
 
 namespace dp {
 
-/// One sprite blit, in global physical pixels.
+/// One sprite blit, in the shared desktop space -- see PixelPoint.
 struct SpriteDraw {
     int atlas_id = 0;
     PixelRect source{};

@@ -6,13 +6,18 @@
 
 namespace dp {
 
-/// A point in the one coordinate space the whole program shares: global **physical
-/// pixels**, origin at the top-left of the virtual desktop, Y down.
+/// A point in the one coordinate space the whole program shares: the desktop laid out as
+/// the windowing system lays it out, origin at the top-left, Y down.
 ///
-/// Backends convert to and from their native space at the very edge. On Wayland that means
-/// dividing by the output scale before `set_margin`, which takes logical coordinates; on
-/// Windows it means the process is per-monitor-v2 DPI aware so the values already are
-/// physical. Nothing above a backend knows that scale exists.
+/// **Which unit that is, is the backend's choice** -- the core only requires that one
+/// backend uses one unit for everything it reports. Windows uses physical pixels, because
+/// a per-monitor-v2 aware process is given them and Windows arranges monitors in them.
+/// Wayland uses *logical* units, because it has to: each output carries its own integer
+/// scale, so multiplying every output's position by its own scale tears the desktop into
+/// overlapping and gapped rectangles. There is no coherent global physical space to use.
+///
+/// `OutputInfo::scale` carries the factor so a renderer can pick a texture size and convert
+/// at the very edge. Nothing above a backend reads it.
 struct PixelPoint {
     int x = 0;
     int y = 0;
@@ -44,7 +49,7 @@ constexpr PixelOffset operator-(PixelPoint a, PixelPoint b) noexcept
     return {a.x - b.x, a.y - b.y};
 }
 
-/// Axis-aligned rectangle in global physical pixels. Half-open: `left <= x < right`.
+/// Axis-aligned rectangle in the shared desktop space. Half-open: `left <= x < right`.
 struct PixelRect {
     int x = 0;
     int y = 0;

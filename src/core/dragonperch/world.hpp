@@ -61,11 +61,12 @@ struct WalkableEdge {
     [[nodiscard]] constexpr bool contains_x(int x) const noexcept { return x >= left && x < right; }
 };
 
-/// A monitor, in global physical pixels.
+/// A monitor, in the shared desktop space -- see PixelPoint for what that means.
 ///
-/// `scale` is physical pixels per logical pixel. The core does not lay anything out with
-/// it; it is carried so a renderer can pick a sprite size and convert back to whatever its
-/// windowing system expects.
+/// `scale` is physical pixels per unit of that space: 1 on Windows, where the space is
+/// already physical, and the output's own scale factor on Wayland, where it is not. The
+/// core does not lay anything out with it; it is carried so a renderer can pick a sprite
+/// size and convert back to whatever its windowing system expects.
 struct OutputInfo {
     std::int64_t id = 0;
     PixelRect bounds{};

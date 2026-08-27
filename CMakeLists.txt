@@ -9,9 +9,17 @@ project(DragonPerch
 
 if(WIN32)
     enable_language(RC)
+elseif(UNIX AND NOT APPLE)
+    # wayland-scanner emits C, and the project is otherwise C++ only. Enabling a language
+    # has to happen at the top level, not in the subdirectory that needs it.
+    enable_language(C)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+if(UNIX AND NOT APPLE)
+    include(WaylandProtocol)
+endif()
 
 # Every compiler and linker flag lives in one place. See cmake/CompilerOptions.cmake, which
 # defines the DragonPerch::options interface target that each real target links.
@@ -28,7 +36,7 @@ add_subdirectory(src/core)
 if(WIN32)
     add_subdirectory(src/win)
 elseif(UNIX AND NOT APPLE)
-    # add_subdirectory(src/linux)   # milestone 6
+    add_subdirectory(src/linux)
 endif()
 
 include(CTest)

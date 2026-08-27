@@ -2,22 +2,22 @@
 #pragma once
 
 #include "dragonperch/pack_library.hpp"
-#include "sprite_renderer.hpp"
+#include "dragonperch/render.hpp"
 
 #include <filesystem>
 #include <optional>
 #include <vector>
 
-namespace dp::win {
+namespace dp::wl {
 
-/// The core's pack loader, wired to WIC and to where this executable lives.
+/// The core's pack loader, wired to libpng and to where this executable lives.
 ///
 /// The finding and the parsing are in `dragonperch/pack_library.hpp`, shared with the
-/// Wayland head. All that is platform-specific about it is which library decodes the PNG.
+/// Windows head. All that is platform-specific about it is which library decodes the PNG.
 [[nodiscard]] std::optional<SpritePack> load_sprite_pack(const std::filesystem::path& definition,
-                                                         SpriteRenderer& renderer);
+                                                         ISpriteRenderer& renderer);
 
 /// Every pack shipped with the build, when none is named on the command line.
 [[nodiscard]] std::vector<std::filesystem::path> default_sprite_pack_paths();
 
-} // namespace dp::win
+} // namespace dp::wl

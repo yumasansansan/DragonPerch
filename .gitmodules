@@ -1,0 +1,8 @@
+[submodule "external/wayland-protocols"]
+	path = external/wayland-protocols
+	url = https://gitlab.freedesktop.org/wayland/wayland-protocols.git
+	shallow = true
+[submodule "external/wlr-protocols"]
+	path = external/wlr-protocols
+	url = https://gitlab.freedesktop.org/wlroots/wlr-protocols.git
+	shallow = true

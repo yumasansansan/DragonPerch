@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "desktop_scanner.hpp"
 
+#include "dragonperch/edge_builder.hpp"
+
 #include "log.hpp"
 #include "win_headers.hpp"
 
@@ -13,111 +15,13 @@
 namespace dp::win::desktop_scanner {
 namespace {
 
-/// A candidate window, before occlusion is taken into account.
-struct Candidate {
-    std::int64_t id = 0;
-    RECT frame{};
-    int z = 0;
-};
-
 struct WindowScanState {
-    std::vector<Candidate> candidates;
+    std::vector<WindowCandidate> candidates;
     HWND shell = nullptr;
     int z = 0;
 };
 
-/// Longest sub-interval of [left, right) not covered by `covers`.
-///
-/// `covers` is sorted in place; the caller does not need it afterwards.
-std::pair<int, int> longest_visible_run(int left, int right, std::vector<std::pair<int, int>>& covers)
-{
-    if (covers.empty()) {
-        return {left, right};
-    }
-
-    std::ranges::sort(covers, {}, &std::pair<int, int>::first);
-
-    int best_left = left;
-    int best_right = left;
-    int cursor = left;
-
-    for (const auto& [cover_left, cover_right] : covers) {
-        if (cover_left > cursor && cover_left - cursor > best_right - best_left) {
-            best_left = cursor;
-            best_right = cover_left;
-        }
-
-        cursor = std::max(cursor, cover_right);
-        if (cursor >= right) {
-            return {best_left, best_right};
-        }
-    }
-
-    if (right - cursor > best_right - best_left) {
-        best_left = cursor;
-        best_right = right;
-    }
-
-    return {best_left, best_right};
-}
-
-/// Clips each window's top edge to the part of it that is actually visible.
-///
-/// Not optional. Without it three maximised windows produce three identical full-width
-/// ledges at y=0, and since the overlay always draws on top, a pet standing on a buried
-/// ledge appears to float over the window covering it.
-///
-/// Only the longest visible run is kept, so a window whose title bar is interrupted in the
-/// middle contributes one segment rather than several. The core looks a perch up by owner
-/// id and takes a single match, so several segments for one window would make a walking pet
-/// teleport between them. One segment per window is the honest fit for that model;
-/// splitting properly means giving edges their own identity, which is a change to the core.
-void emit_window_edges(std::vector<Candidate>& candidates, std::vector<WalkableEdge>& edges)
-{
-    // Topmost first, so everything before index i is a potential occluder of i.
-    std::ranges::sort(candidates, std::ranges::greater{}, &Candidate::z);
-
-    std::vector<std::pair<int, int>> occluders;
-
-    for (std::size_t i = 0; i < candidates.size(); ++i) {
-        const Candidate& candidate = candidates[i];
-        const int scanline = candidate.frame.top;
-
-        occluders.clear();
-        for (std::size_t j = 0; j < i; ++j) {
-            const RECT& above = candidates[j].frame;
-
-            // Does the window above cover the row this title bar occupies?
-            if (above.top > scanline || above.bottom <= scanline) {
-                continue;
-            }
-
-            const int cover_left = std::max(above.left, candidate.frame.left);
-            const int cover_right = std::min(above.right, candidate.frame.right);
-            if (cover_left < cover_right) {
-                occluders.emplace_back(cover_left, cover_right);
-            }
-        }
-
-        const auto [visible_left, visible_right] =
-            longest_visible_run(candidate.frame.left, candidate.frame.right, occluders);
-
-        if (visible_right - visible_left < minimum_window_width) {
-            continue;
-        }
-
-        edges.push_back(WalkableEdge{
-            .owner_id = candidate.id,
-            .y = scanline,
-            .left = visible_left,
-            .right = visible_right,
-            .kind = EdgeKind::window_top,
-            .z_order = candidate.z,
-        });
-    }
-}
-
-bool describe(HWND hwnd, int z, Candidate& out)
+bool describe(HWND hwnd, int z, WindowCandidate& out)
 {
     if (IsWindowVisible(hwnd) == FALSE || IsIconic(hwnd) != FALSE) {
         return false;
@@ -163,7 +67,12 @@ bool describe(HWND hwnd, int z, Candidate& out)
         return false;
     }
 
-    out = Candidate{reinterpret_cast<std::int64_t>(hwnd), frame, z};
+    out = WindowCandidate{
+        .id = reinterpret_cast<std::int64_t>(hwnd),
+        .frame = PixelRect::from_edges(frame.left, frame.top, frame.right, frame.bottom),
+        .z = z,
+        .kind = EdgeKind::window_top,
+    };
     return true;
 }
 
@@ -171,7 +80,7 @@ BOOL CALLBACK enum_window(HWND hwnd, LPARAM lparam)
 {
     auto& state = *reinterpret_cast<WindowScanState*>(lparam);
 
-    Candidate candidate;
+    WindowCandidate candidate;
     if (hwnd != state.shell && describe(hwnd, state.z, candidate)) {
         state.candidates.push_back(candidate);
     }
@@ -192,8 +101,9 @@ void scan_windows(std::vector<WalkableEdge>& edges)
     EnumWindows(&enum_window, reinterpret_cast<LPARAM>(&state));
 
     // Full rectangles are needed before any edge can be emitted, because whether a title bar
-    // is walkable depends on every window stacked above it.
-    emit_window_edges(state.candidates, edges);
+    // is walkable depends on every window stacked above it. The clipping itself is pure
+    // geometry and lives in the core, shared with the KWin provider.
+    append_window_edges(state.candidates, minimum_window_width, edges);
 }
 
 BOOL CALLBACK enum_monitor(HMONITOR monitor, HDC, LPRECT, LPARAM lparam)

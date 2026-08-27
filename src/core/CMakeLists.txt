@@ -5,8 +5,10 @@
 # target on its own to keep that honest.
 
 add_library(dragonperch_core STATIC
+    dragonperch/edge_builder.cpp
     dragonperch/geometry.cpp
     dragonperch/host.cpp
+    dragonperch/pack_library.cpp
     dragonperch/placeholder_pack.cpp
     dragonperch/simulation.cpp
     dragonperch/sprite_pack_file.cpp

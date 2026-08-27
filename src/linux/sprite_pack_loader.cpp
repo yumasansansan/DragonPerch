@@ -3,22 +3,22 @@
 
 #include "log.hpp"
 #include "png.hpp"
-#include "win_headers.hpp"
 
-#include <array>
 #include <format>
 #include <string>
-#include <utility>
+#include <system_error>
 
-namespace dp::win {
+namespace dp::wl {
 namespace {
 
 std::filesystem::path executable_directory()
 {
-    std::array<wchar_t, MAX_PATH> buffer{};
-    const DWORD length = GetModuleFileNameW(nullptr, buffer.data(),
-                                            static_cast<DWORD>(buffer.size()));
-    return std::filesystem::path{std::wstring_view{buffer.data(), length}}.parent_path();
+    std::error_code failed;
+    const std::filesystem::path self = std::filesystem::read_symlink("/proc/self/exe", failed);
+    if (failed) {
+        return std::filesystem::current_path();
+    }
+    return self.parent_path();
 }
 
 } // namespace
@@ -26,13 +26,13 @@ std::filesystem::path executable_directory()
 std::vector<std::filesystem::path> default_sprite_pack_paths()
 {
     // Beside the executable first -- that is where an install puts it -- then up the tree,
-    // so running straight out of build/windows-x64/src/win/Debug also finds the assets in
-    // the source checkout.
+    // so running straight out of build/linux-x64/src/linux also finds the assets in the
+    // source checkout.
     return find_sprite_packs(executable_directory());
 }
 
 std::optional<SpritePack> load_sprite_pack(const std::filesystem::path& definition,
-                                           SpriteRenderer& renderer)
+                                           ISpriteRenderer& renderer)
 {
     std::optional<SpritePack> pack = dp::load_sprite_pack(definition, renderer, &decode_image);
     if (!pack.has_value()) {
@@ -48,4 +48,4 @@ std::optional<SpritePack> load_sprite_pack(const std::filesystem::path& definiti
     return pack;
 }
 
-} // namespace dp::win
+} // namespace dp::wl

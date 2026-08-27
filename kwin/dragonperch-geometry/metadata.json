@@ -1,0 +1,19 @@
+{
+    "KPackageStructure": "KWin/Script",
+    "KPlugin": {
+        "Id": "dragonperch-geometry",
+        "Name": "DragonPerch geometry",
+        "Description": "Tells DragonPerch where the windows are, which a Wayland client cannot find out for itself.",
+        "Icon": "preferences-system-windows",
+        "License": "GPL-3.0-or-later",
+        "Version": "0.1.0",
+        "EnabledByDefault": false,
+        "Authors": [
+            {
+                "Name": "DragonPerch contributors"
+            }
+        ]
+    },
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}

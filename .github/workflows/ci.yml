@@ -10,6 +10,9 @@ on:
 # ubuntu-26.04 has Clang 22, CMake and Ninja; windows-2025-vs2026 has Visual Studio 2026,
 # and the Visual Studio generator configures MSVC itself. Installing any of it again could
 # only pin something older than the image already has.
+#
+# The apt step on the Linux job is a different thing: those are the *dependencies* the
+# Wayland head links against, not a compiler. The image has no reason to carry them.
 jobs:
   linux:
     name: linux (Clang 22, ${{ matrix.configuration }})
@@ -19,7 +22,18 @@ jobs:
       matrix:
         configuration: [Debug, Release]
     steps:
+      # The Wayland protocol definitions are submodules -- see cmake/WaylandProtocol.cmake
+      # for why they are not copied into the tree.
       - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      # wayland-scanner turns the protocol XML into C; the rest is what the head links
+      # against. libsystemd is there for sd-bus, which is how the KWin script reaches us.
+      - name: Install the Wayland head's dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev
 
       # The preset names clang-22 rather than clang, because plain `clang` on this image is
       # 21 and picking up a different compiler than intended is the kind of thing that only
