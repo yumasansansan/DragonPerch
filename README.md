@@ -8,9 +8,9 @@ Dragons walk along the top edge of your windows, sit on your taskbar, and fall o
 drag the window out from under them. C++23, GPU rendering, as close to the platform as
 practical.
 
-> Status: **milestone 5.** Dragons render on the desktop, on the GPU, clicks pass through
-> them, and they get out of the way of full-screen apps. The sprites are a procedural
-> placeholder until Konqi's artwork lands. See [docs/plan.md](docs/plan.md).
+> Status: **Windows works.** Konqi walks on your title bars and taskbar, drawn on the GPU;
+> clicks pass through him, and he gets out of the way of full-screen apps. Linux is next.
+> See [docs/plan.md](docs/plan.md).
 
 ---
 
