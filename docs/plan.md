@@ -132,14 +132,14 @@ workflow.)
 
 | | Windows | Linux |
 |---|---|---|
-| Compiler | MSVC 19.51 (VS 2026) | Clang 23, pinned |
+| Compiler | MSVC 19.51 (VS 2026) | Clang 22, named explicitly |
 | Generator | Visual Studio 18 2026 | Ninja Multi-Config |
 | Standard | C++23 | C++23 |
 | CI image | `windows-2025-vs2026` | `ubuntu-26.04` |
 
-Windows CI installs nothing: the image carries Visual Studio 2026 and the generator
-configures MSVC itself. Linux pins Clang 23, which the image does not yet carry (it ships
-20, 21 and 22), so one fetch step remains until it does.
+CI installs nothing on either platform. The Windows image carries Visual Studio 2026 and
+the generator configures MSVC itself; the Linux image carries Clang 22. The preset names
+`clang-22` rather than `clang`, since plain `clang` on Ubuntu 26.04 is 21.
 
 One compiler per platform rather than several. Building with both Clang and GCC would be a
 better portability check, and this trades that away for a simpler pipeline.

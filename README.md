@@ -50,9 +50,10 @@ On Linux:
 cmake --preset linux-x64 && cmake --build --preset linux-x64-debug
 ```
 
-The Linux preset pins Clang 23 explicitly rather than taking whatever `clang++` resolves
-to. ubuntu-26.04 ships Clang 20, 21 and 22, so CI fetches 23; that step disappears by
-itself once the image carries it.
+The Linux preset names `clang-22` rather than `clang`, because on Ubuntu 26.04 plain
+`clang` is 21. Both are on the image, so nothing is installed — but picking up a different
+compiler than intended is the kind of thing that surfaces much later as a confusing
+diagnostic, so it is stated rather than inferred.
 
 Ninja is the generator on Linux because there is no solution to open there -- it is a build
 executor, the counterpart to MSBuild, and CMake writes its input. On Windows the Visual

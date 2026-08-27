@@ -18,13 +18,13 @@
 
     {
       "name": "linux-x64",
-      "displayName": "Linux x64 (Clang 23)",
+      "displayName": "Linux x64 (Clang 22)",
       "inherits": "base",
       "generator": "Ninja Multi-Config",
       "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Linux" },
       "cacheVariables": {
-        "CMAKE_C_COMPILER": "clang-23",
-        "CMAKE_CXX_COMPILER": "clang++-23"
+        "CMAKE_C_COMPILER": "clang-22",
+        "CMAKE_CXX_COMPILER": "clang++-22"
       }
     }
   ],

@@ -6,17 +6,13 @@ on:
     branches: [main]
   pull_request:
 
-env:
-  # Keep in sync with the compiler pinned in CMakePresets.json.
-  #
-  # ubuntu-26.04 ships Clang 20, 21 and 22 -- not 23 -- so the step below fetches it. That
-  # step is a no-op once the image carries this version, and switching back to a version the
-  # image already has removes the install entirely.
-  LLVM_VERSION: "23"
-
+# No toolchain setup anywhere in this file. Both images already carry everything:
+# ubuntu-26.04 has Clang 22, CMake and Ninja; windows-2025-vs2026 has Visual Studio 2026,
+# and the Visual Studio generator configures MSVC itself. Installing any of it again could
+# only pin something older than the image already has.
 jobs:
   linux:
-    name: linux (Clang ${{ matrix.configuration }})
+    name: linux (Clang 22, ${{ matrix.configuration }})
     runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
@@ -25,17 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Ensure Clang ${{ env.LLVM_VERSION }}
-        run: |
-          set -euo pipefail
-          if command -v "clang++-${LLVM_VERSION}" >/dev/null 2>&1; then
-            echo "clang++-${LLVM_VERSION} is already on the image"
-            exit 0
-          fi
-          wget -qO llvm.sh https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh "${LLVM_VERSION}"
-
+      # The preset names clang-22 rather than clang, because plain `clang` on this image is
+      # 21 and picking up a different compiler than intended is the kind of thing that only
+      # shows up as a confusing diagnostic much later.
       - name: Configure
         run: cmake --preset linux-x64
 
@@ -49,7 +37,7 @@ jobs:
         run: cmake --build build/linux-x64 --config ${{ matrix.configuration }}
 
   windows:
-    name: windows (MSVC ${{ matrix.configuration }})
+    name: windows (MSVC, ${{ matrix.configuration }})
     runs-on: windows-2025-vs2026
     strategy:
       fail-fast: false
@@ -58,9 +46,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # No toolchain setup step. The image carries Visual Studio 2026, and the Visual Studio
-      # generator locates and configures MSVC itself -- so CI builds through the same
-      # solution a developer opens locally rather than a parallel configuration that drifts.
+      # CI builds through the same solution a developer opens locally, rather than a
+      # parallel configuration that drifts.
       - name: Configure
         run: cmake --preset windows-x64
 
