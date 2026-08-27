@@ -10,22 +10,20 @@
 #   target_compile_options -> cl.exe   / clang++     (compiler)
 #   target_link_options    -> link.exe / clang++ -o  (linker)
 #
-# MSVC is the case worth spelling out, because the two tools take different flags and a
-# linker flag handed to the compiler is silently ignored rather than rejected:
+# MSVC is worth spelling out, because the two tools take different flags and a linker flag
+# handed to the compiler is silently ignored rather than rejected:
 #
-#   /O2 /Oi /Ot /GL      compiler  (cl.exe)   -- optimisation, whole-program analysis
-#   /LTCG /OPT:REF       linker    (link.exe) -- link-time code generation, dead stripping
+#   /O2 /Oi /Ot /Gy /GL        compiler  (cl.exe)
+#   /LTCG /OPT:REF /OPT:ICF    linker    (link.exe)
 #
-# /GL and /LTCG are a pair: /GL makes cl emit IL instead of machine code, and /LTCG makes
-# link generate the code. Using one without the other is either a warning or a silent loss
-# of the optimisation. CMake pairs them for you through
-# CMAKE_INTERPROCEDURAL_OPTIMIZATION, which is why LTO below is expressed that way rather
-# than by writing the flags out.
+# Multi-config generators -- Visual Studio, Ninja Multi-Config -- choose the configuration
+# at build time, not at configure time. `if(CMAKE_BUILD_TYPE STREQUAL "Release")` is
+# therefore meaningless here and would silently do nothing. Use generator expressions,
+# $<$<CONFIG:Release>:...>, which are evaluated per configuration.
 #
-# Multi-config generators (Visual Studio, Ninja Multi-Config) choose the configuration at
-# build time, not at configure time. `if(CMAKE_BUILD_TYPE STREQUAL "Release")` is therefore
-# meaningless here and would silently do nothing. Use generator expressions --
-# $<$<CONFIG:Release>:...> -- which are evaluated per configuration.
+# One expression per flag. Wrapping several in a single $<$<CONFIG:Release>: ... > spanning
+# multiple lines happens to work, but relies on how CMake splits unquoted arguments; one
+# flag per expression cannot be misread.
 
 add_library(dragonperch_options INTERFACE)
 add_library(DragonPerch::options ALIAS dragonperch_options)
@@ -59,10 +57,7 @@ endif()
 # Optimisation
 # ---------------------------------------------------------------------------------------
 # This is the block to extend. Release-only flags go inside $<$<CONFIG:Release>:...>;
-# anything outside it applies to Debug too, which is almost never what is wanted.
-# One generator expression per flag. Wrapping several flags in a single
-# $<$<CONFIG:Release>: ... > spanning multiple lines happens to work, but it relies on how
-# CMake splits unquoted arguments; one flag per expression cannot be misread.
+# anything outside applies to Debug too, which is almost never wanted.
 if(MSVC)
     target_compile_options(dragonperch_options INTERFACE
         $<$<CONFIG:Release>:/O2>    # maximise speed
@@ -72,9 +67,9 @@ if(MSVC)
         $<$<CONFIG:Release>:/GR->)  # no RTTI; nothing here uses dynamic_cast or typeid
 
     target_link_options(dragonperch_options INTERFACE
-        $<$<CONFIG:Release>:/OPT:REF>        # discard unreferenced functions and data
-        $<$<CONFIG:Release>:/OPT:ICF>        # fold identical COMDATs
-        $<$<CONFIG:Release>:/INCREMENTAL:NO>)# incremental linking defeats both of the above
+        $<$<CONFIG:Release>:/OPT:REF>         # discard unreferenced functions and data
+        $<$<CONFIG:Release>:/OPT:ICF>         # fold identical COMDATs
+        $<$<CONFIG:Release>:/INCREMENTAL:NO>) # incremental linking defeats both of the above
 else()
     target_compile_options(dragonperch_options INTERFACE
         $<$<CONFIG:Release>:-O3>
@@ -91,9 +86,34 @@ endif()
 # ---------------------------------------------------------------------------------------
 # Link-time optimisation
 # ---------------------------------------------------------------------------------------
-# Expressed through CMake rather than as raw flags so the compiler and linker halves stay
-# paired: /GL with /LTCG on MSVC, -flto on Clang and GCC. Checked rather than assumed,
-# because a toolchain that cannot do it fails at link time with a confusing message.
+# The odd one out: not a flag on the interface target above, but a global CMake setting.
+# Three reasons, in increasing order of how much they matter.
+#
+# 1. It could not go on the interface target even if that were tidier.
+#    INTERPROCEDURAL_OPTIMIZATION is a *target property*, and target properties do not
+#    travel through target_link_libraries the way compile and link options do. Only the
+#    consuming target can carry it.
+#
+# 2. One line covers both toolchains. It expands to /GL plus /LTCG on MSVC and to -flto on
+#    Clang and GCC, so the if(MSVC)/else() split above does not grow a third arm whose two
+#    halves have to be kept in agreement by hand.
+#
+# 3. LTO is not only a compiler and linker concern -- it changes the archiver too, and this
+#    project builds a static library. Writing $<$<CONFIG:Release>:/GL> and
+#    $<$<CONFIG:Release>:/LTCG> by hand does work on MSVC: it was measured, and produced a
+#    binary 512 bytes from the one this produces, with no warnings either way. But
+#    target_link_options does not reach lib.exe for a static library, and on Clang or GCC
+#    the same gap is worse -- -flto objects placed in an archive by plain `ar` give
+#    "archive has no index" or undefined symbols at link, because the LTO plugin is never
+#    loaded. CMake covers that by switching CMAKE_AR and CMAKE_RANLIB to the LLVM or GCC
+#    wrappers when IPO is on.
+#
+#    The MSVC half of point 3 was verified on this machine. The Unix half is CMake's
+#    documented behaviour and has not been exercised yet: there is no Linux target to build
+#    until milestone 6.
+#
+# Checked rather than assumed, so an unsupported toolchain says so at configure time
+# instead of failing at link with something obscure.
 include(CheckIPOSupported)
 check_ipo_supported(RESULT DRAGONPERCH_IPO_SUPPORTED OUTPUT DRAGONPERCH_IPO_ERROR)
 
