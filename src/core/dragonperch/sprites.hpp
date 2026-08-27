@@ -4,6 +4,7 @@
 #include "dragonperch/geometry.hpp"
 
 #include <chrono>
+#include <functional>
 #include <map>
 #include <span>
 #include <string>

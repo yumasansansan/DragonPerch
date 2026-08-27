@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "dragonperch/placeholder_pack.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace dp::placeholder_pack {
 namespace {

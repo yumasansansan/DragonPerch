@@ -2,6 +2,7 @@
 #include "dragonperch/world.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <utility>
 
 namespace dp {

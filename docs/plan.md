@@ -104,6 +104,10 @@ This is why the plan below uses DirectComposition and not `Microsoft.UI.Composit
 - A verification that does not exercise the real mechanism is worse than none. Two separate
   faults in the prototype were "confirmed fixed" by checks that measured the wrong thing.
   Every milestone below therefore names how it is measured.
+- **Include what you use.** MSVC pulls in far more transitively than Clang does, so a
+  missing `<cmath>` or `<limits>` builds cleanly on Windows and fails on Linux. This is not
+  hypothetical: milestone 2 shipped six of them, and the Linux CI job was what caught it.
+  There is no local guard for this on Windows — that job is the guard.
 
 ---
 

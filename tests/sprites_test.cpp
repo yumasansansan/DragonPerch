@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 using namespace dp;

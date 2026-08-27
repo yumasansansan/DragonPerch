@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "dragonperch/sprites.hpp"
 
+#include <cmath>
 #include <format>
 #include <numeric>
 #include <stdexcept>
