@@ -9,6 +9,7 @@
 #include "log.hpp"
 #include "overlay_window.hpp"
 #include "self_test.hpp"
+#include "stop_signal.hpp"
 #include "png.hpp"
 #include "sprite_pack_loader.hpp"
 #include "sprite_renderer.hpp"
@@ -228,8 +229,10 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
         }
     }
 
-    log_line(std::format("{} pet(s) on {} output(s); Ctrl+C or close the console to stop",
-                         simulation.pets().size(), world.current().outputs().size()));
+    create_stop_signal();
+    log_line(std::format("{} pet(s) on {} output(s)", simulation.pets().size(),
+                         world.current().outputs().size()));
+    log_line("to stop: close the console, or run  dragonperch --stop");
 
     DwmFrameClock clock;
     PetHost host{simulation, world, renderer, clock};
@@ -237,7 +240,8 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     host.run([] {
         // The overlay windows live on this thread, so their queue has to be drained or they
         // stop answering WM_NCHITTEST and click-through quietly stops working.
-        return !OverlayWindow::pump() || g_stop.load(std::memory_order_relaxed);
+        return !OverlayWindow::pump() || g_stop.load(std::memory_order_relaxed)
+               || stop_requested();
     });
 
     renderer.device().drain_debug_messages();
@@ -320,6 +324,15 @@ int run(std::span<const std::wstring_view> args)
     attach_parent_console();
     handle_console_stop(&request_stop);
 
+    if (has(L"--stop")) {
+        if (!raise_stop_signal()) {
+            log_line("nothing to stop: no DragonPerch is running in this session");
+            return 1;
+        }
+        log_line("asked it to stop");
+        return 0;
+    }
+
     if (has(L"--probe-composition")) {
         log_line(std::format("log: {}", log_path()));
         return probe_composition(has(L"--hold") ? 30 : 8);
@@ -376,6 +389,7 @@ int run(std::span<const std::wstring_view> args)
     log_line("  --probe-composition [--hold]   milestone 1: draw through DirectComposition");
     log_line("  --dump-world [--hold]          milestone 3: print the walkable edges as they change");
     log_line("  --pets N                       run the pets (the default with no arguments)");
+    log_line("  --stop                         ask a running DragonPerch to quit");
     log_line("  --self-test                    click-through and notification-state check");
     log_line("  --pack FILE                    use a sprite pack; repeat for more than one");
     log_line("  --export-placeholder DIR       write the placeholder out as a pack template");

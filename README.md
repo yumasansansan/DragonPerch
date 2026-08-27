@@ -55,7 +55,7 @@ git submodule update --init --depth 1
 ```
 
 ```bash
-sudo apt install libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev
+sudo apt install clang-22 cmake ninja-build libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev pkg-config
 ```
 
 ```bash
@@ -126,6 +126,10 @@ is rectangles and a stacking order, and it is shared by both backends.
 ./build/windows-x64/src/win/Debug/dragonperch.exe --pets 6
 ```
 
+```bash
+./build/windows-x64/src/win/Debug/dragonperch.exe --stop
+```
+
 On Linux the geometry has to come from the compositor, so install the KWin script first:
 
 ```bash
@@ -145,6 +149,12 @@ through DirectComposition on a click-through window. The second prints the walka
 and reprints them whenever the desktop changes — drag a window and watch the numbers follow
 its title bar. The third is the app: it loads every mascot in `assets/` and shares the pets
 out between them, so that is six dragons, two of each.
+
+`--stop` is there because Ctrl+C on Windows nearly works and cannot be relied on. This is a
+GUI-subsystem binary, so the shell does not wait for it and the prompt comes straight back;
+whether the Ctrl+C typed at that prompt becomes a console event is then up to the shell.
+`cmd` sends one, PowerShell 7 does not — PSReadLine handles the key itself. Closing the
+console works too. On Linux, Ctrl+C works.
 
 `--dump-world` on Linux is the same idea and the thing to run first on a new machine: it
 prints what KWin says and starts no renderer at all, so if the numbers follow a dragged

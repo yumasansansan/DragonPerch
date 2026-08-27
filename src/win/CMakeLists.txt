@@ -12,6 +12,7 @@ add_executable(dragonperch WIN32
     png.cpp
     sprite_pack_loader.cpp
     self_test.cpp
+    stop_signal.cpp
     sprite_renderer.cpp
     console.cpp
     log.cpp
