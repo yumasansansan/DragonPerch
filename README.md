@@ -8,9 +8,9 @@ Dragons walk along the top edge of your windows, sit on your taskbar, and fall o
 drag the window out from under them. C++23, GPU rendering, as close to the platform as
 practical.
 
-> Status: **Windows works.** Konqi walks on your title bars and taskbar, drawn on the GPU;
-> clicks pass through him, and he gets out of the way of full-screen apps. Linux is next.
-> See [docs/plan.md](docs/plan.md).
+> Status: **Windows works.** Konqi, Katie and Kori walk on your title bars and taskbar,
+> drawn on the GPU from KDE's own artwork; clicks pass through them, and they get out of the
+> way of full-screen apps. Linux is next. See [docs/plan.md](docs/plan.md).
 
 ---
 
@@ -101,12 +101,18 @@ no windows and no platform involved at all.
 ./build/windows-x64/src/win/Debug/dragonperch.exe --dump-world --hold
 ```
 
+```bash
+./build/windows-x64/src/win/Debug/dragonperch.exe --pets 6
+```
+
 The first draws an opaque quad, a half-transparent one overlapping it, and an outline,
 through DirectComposition on a click-through window. The second prints the walkable edges
 and reprints them whenever the desktop changes — drag a window and watch the numbers follow
-its title bar. Diagnostics go to stdout **and** to
-`dragonperch.log` beside the executable, because a GUI-subsystem binary cannot rely on
-having a console.
+its title bar. The third is the app: it loads every mascot in `assets/` and shares the pets
+out between them, so that is six dragons, two of each.
+
+Diagnostics go to stdout **and** to `dragonperch.log` beside the executable, because a
+GUI-subsystem binary cannot rely on having a console.
 
 ## Layout
 
@@ -116,7 +122,8 @@ src/win/      Windows head: DirectComposition + Direct2D + Win32.
 src/linux/    Linux head: layer-shell + EGL/GL.            (milestone 6)
 kwin/         KWin script. Runs inside the compositor, pushes geometry over D-Bus.
 protocols/    vendored Wayland XML.
-assets/konqi/ artwork. CC BY-SA 4.0, not GPL.
+tools/        the sprite-pack generators. Inkscape and Pillow, run by hand, not by CMake.
+assets/       one directory per mascot. CC BY-SA 4.0, not GPL — see assets/README.md.
 docs/plan.md  the plan of record, including findings that cost real time to establish.
 ```
 
@@ -124,6 +131,13 @@ docs/plan.md  the plan of record, including findings that cost real time to esta
 
 Code is `GPL-3.0-or-later`.
 
-Artwork is **not**. Konqi and the other KDE mascots are the work of the KDE community under
-`CC-BY-SA-4.0`. Keep them that way; there is no reason to relicense data that is loaded at
-runtime rather than linked.
+Artwork is **not**. Konqi, Katie and Kori are the work of the KDE community — designed and
+drawn by **Tyson Tan**, Konqi vectorised by **Franco Perez** — under `CC-BY-SA-4.0`. Keep
+them that way; there is no reason to relicense data that is loaded at runtime rather than
+linked. Each pack states its own terms in its `artwork-licence` key and credits its artists
+in its `AUTHORS.md`.
+
+[KDE's mascot material](https://community.kde.org/Promo/Material/Mascots) publishes Konqi as
+an SVG and the other two as flat PNGs, which is why there are two generators in `tools/`.
+Neither ships a walk cycle: the animation is made here out of a single pose. `assets/README.md`
+says how.
