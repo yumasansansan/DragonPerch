@@ -94,7 +94,7 @@ rather than rejected:
 
 | | tool | set with |
 |---|---|---|
-| `/O2 /Oi /Ot /Gy /GL` | `cl.exe` | `target_compile_options` |
+| `/O2 /Oi /Ot /Gy /Ob3 /Gw /GL` | `cl.exe` | `target_compile_options` |
 | `/LTCG /OPT:REF /OPT:ICF` | `link.exe` | `target_link_options` |
 
 `/GL` and `/LTCG` are a pair — one without the other loses the optimisation — so link-time
@@ -133,11 +133,11 @@ On Linux the geometry has to come from the compositor, so install the KWin scrip
 ```
 
 ```bash
-./build/linux-x64/src/linux/dragonperch-wl --dump-world --hold
+./build/linux-x64/src/linux/Debug/dragonperch-wl --dump-world --hold
 ```
 
 ```bash
-./build/linux-x64/src/linux/dragonperch-wl --pets 6
+./build/linux-x64/src/linux/Debug/dragonperch-wl --pets 6
 ```
 
 The first draws an opaque quad, a half-transparent one overlapping it, and an outline,

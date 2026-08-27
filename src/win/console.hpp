@@ -10,4 +10,10 @@ namespace dp::win {
 /// back for the modes that are meant to be run by hand.
 void attach_parent_console();
 
+/// Asks to be told about Ctrl+C, the console closing, and the user logging out.
+///
+/// `on_stop` runs on a thread of the OS's choosing with about five seconds before the
+/// process is killed anyway, so it must do nothing but set a flag.
+void handle_console_stop(void (*on_stop)());
+
 } // namespace dp::win

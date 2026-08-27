@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <utility>
 
+#include <GLES3/gl3.h>
 #include <wayland-client.h>
 #include <wayland-egl.h>
 
@@ -137,6 +138,14 @@ void LayerSurface::create(WaylandDisplay& display, EglContext& egl, const Output
     }
 
     egl_surface_ = egl.create_surface(window_);
+
+    // One transparent frame, immediately. Until a buffer is attached the surface is not
+    // mapped, and an unmapped surface is never presented -- so the compositor never
+    // answers wl_surface.frame, and the render loop's first wait never returns. Nothing
+    // appears, nothing errors, and the process sits there looking alive.
+    glClearColor(0.0F, 0.0F, 0.0F, 0.0F);
+    glClear(GL_COLOR_BUFFER_BIT);
+    egl.swap(egl_surface_);
 
     log_line(std::format("layer surface on {}: {}x{} logical, {}x{} buffer", output.name,
                          bounds_.width, bounds_.height, buffer.width, buffer.height));

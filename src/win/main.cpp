@@ -38,6 +38,11 @@ namespace {
 /// Set from the console control handler, which runs on its own thread.
 std::atomic<bool> g_stop{false};
 
+void request_stop()
+{
+    g_stop.store(true, std::memory_order_relaxed);
+}
+
 void report_notification_state(const char* when)
 {
     QUERY_USER_NOTIFICATION_STATE state{};
@@ -313,6 +318,7 @@ int run(std::span<const std::wstring_view> args)
     };
 
     attach_parent_console();
+    handle_console_stop(&request_stop);
 
     if (has(L"--probe-composition")) {
         log_line(std::format("log: {}", log_path()));

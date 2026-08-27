@@ -5,6 +5,7 @@
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 #include <algorithm>
+#include <cerrno>
 #include <format>
 #include <stdexcept>
 #include <string_view>
@@ -260,9 +261,12 @@ void WaylandDisplay::roundtrip()
     }
 }
 
-bool WaylandDisplay::dispatch()
+WaylandDisplay::Dispatch WaylandDisplay::dispatch()
 {
-    return wl_display_dispatch(display_) >= 0;
+    if (wl_display_dispatch(display_) >= 0) {
+        return Dispatch::ok;
+    }
+    return errno == EINTR ? Dispatch::interrupted : Dispatch::failed;
 }
 
 bool WaylandDisplay::dispatch_pending()

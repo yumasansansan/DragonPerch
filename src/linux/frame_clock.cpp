@@ -44,11 +44,17 @@ std::chrono::nanoseconds FrameClock::wait_for_next_frame()
     }
 
     while (!arrived_ && !disconnected_) {
-        if (!display_->dispatch()) {
+        const WaylandDisplay::Dispatch result = display_->dispatch();
+        if (result == WaylandDisplay::Dispatch::failed) {
             disconnected_ = true;
+        } else if (result == WaylandDisplay::Dispatch::interrupted) {
+            // Ctrl+C. Return without a frame so the caller can look at its stop flag; the
+            // callback stays pending and is picked up if the loop carries on after all.
+            return {};
         }
     }
     arrived_ = false;
+    ++frames_;
 
     const auto now = std::chrono::steady_clock::now();
     const auto elapsed = have_previous_ ? now - previous_ : std::chrono::steady_clock::duration{};

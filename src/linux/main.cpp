@@ -13,7 +13,6 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
-#include <csignal>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -29,6 +28,11 @@
 #include <utility>
 #include <vector>
 
+#include <GLES3/gl3.h>
+
+// sigaction, not std::signal -- see handle_stop_signals.
+#include <signal.h>
+
 namespace dp::wl {
 namespace {
 
@@ -39,6 +43,59 @@ void on_signal(int)
     // Nothing here but a flag. This runs on whatever thread the signal lands on, and
     // almost nothing else is legal to call.
     g_stop.store(true, std::memory_order_relaxed);
+}
+
+void handle_stop_signals()
+{
+    // sigaction rather than std::signal, and with sa_flags left at zero on purpose.
+    // glibc's signal() installs handlers with SA_RESTART, which restarts the poll inside
+    // wl_display_dispatch instead of returning EINTR -- so the render loop never wakes and
+    // Ctrl+C does nothing at all.
+    struct sigaction action = {};
+    action.sa_handler = &on_signal;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+
+    sigaction(SIGINT, &action, nullptr);
+    sigaction(SIGTERM, &action, nullptr);
+}
+
+/// Milestone 6's check: can this put pixels on the screen at all?
+///
+/// Clears each overlay to a translucent colour and holds. Nothing else is involved -- no
+/// simulation, no atlases, no shader -- so if the screen tints, the layer surface, the EGL
+/// config's alpha channel and the compositing all work, and anything still invisible is
+/// the sprite path's fault. The Windows head has the same mode, and it earned its keep.
+int probe_composition(int seconds)
+{
+    WaylandDisplay display;
+    display.connect();
+
+    GlesRenderer renderer;
+    renderer.create(display);
+
+    FrameClock clock{display, renderer.overlays().front().surface()};
+
+    const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(seconds);
+    while (std::chrono::steady_clock::now() < until && !g_stop.load(std::memory_order_relaxed)
+           && !clock.disconnected()) {
+        for (LayerSurface& overlay : renderer.overlays()) {
+            renderer.egl().make_current(overlay.egl_surface());
+            glViewport(0, 0, overlay.buffer_size().width, overlay.buffer_size().height);
+
+            // Premultiplied, so a quarter-opacity green is (0, 0.25, 0, 0.25).
+            glClearColor(0.0F, 0.25F, 0.0F, 0.25F);
+            glClear(GL_COLOR_BUFFER_BIT);
+            renderer.egl().swap(overlay.egl_surface());
+        }
+        (void)clock.wait_for_next_frame();
+    }
+
+    log_line(std::format("held for {}s, {} frame(s) presented", seconds, clock.frames()));
+    if (clock.frames() == 0) {
+        log_line("No frames at all: the compositor never presented the surface.");
+    }
+    return 0;
 }
 
 int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
@@ -98,6 +155,12 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
         return std::ranges::any_of(renderer.overlays(),
                                    [](const LayerSurface& overlay) { return overlay.closed(); });
     });
+
+    log_line(std::format("{} frame(s) presented", clock.frames()));
+    if (clock.frames() == 0) {
+        log_line("None at all, so nothing was ever drawn. Try --probe-composition, which");
+        log_line("takes the simulation out of it.");
+    }
 
     if (!world.heard_from_kwin()) {
         log_line("");
@@ -170,8 +233,13 @@ int run(std::span<const std::string_view> args)
         log_line("DragonPerch " DRAGONPERCH_VERSION);
         log_line("  --pets N        how many of each mascot (the default with no arguments)");
         log_line("  --pack FILE     use a sprite pack; repeat for more than one");
-        log_line("  --dump-world [--hold]  print the walkable edges as KWin reports them");
+        log_line("  --dump-world [--hold]         print the edges as KWin reports them");
+        log_line("  --probe-composition [--hold]  tint the screen, and nothing else");
         return 0;
+    }
+
+    if (has("--probe-composition")) {
+        return probe_composition(has("--hold") ? 30 : 8);
     }
 
     if (has("--dump-world")) {
@@ -205,8 +273,7 @@ int run(std::span<const std::string_view> args)
 
 int main(int argc, char** argv)
 {
-    std::signal(SIGINT, &dp::wl::on_signal);
-    std::signal(SIGTERM, &dp::wl::on_signal);
+    dp::wl::handle_stop_signals();
 
     std::vector<std::string_view> args;
     args.reserve(static_cast<std::size_t>(argc > 1 ? argc - 1 : 0));

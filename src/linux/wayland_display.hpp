@@ -53,9 +53,17 @@ public:
     /// Sends everything queued and waits for the replies. Throws if the connection dropped.
     void roundtrip();
 
+    enum class Dispatch {
+        ok,
+        /// A signal arrived while blocked. Not an error, and not something to retry
+        /// blindly: it is the only chance the caller gets to notice it was asked to stop.
+        interrupted,
+        /// The compositor has gone away.
+        failed,
+    };
+
     /// Reads whatever has arrived, blocking until at least one event does.
-    /// Returns false once the compositor has gone away.
-    [[nodiscard]] bool dispatch();
+    [[nodiscard]] Dispatch dispatch();
 
     /// Reads whatever has already arrived, without blocking.
     [[nodiscard]] bool dispatch_pending();

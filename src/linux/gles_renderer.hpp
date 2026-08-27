@@ -35,6 +35,7 @@ public:
     void end_frame() override;
 
     [[nodiscard]] std::span<LayerSurface> overlays() noexcept { return overlays_; }
+    [[nodiscard]] EglContext& egl() noexcept { return egl_; }
 
 private:
     struct Atlas {

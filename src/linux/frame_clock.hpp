@@ -32,6 +32,11 @@ public:
     /// True once the compositor has gone away, which is how the loop learns to stop.
     [[nodiscard]] bool disconnected() const noexcept { return disconnected_; }
 
+    /// How many frames have actually been presented. Zero after a few seconds of running
+    /// means the surface never mapped, which is otherwise indistinguishable from a very
+    /// slow machine.
+    [[nodiscard]] std::uint64_t frames() const noexcept { return frames_; }
+
 private:
     static void done(void* data, wl_callback* callback, std::uint32_t time);
 
@@ -40,6 +45,7 @@ private:
     wl_callback* pending_ = nullptr;
     bool arrived_ = false;
     bool disconnected_ = false;
+    std::uint64_t frames_ = 0;
 
     std::chrono::steady_clock::time_point previous_{};
     bool have_previous_ = false;
