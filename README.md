@@ -52,17 +52,20 @@ cmake --preset linux-x64 && cmake --build --preset linux-x64-debug
 
 `linux-clang` and `linux-gcc` pin Clang 22 and GCC 15 respectively; CI builds both.
 
-For faster command-line iteration on Windows there is a Ninja preset, which needs a
-developer environment **with the SDK pinned**:
+### The Windows Ninja preset
 
-```bat
-call "%VSINSTALLDIR%VC\Auxiliary\Buildcvarsall.bat" x64 10.0.26100.0
-```
+There is also `windows-x64-ninja` for faster command-line iteration. It needs a developer
+environment, and that environment has to name the SDK version explicitly — run
+`vcvarsall.bat x64 10.0.26100.0` from `%VSINSTALLDIR%VC\Auxiliary\Build`.
 
-The version matters. `vcvars64.bat` selects the newest SDK on the machine, and the
-`mt.exe` shipped under Windows Kits `10.0.28000.0` here fails to start at all
-(`0xc0000135`), which CMake reports as a try-compile failure with the real cause buried.
-`10.0.26100.0` is the SDK that is actually installed, and its `mt.exe` works.
+The version argument matters. Plain `vcvars64.bat` selects the newest SDK on the machine,
+and the `mt.exe` shipped under Windows Kits `10.0.28000.0` here fails to start at all
+(`0xc0000135`, a missing DLL). CMake reports that as a try-compile failure with the real
+cause buried several screens down. `10.0.26100.0` is the SDK that is actually installed and
+its `mt.exe` works.
+
+The preset also pins `cl`, `link` and `rc`. Without that, CMake happily picks up whatever
+else is on `PATH` — on this machine, Strawberry Perl's GCC and its `ld.exe`.
 
 ## Trying it
 
