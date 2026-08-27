@@ -13,8 +13,8 @@
 # MSVC is worth spelling out, because the two tools take different flags and a linker flag
 # handed to the compiler is silently ignored rather than rejected:
 #
-#   /O2 /Oi /Ot /Gy /GL        compiler  (cl.exe)
-#   /LTCG /OPT:REF /OPT:ICF    linker    (link.exe)
+#   /O2 /Oi /Ot /Gy /Ob3 /Gw /GL    compiler  (cl.exe)
+#   /LTCG /OPT:REF /OPT:ICF         linker    (link.exe)
 #
 # Multi-config generators -- Visual Studio, Ninja Multi-Config -- choose the configuration
 # at build time, not at configure time. `if(CMAKE_BUILD_TYPE STREQUAL "Release")` is
@@ -42,6 +42,7 @@ target_compile_features(dragonperch_options INTERFACE cxx_std_23)
 if(MSVC)
     target_compile_options(dragonperch_options INTERFACE
         /W4 /WX
+        /options:strict         # reject unknown compiler options instead of ignoring them
         /permissive-            # conformance mode; without it MSVC accepts non-standard code
         /utf-8                  # source and execution charset, or Japanese literals break
         /Zc:__cplusplus         # otherwise __cplusplus reports 199711L regardless of /std
@@ -59,11 +60,20 @@ endif()
 # This is the block to extend. Release-only flags go inside $<$<CONFIG:Release>:...>;
 # anything outside applies to Debug too, which is almost never wanted.
 if(MSVC)
+    # CMake's own Release flags are "/O2 /Ob2 /DNDEBUG". /Ob3 below is a stronger form of
+    # /Ob2, and cl warns (D9025) when it is handed both -- a command-line warning, which
+    # /WX does not turn into an error, so it would just sit in the log forever. Drop the
+    # default so ours is the only inlining flag. /O2 is repeated harmlessly and left
+    # explicit, because this file is meant to show the whole optimisation set in one place.
+    string(REPLACE "/Ob2" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+
     target_compile_options(dragonperch_options INTERFACE
         $<$<CONFIG:Release>:/O2>    # maximise speed
         $<$<CONFIG:Release>:/Oi>    # emit intrinsics
         $<$<CONFIG:Release>:/Ot>    # favour fast code over small code
         $<$<CONFIG:Release>:/Gy>    # function-level linking, so /OPT:ICF has something to fold
+        $<$<CONFIG:Release>:/Ob3>   # inline anything the compiler judges worthwhile, not just __inline
+        $<$<CONFIG:Release>:/Gw>    # each global into its own COMDAT, so /OPT:REF can drop unused data
         $<$<CONFIG:Release>:/GR->)  # no RTTI; nothing here uses dynamic_cast or typeid
 
     target_link_options(dragonperch_options INTERFACE
