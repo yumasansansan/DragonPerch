@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+#pragma once
+
+#include "dragonperch/geometry.hpp"
+
+#include <cstddef>
+#include <filesystem>
+#include <span>
+#include <vector>
+
+namespace dp::win {
+
+struct DecodedImage {
+    std::vector<std::byte> pixels; ///< Premultiplied BGRA, top-down, stride = width * 4.
+    PixelSize size{};
+};
+
+/// Decodes an image file into the layout the renderer registers atlases in.
+/// Throws std::system_error or std::runtime_error on failure.
+[[nodiscard]] DecodedImage decode_image(const std::filesystem::path& file);
+
+/// Writes premultiplied BGRA out as a PNG. Used by --export-placeholder, which produces a
+/// working pack an artist can open and replace cell by cell.
+void encode_png(const std::filesystem::path& file, std::span<const std::byte> premultiplied_bgra,
+                PixelSize size);
+
+} // namespace dp::win

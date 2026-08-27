@@ -8,3 +8,7 @@ compile_commands.json
 CMakeUserPresets.json
 vcpkg_installed/
 *.user
+
+# Artwork is added by hand, not generated. --export-placeholder writes here.
+assets/konqi/*.png
+assets/konqi/konqi.ini

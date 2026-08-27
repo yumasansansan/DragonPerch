@@ -9,6 +9,8 @@ add_executable(dragonperch WIN32
     fullscreen.cpp
     gpu_device.cpp
     output_surface.cpp
+    png.cpp
+    sprite_pack_loader.cpp
     self_test.cpp
     sprite_renderer.cpp
     console.cpp
@@ -25,7 +27,9 @@ target_link_libraries(dragonperch PRIVATE
     dwmapi
     user32
     shell32
-    shcore)      # GetDpiForMonitor
+    shcore       # GetDpiForMonitor
+    windowscodecs
+    ole32)       # WIC
 
 target_include_directories(dragonperch PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 

@@ -399,7 +399,7 @@ Each names how it is verified. No milestone is done because it compiles.
 | 5 | ~~Fullscreen detection~~ **done** | A borderless full-screen window hides the pets on that monitor and closing it brings them back, in exactly two transitions |
 | 6 | Wayland layer-shell surface + EGL on Plasma | Dragons visible on Plasma Wayland; clicks pass through |
 | 7 | KWin script + sd-bus geometry | Pets stand on real Plasma title bars and ride dragged windows |
-| 8 | Konqi artwork replaces the placeholder | Looks like Konqi |
+| 8 | Sprite packs load from files | A pack exported from the placeholder loads back and renders; the parser is covered by tests. **Konqi's own artwork is still needed** |
 | 9 | X11 fallback, wlroots adapters, settings apps | — |
 
 Milestone 1 is deliberately tiny and first, because it is the one remaining unknown in the

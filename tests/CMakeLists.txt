@@ -16,6 +16,7 @@ FetchContent_MakeAvailable(Catch2)
 
 add_executable(dragonperch_tests
     simulation_test.cpp
+    sprite_pack_file_test.cpp
     sprites_test.cpp
     world_test.cpp)
 
