@@ -50,22 +50,34 @@ On Linux:
 cmake --preset linux-x64 && cmake --build --preset linux-x64-debug
 ```
 
-`linux-clang` and `linux-gcc` pin Clang 22 and GCC 15 respectively; CI builds both.
+The Linux preset pins Clang 23 explicitly rather than taking whatever `clang++` resolves
+to. ubuntu-26.04 ships Clang 20, 21 and 22, so CI fetches 23; that step disappears by
+itself once the image carries it.
 
-### The Windows Ninja preset
+Ninja is the generator on Linux because there is no solution to open there -- it is a build
+executor, the counterpart to MSBuild, and CMake writes its input. On Windows the Visual
+Studio generator does that job, so there is deliberately no Ninja preset for Windows.
 
-There is also `windows-x64-ninja` for faster command-line iteration. It needs a developer
-environment, and that environment has to name the SDK version explicitly — run
-`vcvarsall.bat x64 10.0.26100.0` from `%VSINSTALLDIR%VC\Auxiliary\Build`.
+### Compiler and linker flags
 
-The version argument matters. Plain `vcvars64.bat` selects the newest SDK on the machine,
-and the `mt.exe` shipped under Windows Kits `10.0.28000.0` here fails to start at all
-(`0xc0000135`, a missing DLL). CMake reports that as a try-compile failure with the real
-cause buried several screens down. `10.0.26100.0` is the SDK that is actually installed and
-its `mt.exe` works.
+All of them live in [cmake/CompilerOptions.cmake](cmake/CompilerOptions.cmake), on one
+interface target that every real target links. Nothing else in the tree sets a flag.
 
-The preset also pins `cl`, `link` and `rc`. Without that, CMake happily picks up whatever
-else is on `PATH` — on this machine, Strawberry Perl's GCC and its `ld.exe`.
+Release-only flags go inside `$<$<CONFIG:Release>:...>`. That is not stylistic: the Visual
+Studio and Ninja Multi-Config generators pick the configuration at *build* time, so testing
+`CMAKE_BUILD_TYPE` at configure time silently does nothing.
+
+MSVC splits its flags across two tools, and a linker flag handed to the compiler is ignored
+rather than rejected:
+
+| | tool | set with |
+|---|---|---|
+| `/O2 /Oi /Ot /Gy /GL` | `cl.exe` | `target_compile_options` |
+| `/LTCG /OPT:REF /OPT:ICF` | `link.exe` | `target_link_options` |
+
+`/GL` and `/LTCG` are a pair — one without the other loses the optimisation — so link-time
+optimisation is expressed as `CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE` instead of raw
+flags, which keeps the two halves together and gives `-flto` on Clang for free.
 
 ## Trying it
 

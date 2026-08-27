@@ -11,21 +11,20 @@ if(WIN32)
     enable_language(RC)
 endif()
 
-set(CMAKE_CXX_STANDARD 23)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+# Every compiler and linker flag lives in one place. See cmake/CompilerOptions.cmake, which
+# defines the DragonPerch::options interface target that each real target links.
+include(CompilerOptions)
 
 # Keeps clangd and other tooling working on the Linux side.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(MSVC)
-    add_compile_options(/W4 /WX /permissive- /utf-8 /Zc:__cplusplus /Zc:preprocessor)
     add_compile_definitions(
         UNICODE _UNICODE
         NOMINMAX                    # or windows.h steals std::min / std::max
         WIN32_LEAN_AND_MEAN)
-else()
-    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
 
 # Visual Studio: start debugging the Windows head rather than ALL_BUILD.

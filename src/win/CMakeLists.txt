@@ -10,6 +10,7 @@ add_executable(dragonperch WIN32
 
 target_link_libraries(dragonperch PRIVATE
     DragonPerch::core
+    DragonPerch::options
     d3d11
     dxgi
     dcomp

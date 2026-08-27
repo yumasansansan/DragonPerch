@@ -132,15 +132,22 @@ workflow.)
 
 | | Windows | Linux |
 |---|---|---|
-| Compiler | MSVC 19.51 (VS 2026) | Clang 22 and GCC 15, both in CI |
+| Compiler | MSVC 19.51 (VS 2026) | Clang 23, pinned |
 | Generator | Visual Studio 18 2026 | Ninja Multi-Config |
 | Standard | C++23 | C++23 |
 | CI image | `windows-2025-vs2026` | `ubuntu-26.04` |
 
-Both runner images ship the whole toolchain, so CI installs nothing: adding an install step
-could only pin something older than the image already has. Two Linux compilers rather than
-one, because they disagree about enough of C++23 that building with both is the cheapest
-portability check available.
+Windows CI installs nothing: the image carries Visual Studio 2026 and the generator
+configures MSVC itself. Linux pins Clang 23, which the image does not yet carry (it ships
+20, 21 and 22), so one fetch step remains until it does.
+
+One compiler per platform rather than several. Building with both Clang and GCC would be a
+better portability check, and this trades that away for a simpler pipeline.
+
+All compiler and linker flags live in `cmake/CompilerOptions.cmake`, on a single interface
+target. Release-only flags use `$<$<CONFIG:Release>:...>`, because the multi-config
+generators choose the configuration at build time and a `CMAKE_BUILD_TYPE` test at configure
+time silently does nothing.
 
 Warnings as errors on both (`/W4 /WX`, `-Wall -Wextra -Wpedantic -Werror`), matching the
 prototype's policy, which caught real problems.

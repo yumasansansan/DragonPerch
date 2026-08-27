@@ -6,24 +6,50 @@ on:
     branches: [main]
   pull_request:
 
-# Both images ship everything this project needs, so there is no install step anywhere in
-# this file. windows-2025-vs2026 carries Visual Studio Enterprise 2026, CMake 4.4 and
-# Ninja; ubuntu-26.04 carries Clang 22, GCC 15, CMake 4.4 and Ninja. Installing any of it
-# again would only pin an older version than the image already has.
+env:
+  # Keep in sync with the compiler pinned in CMakePresets.json.
+  #
+  # ubuntu-26.04 ships Clang 20, 21 and 22 -- not 23 -- so the step below fetches it. That
+  # step is a no-op once the image carries this version, and switching back to a version the
+  # image already has removes the install entirely.
+  LLVM_VERSION: "23"
+
 jobs:
-  # The portability guard. The core must build with no platform anything; if this job
-  # breaks, a backend has leaked upwards, which is the one rule the cross-platform design
-  # rests on. It runs on its own so the failure is unambiguous.
-  core:
-    name: core only (Clang 22)
+  linux:
+    name: linux (Clang ${{ matrix.configuration }})
     runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Debug, Release]
     steps:
       - uses: actions/checkout@v7
-      - run: cmake --preset linux-clang
-      - run: cmake --build build/linux-clang --config Debug --target dragonperch_core
+
+      - name: Ensure Clang ${{ env.LLVM_VERSION }}
+        run: |
+          set -euo pipefail
+          if command -v "clang++-${LLVM_VERSION}" >/dev/null 2>&1; then
+            echo "clang++-${LLVM_VERSION} is already on the image"
+            exit 0
+          fi
+          wget -qO llvm.sh https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh "${LLVM_VERSION}"
+
+      - name: Configure
+        run: cmake --preset linux-x64
+
+      # The portability guard, built first and named so its failure is unambiguous. The core
+      # must compile with no platform anything; if this step breaks, a backend has leaked
+      # upwards, which is the one rule the cross-platform design rests on.
+      - name: Build core only (portability guard)
+        run: cmake --build build/linux-x64 --config ${{ matrix.configuration }} --target dragonperch_core
+
+      - name: Build everything
+        run: cmake --build build/linux-x64 --config ${{ matrix.configuration }}
 
   windows:
-    name: windows (MSVC, VS 2026)
+    name: windows (MSVC ${{ matrix.configuration }})
     runs-on: windows-2025-vs2026
     strategy:
       fail-fast: false
@@ -31,25 +57,12 @@ jobs:
         configuration: [Debug, Release]
     steps:
       - uses: actions/checkout@v7
-      # The Visual Studio generator, not Ninja: the image has VS 2026, so CI can build
-      # through exactly the same solution a developer opens locally rather than a parallel
-      # configuration that drifts. It also sets up its own environment, so no
-      # msvc-dev-cmd step is needed.
-      - run: cmake --preset windows-x64
-      - run: cmake --build build/windows-x64 --config ${{ matrix.configuration }}
 
-  linux:
-    name: linux (${{ matrix.compiler }})
-    runs-on: ubuntu-26.04
-    strategy:
-      fail-fast: false
-      matrix:
-        # Two compilers rather than one. They disagree about enough of C++23 that building
-        # with both is the cheapest portability check available, and warnings-as-errors
-        # means each one's diagnostics are enforced.
-        compiler: [clang, gcc]
-        configuration: [Debug, Release]
-    steps:
-      - uses: actions/checkout@v7
-      - run: cmake --preset linux-${{ matrix.compiler }}
-      - run: cmake --build build/linux-${{ matrix.compiler }} --config ${{ matrix.configuration }}
+      # No toolchain setup step. The image carries Visual Studio 2026, and the Visual Studio
+      # generator locates and configures MSVC itself -- so CI builds through the same
+      # solution a developer opens locally rather than a parallel configuration that drifts.
+      - name: Configure
+        run: cmake --preset windows-x64
+
+      - name: Build
+        run: cmake --build build/windows-x64 --config ${{ matrix.configuration }}

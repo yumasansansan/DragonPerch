@@ -9,6 +9,9 @@ add_library(dragonperch_core STATIC
     dragonperch/world.cpp)
 
 target_include_directories(dragonperch_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_features(dragonperch_core PUBLIC cxx_std_23)
+
+# PUBLIC, not PRIVATE: the standard and the warning policy have to reach anything that
+# links this, or a head could quietly build the shared headers under different rules.
+target_link_libraries(dragonperch_core PUBLIC DragonPerch::options)
 
 add_library(DragonPerch::core ALIAS dragonperch_core)
