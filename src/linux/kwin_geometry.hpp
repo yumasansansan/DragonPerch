@@ -57,6 +57,13 @@ public:
 
     void stop() noexcept;
 
+    /// Prints every report from KWin exactly as it arrived, before anything is made of it.
+    ///
+    /// Which line is missing, and whether it was ever sent, is the difference between a bug
+    /// in the script and a bug in the parsing -- and guessing between the two has already
+    /// cost two rounds of "try this and tell me what happens".
+    void log_raw_reports(bool on) { log_raw_ = on; }
+
     /// True once at least one report has arrived. Until then there is nothing to stand on
     /// but the floor, which usually means the script is not installed or not enabled.
     [[nodiscard]] bool heard_from_kwin() const noexcept { return reports_ > 0; }
@@ -71,6 +78,7 @@ private:
     sd_bus_slot* slot_ = nullptr;
     std::thread worker_;
     bool started_ = false;
+    bool log_raw_ = false;
     std::atomic<bool> stopping_{false};
     std::atomic<std::uint64_t> reports_{0};
 

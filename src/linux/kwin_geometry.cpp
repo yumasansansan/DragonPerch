@@ -189,6 +189,12 @@ int KWinGeometryProvider::on_update(sd_bus_message* message, void* userdata, sd_
 
 void KWinGeometryProvider::apply(std::string_view report)
 {
+    if (log_raw_ && !report.empty()) {
+        log_line("");
+        log_line("--- as KWin sent it ---");
+        log_line(report);
+    }
+
     std::vector<WindowCandidate> candidates;
     std::vector<WalkableEdge> edges;
     std::vector<OutputInfo> outputs;

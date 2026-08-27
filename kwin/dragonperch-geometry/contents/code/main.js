@@ -55,6 +55,43 @@ function connect(owner, name, handler) {
     }
 }
 
+/// Kinds of window that make bad perches: things that are not really windows, or that come
+/// and go too fast to stand on.
+const UNWANTED = ["desktopWindow", "splash", "tooltip", "notification", "criticalNotification",
+                  "onScreenDisplay", "dndIcon", "popupWindow", "utility", "toolbar", "menu",
+                  "dropdownMenu", "popupMenu", "comboBox"];
+
+/// Is this window on the desktop being looked at?
+///
+/// Compared by id, not by identity. `desktops` and `currentDesktop` hand back separate
+/// JavaScript wrappers around the same VirtualDesktop, so indexOf finds nothing even when
+/// the window is right here -- and since panels are on all desktops and ordinary windows
+/// are not, the effect was that pets stood on the panel and fell through every title bar.
+function onCurrentDesktop(window) {
+    if (window.onAllDesktops) {
+        return true;
+    }
+
+    const desktops = window.desktops;
+    const current = workspace.currentDesktop;
+    if (desktops === undefined || desktops === null || desktops.length === 0
+        || current === undefined || current === null) {
+        return true;
+    }
+
+    for (let i = 0; i < desktops.length; ++i) {
+        const desktop = desktops[i];
+        if (desktop === current) {
+            return true;
+        }
+        if (desktop !== null && desktop !== undefined && desktop.id !== undefined
+            && desktop.id === current.id) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function isInteresting(window) {
     if (window === null || window === undefined) {
         return false;
@@ -62,21 +99,30 @@ function isInteresting(window) {
     if (window.minimized || window.hidden || window.deleted) {
         return false;
     }
-
-    // On another virtual desktop or another activity. Its geometry is perfectly plausible
-    // and completely wrong to stand on.
-    if (!window.onAllDesktops && window.desktops !== undefined && window.desktops.length > 0
-        && window.desktops.indexOf(workspace.currentDesktop) === -1) {
+    if (!onCurrentDesktop(window)) {
         return false;
     }
 
-    // DragonPerch's own overlay, which covers the whole screen and would give every pet a
-    // ledge across the top of the world.
-    if (window.resourceClass === "dragonperch" || window.resourceName === "dragonperch") {
+    // DragonPerch's own overlay, if it ever turns up here: it covers the whole screen and
+    // would give every pet a ledge across the top of the world. Matched loosely, because
+    // the binary is dragonperch-wl and the class is whatever the toolkit felt like.
+    const owner = String(window.resourceClass) + " " + String(window.resourceName);
+    if (owner.indexOf("dragonperch") !== -1) {
         return false;
     }
 
-    return window.normalWindow || window.dialog || window.dock;
+    // Panels are wanted explicitly. Everything else is wanted *unless* it is one of the
+    // kinds above -- which is the safe way round: a property name this KWin does not have
+    // then costs one odd perch, rather than hiding every window on the desktop.
+    if (window.dock) {
+        return true;
+    }
+    for (let i = 0; i < UNWANTED.length; ++i) {
+        if (window[UNWANTED[i]]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 function report() {

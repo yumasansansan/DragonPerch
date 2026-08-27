@@ -206,6 +206,7 @@ int dump_world(int seconds)
 
     KWinGeometryProvider world;
     world.set_outputs(display.outputs());
+    world.log_raw_reports(true);
 
     const auto started = std::chrono::steady_clock::now();
     world.set_changed_handler([started](const WorldSnapshot& snapshot) {
