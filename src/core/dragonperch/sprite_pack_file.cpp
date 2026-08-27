@@ -213,23 +213,42 @@ SpritePackFile parse_sprite_pack(std::string_view text, int atlas_id, PixelSize 
             loop = value->first == "true" || value->first == "1" || value->first == "yes";
         }
 
-        std::vector<AnimationFrame> frames;
-        frames.reserve(indices.size());
-        for (const int index : indices) {
-            if (index < 0 || index >= columns * rows) {
-                fail(frames_line, std::format("frame {} is outside the {}x{} grid of cells",
-                                              index, columns, rows));
-            }
+        const auto build = [&](const std::vector<int>& list, std::size_t line) {
+            std::vector<AnimationFrame> frames;
+            frames.reserve(list.size());
+            for (const int index : list) {
+                if (index < 0 || index >= columns * rows) {
+                    fail(line, std::format("frame {} is outside the {}x{} grid of cells", index,
+                                           columns, rows));
+                }
 
-            frames.push_back(AnimationFrame{
-                .source = PixelRect{(index % columns) * cell.width, (index / columns) * cell.height,
-                                    cell.width, cell.height},
-                .anchor = anchor,
-                .duration = Duration{static_cast<double>(duration_ms) / 1000.0},
-            });
+                frames.push_back(AnimationFrame{
+                    .source = PixelRect{(index % columns) * cell.width,
+                                        (index / columns) * cell.height, cell.width, cell.height},
+                    .anchor = anchor,
+                    .duration = Duration{static_cast<double>(duration_ms) / 1000.0},
+                });
+            }
+            return frames;
+        };
+
+        // Optional. Without it the renderer mirrors the right-facing frames, which is the
+        // right default; with it the pack draws both directions, which is what artwork
+        // containing lettering needs.
+        std::vector<AnimationFrame> frames_left;
+        if (const auto* value = section.find("frames-left"); value != nullptr) {
+            const std::vector<int> left = to_int_list(value->first, value->second, "frames-left");
+            if (left.size() != indices.size()) {
+                fail(value->second,
+                     std::format("frames-left has {} frames but frames has {}; they run on the "
+                                 "same clock and must match",
+                                 left.size(), indices.size()));
+            }
+            frames_left = build(left, value->second);
         }
 
-        animations.emplace(section.name, Animation{section.name, std::move(frames), loop});
+        animations.emplace(section.name, Animation{section.name, build(indices, frames_line), loop,
+                                                   std::move(frames_left)});
     }
 
     if (animations.empty()) {

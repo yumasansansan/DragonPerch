@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
 # Konqi sprite pack
 
-**This artwork is `CC-BY-SA-4.0`, not the project's GPL.** See README.md in this directory.
+**This artwork is `CC-BY-SA-4.0`, not the project's GPL.** See `../README.md`.
 
 | File | What it is | Credit |
 |------|-----------|--------|
@@ -20,6 +20,12 @@ parts of the motion that survive being drawn 52 pixels tall.
 
 The cast shadow is dropped. It is a soft grey ellipse meant for a page, and on a title bar
 it would be a smudge on somebody's window.
+
+Konqi carries KDE's K, and a mirrored K is a backwards K -- and mirroring at draw time
+cannot avoid it, because a pet walks to the end of a title bar and comes back and so spends
+half its life facing each way. So the sheet carries twelve cells, both directions drawn.
+Each frame is rendered twice, once with the K hidden and once with nothing but the K, and
+the right-facing half is the mirrored body with the K laid back on the right way round.
 
 Regenerate with:
 

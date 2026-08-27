@@ -252,6 +252,62 @@ TEST_CASE("the feet stay put when a pet turns round", "[simulation]")
     CHECK(feet_after == position_before.x);
 }
 
+TEST_CASE("a pack that draws both directions is not mirrored", "[simulation]")
+{
+    // Konqi carries KDE's K, so his pack draws left-facing frames rather than letting the
+    // renderer mirror the right-facing ones. Two things have to hold for that to work: the
+    // left frames get used when the pet faces left, and the renderer leaves them alone.
+    constexpr int cell = 40;
+
+    std::map<std::string, Animation, std::less<>> animations;
+    for (const char* name : {"walk", "idle", "turn", "fall", "land", "fly"}) {
+        animations.emplace(
+            name, Animation{name,
+                            {AnimationFrame{PixelRect{0, 0, cell, cell},
+                                            PixelOffset{cell / 2, cell}, Duration{0.1}}},
+                            true,
+                            {AnimationFrame{PixelRect{cell, 0, cell, cell},
+                                            PixelOffset{cell / 2, cell}, Duration{0.1}}}});
+    }
+    const SpritePack pack{"two-way", "Two directions", "CC-BY-SA-4.0", "test", 0,
+                          std::move(animations)};
+
+    SimulationOptions options;
+    options.turn_at_edge_chance = 1.0;
+    options.idle_interval = Duration::zero();
+    Simulation sim{options};
+
+    sim.set_world(make_world(1, {shelf(1, 500, 0, 400)}));
+    sim.spawn(pack, PixelPoint{390, 0});
+
+    RecordingRenderer renderer;
+    const auto sample = [&] {
+        sim.render(renderer);
+        REQUIRE(renderer.draws.size() == 1);
+        return renderer.draws.front();
+    };
+
+    REQUIRE(run_until(sim, [&] { return sim.pets()[0].perch().has_value(); }));
+
+    const int facing_before = sim.pets()[0].facing();
+    const SpriteDraw before = sample();
+
+    REQUIRE(run_until(sim, [&] { return sim.pets()[0].facing() != facing_before; }));
+    const SpriteDraw after = sample();
+
+    // Never mirrored, whichever way round the pet is: mirroring is what would reverse the K.
+    CHECK_FALSE(before.flip_x);
+    CHECK_FALSE(after.flip_x);
+
+    // Different artwork for each direction, rather than the same cell twice.
+    CHECK(before.source != after.source);
+
+    const PixelRect right{0, 0, cell, cell};
+    const PixelRect left{cell, 0, cell, cell};
+    CHECK((facing_before > 0 ? before.source : after.source) == right);
+    CHECK((facing_before > 0 ? after.source : before.source) == left);
+}
+
 TEST_CASE("the simulation is deterministic for a given seed", "[simulation]")
 {
     const SpritePack pack = placeholder_pack::create(0);

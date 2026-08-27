@@ -42,11 +42,26 @@ ET.register_namespace("sodipodi", SODIPODI_NS)
 
 TAIL_LABELS = {"tail", "tail-fill", "tail-spikes", "under-tail"}
 
-# The illustration stands on a soft grey ellipse. On a desktop that would be a smudge on
-# whatever the pet is standing on, and it is also the lowest thing in the drawing, so
-# leaving it in puts the bottom of the sprite below Konqi's feet -- and the anchor with it,
-# which would make him hover a few pixels above every title bar.
+# The cast shadow is a soft grey ellipse meant for a page. On a desktop it would be a smudge
+# on whatever the pet is standing on, and being the lowest thing in the drawing it also put
+# the sprite's bottom edge -- and so the anchor -- below Konqi's feet, leaving him hovering.
 DROP_LABELS = {"cast-shadow"}
+
+# The K banner Konqi carries.
+#
+# Konqi is drawn facing left, so the right-facing half of the sheet is the whole cell
+# mirrored -- and that would leave a backwards K. The K is KDE's own mark rather than
+# decoration, so rendering it wrong is not an option and neither is dropping it.
+#
+# So each frame is rendered twice: once with the K hidden, once with nothing but the K.
+# The right-facing cell is the mirrored body with the unmirrored K laid back on top, which
+# is what animators do with lettering on a flipped sprite.
+#
+# Note that this only works because the sheet carries both directions. Mirroring at draw
+# time cannot be fixed this way: a pet walks to the end of a title bar and comes back, so it
+# spends half its life facing each way, and whichever half the sheet was not drawn for would
+# show the K backwards.
+K_LABELS = {"K", "K-shadow1", "K-shadow2", "K-shadow3"}
 
 # One entry per cell of the atlas: (vertical scale about the feet, tail angle in degrees).
 #
@@ -92,6 +107,25 @@ def strip(root: ET.Element, labels: set[str]) -> int:
     return removed
 
 
+def keep_only(root: ET.Element, labels: set[str]) -> None:
+    """Removes everything that is not one of the labelled elements, inside or above one."""
+    parent_of = {child: parent for parent in root.iter() for child in parent}
+
+    keep = {root}
+    for element in root.iter():
+        if element.get(f"{{{INKSCAPE_NS}}}label") in labels:
+            keep.update(element.iter())
+            node = parent_of.get(element)
+            while node is not None:
+                keep.add(node)
+                node = parent_of.get(node)
+
+    for parent in list(root.iter()):
+        for child in list(parent):
+            if child not in keep:
+                parent.remove(child)
+
+
 def find_layer(root: ET.Element) -> ET.Element:
     """The group everything lives in, so one transform moves the whole figure."""
     for element in root.iter(f"{{{SVG_NS}}}g"):
@@ -126,10 +160,27 @@ def tail_pivot(inkscape: str, svg: Path, tail_ids: list[str]) -> tuple[float, fl
     return ((left + right) / 2.0, top)
 
 
+def export_area(box: tuple[float, float, float, float]) -> tuple[float, float, float, float]:
+    """The same rectangle for every frame, so the cells line up. Padded above, because a
+    stretched frame reaches higher than the original drawing."""
+    x, y, w, h = box
+    pad = h * 0.05
+    return x, y - pad, x + w, y + h
+
+
 def render_frame(inkscape: str, source: ET.ElementTree, tail_ids: list[str], box, pivot,
-                 scale_y: float, tail_degrees: float, height: int, out_png: Path) -> None:
+                 scale_y: float, tail_degrees: float, height: int, out_png: Path,
+                 part: str) -> None:
+    """Renders one frame. `part` is "body" for everything but the K, or "k" for the K alone;
+    the two line up pixel for pixel, because the transforms and the export area are the same."""
     tree = copy.deepcopy(source)
     root = tree.getroot()
+
+    if part == "k":
+        keep_only(root, K_LABELS)
+    else:
+        strip(root, K_LABELS)
+
 
     if tail_degrees:
         for element in root.iter():
@@ -147,11 +198,8 @@ def render_frame(inkscape: str, source: ET.ElementTree, tail_ids: list[str], box
         temp = Path(handle.name)
 
     try:
-        # The same export area for every frame, so the cells line up. Padded above,
-        # because a stretched frame reaches higher than the original drawing.
-        x, y, w, h = box
-        pad = h * 0.05
-        area = f"{x:.3f}:{y - pad:.3f}:{x + w:.3f}:{y + h:.3f}"
+        ax0, ay0, ax1, ay1 = export_area(box)
+        area = f"{ax0:.3f}:{ay0:.3f}:{ax1:.3f}:{ay1:.3f}"
 
         subprocess.run([inkscape, "--export-type=png", f"--export-filename={out_png}",
                         f"--export-area={area}", f"--export-height={height}",
@@ -194,14 +242,35 @@ def main() -> int:
     print(f"drawing {box[2]:.0f}x{box[3]:.0f}, tail pivot ({pivot[0]:.1f}, {pivot[1]:.1f})")
 
     with tempfile.TemporaryDirectory() as scratch:
-        cells = []
+        # Both directions, right-facing cells first. The renderer never mirrors this pack.
+        right, left = [], []
         for index, (name, scale_y, tail_degrees) in enumerate(FRAMES):
-            png = Path(scratch) / f"{index}.png"
-            render_frame(inkscape, source, tail_ids, box, pivot, scale_y, tail_degrees,
-                         args.height, png)
-            cells.append(Image.open(png).convert("RGBA"))
-            print(f"  frame {index} ({name}): scale {scale_y}, tail {tail_degrees:+.0f} deg,"
-                  f" {cells[-1].width}x{cells[-1].height}")
+            parts = {}
+            for part in ("body", "k"):
+                png = Path(scratch) / f"{index}-{part}.png"
+                render_frame(inkscape, source, tail_ids, box, pivot, scale_y, tail_degrees,
+                             args.height, png, part)
+                parts[part] = Image.open(png).convert("RGBA")
+
+            body, k = parts["body"], parts["k"]
+
+            facing_left = body.copy()
+            facing_left.alpha_composite(k)
+            left.append(facing_left)
+
+            # The mirrored body, with the K put back the way round it was drawn. Pasting
+            # only the K's own pixels -- rather than flipping the rectangle it sits in --
+            # is what keeps the bandana underneath from being flipped along with it.
+            facing_right = body.transpose(Image.FLIP_LEFT_RIGHT)
+            bounds = k.getbbox()
+            if bounds is None:
+                sys.exit("the K rendered empty; the labels in the SVG must have changed")
+            facing_right.alpha_composite(k.crop(bounds),
+                                         (facing_right.width - bounds[2], bounds[1]))
+            right.append(facing_right)
+
+        cells = right + left
+        print(f"  {len(right)} frames each way")
 
         width = max(cell.width for cell in cells)
         atlas = Image.new("RGBA", (width * len(cells), args.height), (0, 0, 0, 0))
@@ -230,30 +299,39 @@ atlas = konqi.png
 frame-width = {width}
 frame-height = {args.height}
 
+; Cells 0-5 face right, 6-11 face left. Both are drawn rather than mirrored at draw time,
+; because Konqi carries KDE's K and a mirrored K is a backwards K.
+
 [walk]
 frames = 0, 1, 2, 3
+frames-left = 6, 7, 8, 9
 duration = 140
 
 [idle]
 frames = 4
+frames-left = 10
 duration = 400
 
 [turn]
 frames = 4
+frames-left = 10
 duration = 350
 loop = false
 
 [land]
 frames = 1
+frames-left = 7
 duration = 200
 loop = false
 
 [fall]
 frames = 5
+frames-left = 11
 duration = 200
 
 [fly]
 frames = 5
+frames-left = 11
 duration = 200
 """
 

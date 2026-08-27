@@ -18,18 +18,25 @@ const AnimationFrame& empty_frame()
 
 } // namespace
 
-Animation::Animation(std::string name, std::vector<AnimationFrame> frames, bool loop)
+Animation::Animation(std::string name, std::vector<AnimationFrame> frames, bool loop,
+                     std::vector<AnimationFrame> frames_left)
     : name_(std::move(name))
     , frames_(std::move(frames))
+    , frames_left_(std::move(frames_left))
     , loop_(loop)
     , total_(std::accumulate(frames_.begin(), frames_.end(), Duration{},
                              [](Duration acc, const AnimationFrame& f) { return acc + f.duration; }))
 {
 }
 
-const AnimationFrame& Animation::frame_at(Duration elapsed) const
+const AnimationFrame& Animation::frame_at(Duration elapsed, bool facing_left) const
 {
-    if (frames_.empty()) {
+    // Both directions run on the same clock, so a pet that turns round keeps its place in
+    // the cycle rather than restarting the walk.
+    const std::vector<AnimationFrame>& frames =
+        (facing_left && !frames_left_.empty()) ? frames_left_ : frames_;
+
+    if (frames.empty()) {
         return empty_frame();
     }
 
@@ -43,14 +50,14 @@ const AnimationFrame& Animation::frame_at(Duration elapsed) const
         }
     }
 
-    for (const AnimationFrame& frame : frames_) {
+    for (const AnimationFrame& frame : frames) {
         if (t < frame.duration) {
             return frame;
         }
         t -= frame.duration;
     }
 
-    return frames_.back();
+    return frames.back();
 }
 
 SpritePack::SpritePack(std::string id, std::string display_name, std::string artwork_licence,

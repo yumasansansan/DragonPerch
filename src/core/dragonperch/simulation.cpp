@@ -53,9 +53,14 @@ void Pet::enter(PetState state) noexcept
     animation_elapsed_ = Duration::zero();
 }
 
+const Animation& Pet::current_animation() const
+{
+    return pack_->require(animation_for(state_));
+}
+
 const AnimationFrame& Pet::current_frame() const
 {
-    return pack_->require(animation_for(state_)).frame_at(animation_elapsed_);
+    return current_animation().frame_at(animation_elapsed_, facing_ < 0);
 }
 
 // ------------------------------------------------------------------------ Simulation
@@ -142,18 +147,21 @@ void Simulation::render(ISpriteRenderer& renderer) const
             continue;
         }
 
-        // The anchor is authored for a right-facing sprite. Mirror it when flipped, or the
-        // feet shift by the anchor's distance from centre and the pet appears to hop
+        // Only mirror when the pack has not drawn the other direction itself. Konqi's pack
+        // has, because he carries KDE's K and a mirrored K is a backwards K.
+        const bool mirror = pet.facing() < 0 && !pet.current_animation().has_left_frames();
+
+        // The anchor is authored in the frame's own space. Mirror it along with the sprite,
+        // or the feet shift by the anchor's distance from centre and the pet appears to hop
         // sideways every time it turns.
-        const int anchor_x =
-            pet.facing() >= 0 ? frame.anchor.dx : frame.source.width - frame.anchor.dx;
+        const int anchor_x = mirror ? frame.source.width - frame.anchor.dx : frame.anchor.dx;
 
         renderer.draw(SpriteDraw{
             .atlas_id = pet.pack().atlas_id(),
             .source = frame.source,
             .destination = PixelPoint{pet.position().x - anchor_x,
                                       pet.position().y - frame.anchor.dy},
-            .flip_x = pet.facing() < 0,
+            .flip_x = mirror,
             .opacity = 1.0F,
         });
     }

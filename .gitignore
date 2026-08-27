@@ -8,3 +8,7 @@ compile_commands.json
 CMakeUserPresets.json
 vcpkg_installed/
 *.user
+
+# Python bytecode from the asset tools
+__pycache__/
+*.pyc

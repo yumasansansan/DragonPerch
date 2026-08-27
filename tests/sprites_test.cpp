@@ -96,3 +96,34 @@ TEST_CASE("the placeholder atlas is the size it claims and is not blank", "[spri
     // which is hard to tell from a broken renderer.
     CHECK(opaque > 100U * static_cast<std::size_t>(placeholder_pack::frame_count));
 }
+
+TEST_CASE("both directions of an animation run on one clock", "[sprites]")
+{
+    // A pack may draw its own left-facing frames rather than being mirrored. Turning round
+    // must not restart the cycle: a walk that resets to frame zero on every turn reads as a
+    // stumble. So the same elapsed time picks the same frame number either way round.
+    const Animation walk{"walk",
+                         {AnimationFrame{PixelRect{0, 0, 10, 10}, PixelOffset{5, 10}, Duration{0.1}},
+                          AnimationFrame{PixelRect{10, 0, 10, 10}, PixelOffset{5, 10}, Duration{0.1}}},
+                         true,
+                         {AnimationFrame{PixelRect{20, 0, 10, 10}, PixelOffset{5, 10}, Duration{0.1}},
+                          AnimationFrame{PixelRect{30, 0, 10, 10}, PixelOffset{5, 10}, Duration{0.1}}}};
+
+    CHECK(walk.has_left_frames());
+    CHECK(walk.frame_at(Duration{0.05}, false).source == PixelRect{0, 0, 10, 10});
+    CHECK(walk.frame_at(Duration{0.05}, true).source == PixelRect{20, 0, 10, 10});
+    CHECK(walk.frame_at(Duration{0.15}, false).source == PixelRect{10, 0, 10, 10});
+    CHECK(walk.frame_at(Duration{0.15}, true).source == PixelRect{30, 0, 10, 10});
+}
+
+TEST_CASE("an animation with no left frames falls back to the right ones", "[sprites]")
+{
+    // Which is what tells the renderer to mirror instead. Artwork without lettering on it
+    // is better served by half as many cells.
+    const Animation walk{"walk",
+                         {AnimationFrame{PixelRect{0, 0, 10, 10}, PixelOffset{5, 10}, Duration{0.1}}},
+                         true};
+
+    CHECK_FALSE(walk.has_left_frames());
+    CHECK(walk.frame_at(Duration{0.05}, true).source == PixelRect{0, 0, 10, 10});
+}

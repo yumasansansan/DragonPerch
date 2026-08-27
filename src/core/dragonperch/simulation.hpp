@@ -53,6 +53,7 @@ public:
 
     [[nodiscard]] Duration state_elapsed() const noexcept { return state_elapsed_; }
 
+    [[nodiscard]] const Animation& current_animation() const;
     [[nodiscard]] const AnimationFrame& current_frame() const;
 
 private:

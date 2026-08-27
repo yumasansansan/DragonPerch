@@ -29,20 +29,35 @@ struct AnimationFrame {
 class Animation {
 public:
     Animation() = default;
-    Animation(std::string name, std::vector<AnimationFrame> frames, bool loop);
+    Animation(std::string name, std::vector<AnimationFrame> frames, bool loop,
+              std::vector<AnimationFrame> frames_left = {});
 
     [[nodiscard]] std::string_view name() const noexcept { return name_; }
     [[nodiscard]] std::span<const AnimationFrame> frames() const noexcept { return frames_; }
+    [[nodiscard]] std::span<const AnimationFrame> frames_left() const noexcept
+    {
+        return frames_left_;
+    }
     [[nodiscard]] bool loops() const noexcept { return loop_; }
     [[nodiscard]] Duration total() const noexcept { return total_; }
 
+    /// True when the pack draws left-facing frames itself, so the renderer must not mirror.
+    ///
+    /// Mirroring is the cheap way to face both directions and it is wrong for artwork that
+    /// contains lettering. Konqi carries KDE's K; mirrored, it is a backwards K for
+    /// whichever direction is not the one the sheet was drawn in -- and a pet walking to
+    /// the end of a title bar and back spends half its life in each. A pack that cares
+    /// supplies both directions.
+    [[nodiscard]] bool has_left_frames() const noexcept { return !frames_left_.empty(); }
+
     /// The frame showing `elapsed` into the animation. Wraps if this animation loops,
     /// otherwise holds on the last frame.
-    [[nodiscard]] const AnimationFrame& frame_at(Duration elapsed) const;
+    [[nodiscard]] const AnimationFrame& frame_at(Duration elapsed, bool facing_left = false) const;
 
 private:
     std::string name_;
     std::vector<AnimationFrame> frames_;
+    std::vector<AnimationFrame> frames_left_;
     bool loop_ = true;
     Duration total_{};
 };

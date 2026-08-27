@@ -109,6 +109,49 @@ loop = false
     CHECK_FALSE(file.pack.require("land").loops());
 }
 
+TEST_CASE("a pack can draw its own left-facing frames", "[pack]")
+{
+    // Konqi carries KDE's K, and a mirrored K is a backwards K, so his pack ships both
+    // directions instead of being mirrored at draw time.
+    const SpritePackFile file = parse_sprite_pack(R"(
+[pack]
+atlas = konqi.png
+frame-width = 32
+frame-height = 32
+
+[walk]
+frames = 0, 1
+frames-left = 2, 3
+duration = 100
+)",
+                                                  0, PixelSize{128, 32});
+
+    const Animation& walk = file.pack.require("walk");
+    REQUIRE(walk.has_left_frames());
+    REQUIRE(walk.frames_left().size() == 2);
+    CHECK(walk.frames_left()[0].source == PixelRect{64, 0, 32, 32});
+    CHECK(walk.frames_left()[1].source == PixelRect{96, 0, 32, 32});
+}
+
+TEST_CASE("frames-left has to match frames one for one", "[pack]")
+{
+    // The two directions share a clock, so a mismatched count would index off the end of
+    // the shorter list the moment a pet turned round.
+    CHECK_THROWS_AS(parse_sprite_pack(R"(
+[pack]
+atlas = konqi.png
+frame-width = 32
+frame-height = 32
+
+[walk]
+frames = 0, 1
+frames-left = 2
+duration = 100
+)",
+                                      0, PixelSize{128, 32}),
+                    std::runtime_error);
+}
+
 TEST_CASE("comments and blank lines are ignored", "[pack]")
 {
     // '#' is what most people type; ';' is what KConfig writes. Both have to work, or a
