@@ -395,7 +395,7 @@ Each names how it is verified. No milestone is done because it compiles.
 | 1 | ~~**Composition renders on a layered window**~~ **done** | Screenshot shows opaque and blended quads over a visible desktop |
 | 2 | ~~Core simulation ported, Catch2 tests~~ **done** | 20 tests pass on both configurations; a fake world lands a pet exactly on the edge's row |
 | 3 | ~~`desktop_scanner` + `win_event_watcher`~~ **done** | `--dump-world` tracks a scripted window 12px per step; occlusion clips a maximised window to its visible run |
-| 4 | Windows head end to end, placeholder sprites | Dragons walk on title bars; `--self-test` passes; notification state stays `QUNS_ACCEPTS_NOTIFICATIONS` |
+| 4 | ~~Windows head end to end, placeholder sprites~~ **done** | Dragons render on the taskbar through DirectComposition; `--self-test` PASSes with a sprite over the click point; notification state stays `QUNS_ACCEPTS_NOTIFICATIONS` |
 | 5 | Fullscreen detection — hide pets on a monitor showing a fullscreen app | A fullscreen video hides them; leaving it brings them back |
 | 6 | Wayland layer-shell surface + EGL on Plasma | Dragons visible on Plasma Wayland; clicks pass through |
 | 7 | KWin script + sd-bus geometry | Pets stand on real Plasma title bars and ride dragged windows |
@@ -411,7 +411,12 @@ simulation is ported.
 
 ## 11. Open risks
 
-1. ~~Layered + composition rendering.~~ Settled in milestone 1: it works.
+1. ~~Layered + composition rendering.~~ Settled in milestone 1: it works. Milestone 4 added
+   one more rule to it: **a DirectComposition surface rejects a partial `BeginDraw` until
+   the whole surface has been written once.** The rectangle it refuses looks perfectly
+   valid, and the error is a bare `E_INVALIDARG`, so nothing about it points at the cause.
+   The same failure went unexplained in the C# prototype, where damage tracking was
+   abandoned because of it.
 2. **Fractional scaling on Wayland.** `set_margin` is logical, everything above is physical.
    One conversion point, easy to get subtly wrong, worth a test.
 3. **KWin scripting API drift.** Plasma 5 and 6 renamed `clientList`/`windowList`. The

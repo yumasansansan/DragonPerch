@@ -6,6 +6,7 @@
 
 add_library(dragonperch_core STATIC
     dragonperch/geometry.cpp
+    dragonperch/host.cpp
     dragonperch/placeholder_pack.cpp
     dragonperch/simulation.cpp
     dragonperch/sprites.cpp

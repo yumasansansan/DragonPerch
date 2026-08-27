@@ -8,8 +8,8 @@ Dragons walk along the top edge of your windows, sit on your taskbar, and fall o
 drag the window out from under them. C++23, GPU rendering, as close to the platform as
 practical.
 
-> Status: **milestone 3.** The simulation, the GPU path and the window tracking all work.
-> They have not been connected to each other yet, so nothing walks on screen.
+> Status: **milestone 4.** Dragons render on the desktop, on the GPU, and clicks pass
+> through them. The sprites are a procedural placeholder until Konqi's artwork lands.
 > See [docs/plan.md](docs/plan.md).
 
 ---

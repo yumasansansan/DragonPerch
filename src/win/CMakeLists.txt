@@ -5,7 +5,11 @@ add_executable(dragonperch WIN32
     desktop_scanner.cpp
     win_event_watcher.cpp
     overlay_window.cpp
-    dcomp_renderer.cpp
+    frame_clock.cpp
+    gpu_device.cpp
+    output_surface.cpp
+    self_test.cpp
+    sprite_renderer.cpp
     console.cpp
     log.cpp
     dragonperch.rc)
