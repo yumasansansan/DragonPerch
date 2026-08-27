@@ -124,6 +124,11 @@ public:
 
     [[nodiscard]] virtual const WorldSnapshot& current() const = 0;
     virtual void set_changed_handler(ChangedHandler handler) = 0;
+
+    /// Begins watching. **Must be idempotent**: `PetHost::run` calls it unconditionally,
+    /// and a head that also wants a snapshot before the loop starts -- to size an overlay,
+    /// or to print the world and exit -- will call it too. The Wayland head did not, and
+    /// the second call tried to claim a D-Bus name the first already owned.
     virtual void start() = 0;
 };
 

@@ -62,6 +62,10 @@ sudo apt install libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl
 cmake --preset linux-x64 && cmake --build --preset linux-x64-debug
 ```
 
+Use the preset rather than a hand-written `cmake -G Ninja`, and note the environment
+variable for the C compiler is `CC`, not `C` — set the wrong one and CMake silently picks
+whatever `cc` happens to be while using Clang for C++.
+
 The Linux preset names `clang-22` rather than `clang`, because on Ubuntu 26.04 plain
 `clang` is 21. Both are on the image, so nothing is installed — but picking up a different
 compiler than intended is the kind of thing that surfaces much later as a confusing

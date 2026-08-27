@@ -49,9 +49,10 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     GlesRenderer renderer;
     renderer.create(display);
 
+    // Not started here: PetHost::run does that, and starting it twice would try to claim
+    // the D-Bus name twice.
     KWinGeometryProvider world;
     world.set_outputs(display.outputs());
-    world.start();
 
     // Declared before the simulation and never appended to after spawning: a Pet holds a
     // pointer to its pack, so the vector must neither reallocate nor go out of scope first.

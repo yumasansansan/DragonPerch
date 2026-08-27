@@ -52,5 +52,17 @@ target_link_libraries(dragonperch-wl PRIVATE
 target_include_directories(dragonperch-wl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(dragonperch-wl PRIVATE DRAGONPERCH_VERSION="${PROJECT_VERSION}")
 
+# No RPATH, and none to strip out at install time either. Everything this links is a
+# system library already on the loader's default path, so an RPATH could only ever be a
+# path from the build machine baked into the binary.
+#
+# Not cosmetic: without this, CMake wants to relink on install to change the RPATH, and
+# with the plain Ninja generator that step is refused outright -- "requires changing an
+# RPATH from the build tree, but this is not supported with the Ninja generator".
+set_target_properties(dragonperch-wl PROPERTIES
+    SKIP_BUILD_RPATH TRUE
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH "")
+
 include(GNUInstallDirs)
 install(TARGETS dragonperch-wl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

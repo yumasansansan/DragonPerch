@@ -50,6 +50,9 @@ public:
 
     /// Claims the bus name and starts listening on its own thread. Throws if the session
     /// bus is unreachable, or if something else already owns the name.
+    ///
+    /// Calling it again does nothing, which the IWorldProvider contract requires: PetHost
+    /// starts the provider itself.
     void start() override;
 
     void stop() noexcept;
@@ -67,6 +70,7 @@ private:
     sd_bus* bus_ = nullptr;
     sd_bus_slot* slot_ = nullptr;
     std::thread worker_;
+    bool started_ = false;
     std::atomic<bool> stopping_{false};
     std::atomic<std::uint64_t> reports_{0};
 

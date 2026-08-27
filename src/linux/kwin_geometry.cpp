@@ -93,6 +93,11 @@ void KWinGeometryProvider::set_changed_handler(ChangedHandler handler)
 
 void KWinGeometryProvider::start()
 {
+    if (started_) {
+        return;
+    }
+    started_ = true;
+
     if (const int failed = sd_bus_open_user(&bus_); failed < 0) {
         throw std::runtime_error(
             std::format("cannot reach the session bus: {}", std::strerror(-failed)));
