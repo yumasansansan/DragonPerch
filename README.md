@@ -180,6 +180,27 @@ installed and without an environment variable. Installing the package does **not
 the KWin script and does **not** start anything at login — a program that puts dragons on
 somebody's screen because a dependency pulled it in is a program that gets uninstalled.
 
+### Windows Defender flags the download
+
+`Trojan:Win32/Wacatac.B!ml` — the `!ml` is the tell: a machine-learning guess, not a
+signature match. It is a false positive, and a predictable one. The binary is unsigned,
+freshly built, downloaded by nobody yet, and what it does for a living is enumerate other
+applications' windows, install a system-wide event hook, and keep a transparent
+always-on-top window over the whole screen. That is also roughly what a screen-scraper does.
+
+There is no trick that makes this go away honestly, and anything that did would be a trick
+worth being suspicious of. The two real answers are:
+
+- **report it** at <https://www.microsoft.com/en-us/wdsi/filesubmission> as a false
+  positive. This works, and it is worth doing — it is how the file stops being flagged for
+  everybody rather than just for you.
+- **sign it.** A code-signing certificate is what gives a binary an identity and lets
+  reputation accumulate against it. Until then every new build starts from zero, and
+  SmartScreen will warn about it whether or not Defender does.
+
+Build it yourself and the problem does not arise: a locally compiled binary is not a
+download.
+
 To build them yourself:
 
 ```bash

@@ -5,6 +5,7 @@
 #include "frame_clock.hpp"
 #include "gles_renderer.hpp"
 #include "kwin_geometry.hpp"
+#include "kwin_script.hpp"
 #include "layer_surface.hpp"
 #include "log.hpp"
 #include "sprite_pack_loader.hpp"
@@ -60,6 +61,22 @@ void handle_stop_signals()
     sigaction(SIGTERM, &action, nullptr);
 }
 
+/// Asks KWin to re-run the geometry script, so that a picture of the desktop arrives now
+/// rather than whenever somebody next moves a window.
+void ask_kwin_for_a_report()
+{
+    const std::filesystem::path script = find_kwin_script();
+    if (script.empty()) {
+        log_line("kwin: the geometry script is not installed. Run kwin/install.sh -- without"
+                 " it the pets have nothing to stand on but the floor");
+        return;
+    }
+
+    if (reload_kwin_script(script)) {
+        log_line(std::format("kwin: asked it to re-run {}", script.string()));
+    }
+}
+
 /// Milestone 6's check: can this put pixels on the screen at all?
 ///
 /// Clears each overlay to a translucent colour and holds. Nothing else is involved -- no
@@ -103,13 +120,17 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     WaylandDisplay display;
     display.connect();
 
-    GlesRenderer renderer;
-    renderer.create(display);
-
-    // Not started here: PetHost::run does that, and starting it twice would try to claim
-    // the D-Bus name twice.
+    // Before anything is drawn, and before the overlays exist. Claiming the bus name is
+    // what makes KWin's reports reach us at all, and asking for one has to come after
+    // that -- the first report is the difference between the pets standing on the panel
+    // and standing underneath it.
     KWinGeometryProvider world;
     world.set_outputs(display.outputs());
+    world.start();
+    ask_kwin_for_a_report();
+
+    GlesRenderer renderer;
+    renderer.create(display);
 
     // Declared before the simulation and never appended to after spawning: a Pet holds a
     // pointer to its pack, so the vector must neither reallocate nor go out of scope first.
@@ -186,9 +207,13 @@ int dump_world(int seconds)
     KWinGeometryProvider world;
     world.set_outputs(display.outputs());
 
-    world.set_changed_handler([](const WorldSnapshot& snapshot) {
+    const auto started = std::chrono::steady_clock::now();
+    world.set_changed_handler([started](const WorldSnapshot& snapshot) {
+        const auto age = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - started);
+
         log_line("");
-        log_line(std::format("--- snapshot {} ---", snapshot.version()));
+        log_line(std::format("--- snapshot {} at +{}ms ---", snapshot.version(), age.count()));
         for (const OutputInfo& output : snapshot.outputs()) {
             log_line(std::format("  output {:<10} {}x{} at {},{}  usable ({},{})-({},{})",
                                  output.name, output.bounds.width, output.bounds.height,
@@ -205,7 +230,10 @@ int dump_world(int seconds)
     });
 
     world.start();
+    ask_kwin_for_a_report();
     log_line(std::format("watching for {}s -- drag, resize, open or close a window", seconds));
+    log_line("a snapshot arriving before you touch anything is the KWin script introducing"
+             " itself");
 
     const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(seconds);
     while (std::chrono::steady_clock::now() < until
