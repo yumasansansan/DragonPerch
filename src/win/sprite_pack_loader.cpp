@@ -6,12 +6,15 @@
 #include "png.hpp"
 #include "win_headers.hpp"
 
+#include <algorithm>
 #include <array>
 #include <format>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <system_error>
+#include <utility>
 
 namespace dp::win {
 namespace {
@@ -38,27 +41,38 @@ std::filesystem::path executable_directory()
 
 } // namespace
 
-std::filesystem::path default_sprite_pack_path()
+std::vector<std::filesystem::path> default_sprite_pack_paths()
 {
-    const std::filesystem::path relative{"assets/konqi/konqi.ini"};
-
     // Beside the executable first -- that is where an install puts it -- then up the tree,
     // so running straight out of build/windows-x64/src/win/Debug also finds the assets in
-    // the source checkout without a copy step.
+    // the source checkout. Konqi is what identifies the directory: an `assets` folder that
+    // does not contain him is somebody else's.
     std::filesystem::path directory = executable_directory();
     for (int i = 0; i < 8; ++i) {
-        std::filesystem::path candidate = directory / relative;
-        if (std::filesystem::exists(candidate)) {
-            return candidate;
+        if (std::filesystem::exists(directory / "assets/konqi/konqi.ini")) {
+            break;
         }
 
         if (!directory.has_parent_path() || directory.parent_path() == directory) {
-            break;
+            return {};
         }
         directory = directory.parent_path();
     }
 
-    return executable_directory() / relative;
+    // One pack per mascot, named after the directory it lives in. Sorted, so that which
+    // dragon spawns where does not depend on the order the filesystem hands them back.
+    std::vector<std::filesystem::path> packs;
+    std::error_code failed;
+    for (const auto& entry : std::filesystem::directory_iterator{directory / "assets", failed}) {
+        std::filesystem::path candidate =
+            entry.path() / (entry.path().filename().string() + ".ini");
+        if (entry.is_directory() && std::filesystem::exists(candidate)) {
+            packs.push_back(std::move(candidate));
+        }
+    }
+
+    std::ranges::sort(packs);
+    return packs;
 }
 
 std::optional<SpritePack> load_sprite_pack(const std::filesystem::path& definition,

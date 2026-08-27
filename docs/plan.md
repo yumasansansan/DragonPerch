@@ -399,7 +399,7 @@ Each names how it is verified. No milestone is done because it compiles.
 | 5 | ~~Fullscreen detection~~ **done** | A borderless full-screen window hides the pets on that monitor and closing it brings them back, in exactly two transitions |
 | 6 | Wayland layer-shell surface + EGL on Plasma | Dragons visible on Plasma Wayland; clicks pass through |
 | 7 | KWin script + sd-bus geometry | Pets stand on real Plasma title bars and ride dragged windows |
-| 8 | ~~Konqi artwork replaces the placeholder~~ **done** | Konqi walks on the taskbar, generated from KDE's Konqi.svg |
+| 8 | ~~KDE mascot artwork replaces the placeholder~~ **done** | Konqi, Katie and Kori walk on the taskbar together, each facing the way it is going; the two that carry KDE's K draw both directions rather than mirroring |
 | 9 | X11 fallback, wlroots adapters, settings apps | — |
 
 Milestone 1 is deliberately tiny and first, because it is the one remaining unknown in the

@@ -183,7 +183,7 @@ int dump_world(int seconds)
 }
 
 /// Milestone 4: the simulation, the window tracking and the GPU path, connected.
-int run_pets(int pet_count, const std::filesystem::path& pack_path)
+int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
 {
     WinEventWatcher world;
     world.start();
@@ -192,24 +192,34 @@ int run_pets(int pet_count, const std::filesystem::path& pack_path)
     renderer.set_outputs(world.current().outputs());
     log_line(std::format("adapter: {}", to_utf8(renderer.device().adapter_description())));
 
-    const SpritePack pack = [&] {
-        if (std::optional<SpritePack> loaded = load_sprite_pack(pack_path, renderer)) {
-            return std::move(*loaded);
+    // Declared before the simulation and never appended to after spawning: a Pet holds a
+    // pointer to its pack, so the vector must neither reallocate nor go out of scope first.
+    std::vector<SpritePack> packs;
+    packs.reserve(pack_paths.size() + 1);
+    for (const std::filesystem::path& path : pack_paths) {
+        if (std::optional<SpritePack> loaded = load_sprite_pack(path, renderer)) {
+            packs.push_back(std::move(*loaded));
         }
+    }
 
+    if (packs.empty()) {
         log_line("sprite pack: none found, using the procedural placeholder");
         const std::vector<std::byte> atlas = placeholder_pack::render_atlas();
-        return placeholder_pack::create(renderer.register_atlas(atlas,
-                                                                placeholder_pack::atlas_size()));
-    }();
+        packs.push_back(placeholder_pack::create(
+            renderer.register_atlas(atlas, placeholder_pack::atlas_size())));
+    }
 
     Simulation simulation;
     std::mt19937 spawn{1};
+    std::size_t next = 0;
     for (const OutputInfo& output : world.current().outputs()) {
         std::uniform_int_distribution<int> across(output.bounds.left() + 64,
                                                   output.bounds.right() - 64);
         for (int i = 0; i < pet_count; ++i) {
-            simulation.spawn(pack, PixelPoint{across(spawn), output.bounds.top() + 8});
+            // Round robin rather than at random, so that asking for three pets gets one of
+            // each mascot instead of three of whichever the dice picked.
+            simulation.spawn(packs[next++ % packs.size()],
+                             PixelPoint{across(spawn), output.bounds.top() + 8});
         }
     }
 
@@ -337,11 +347,18 @@ int run(std::span<const std::wstring_view> args)
         }
         log_line(std::format("log: {}", log_path()));
 
-        std::filesystem::path pack = default_sprite_pack_path();
-        if (const std::optional<std::wstring> override_path = value_after(L"--pack")) {
-            pack = *override_path;
+        // --pack may be given more than once; the pets are shared out between whatever is
+        // named. With none named, every mascot shipped with the build joins in.
+        std::vector<std::filesystem::path> packs;
+        for (std::size_t i = 0; i + 1 < args.size(); ++i) {
+            if (args[i] == L"--pack") {
+                packs.emplace_back(args[i + 1]);
+            }
         }
-        return run_pets(count, pack);
+        if (packs.empty()) {
+            packs = default_sprite_pack_paths();
+        }
+        return run_pets(count, packs);
     }
 
     if (has(L"--dump-world")) {
@@ -354,7 +371,7 @@ int run(std::span<const std::wstring_view> args)
     log_line("  --dump-world [--hold]          milestone 3: print the walkable edges as they change");
     log_line("  --pets N                       run the pets (the default with no arguments)");
     log_line("  --self-test                    click-through and notification-state check");
-    log_line("  --pack FILE                    use a sprite pack definition");
+    log_line("  --pack FILE                    use a sprite pack; repeat for more than one");
     log_line("  --export-placeholder DIR       write the placeholder out as a pack template");
     return 0;
 }

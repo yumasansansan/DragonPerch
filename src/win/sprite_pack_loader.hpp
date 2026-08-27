@@ -6,6 +6,7 @@
 
 #include <filesystem>
 #include <optional>
+#include <vector>
 
 namespace dp::win {
 
@@ -18,9 +19,14 @@ namespace dp::win {
 [[nodiscard]] std::optional<SpritePack> load_sprite_pack(const std::filesystem::path& definition,
                                                          SpriteRenderer& renderer);
 
-/// Where a pack is looked for when none is named: `assets/konqi/konqi.ini`, searched beside
-/// the executable and then up the tree, so it works from a build directory as well as from
-/// an install.
-[[nodiscard]] std::filesystem::path default_sprite_pack_path();
+/// Every pack shipped with the build, when none is named on the command line.
+///
+/// One per mascot: `assets/<id>/<id>.ini`. The `assets` directory is searched for beside
+/// the executable and then up the tree, so running straight out of a build directory finds
+/// the artwork in the source checkout without a copy step.
+///
+/// Returns empty rather than throwing when there is no `assets` directory at all, so a
+/// build with no artwork yet still runs on the procedural placeholder.
+[[nodiscard]] std::vector<std::filesystem::path> default_sprite_pack_paths();
 
 } // namespace dp::win
