@@ -8,6 +8,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace dp {
@@ -22,6 +23,21 @@ enum class EdgeKind {
     /// Top of an output's usable area. Ceiling, for pets that fly.
     screen_ceiling,
 };
+
+[[nodiscard]] constexpr std::string_view kind_name(EdgeKind kind) noexcept
+{
+    switch (kind) {
+    case EdgeKind::window_top:
+        return "WindowTop";
+    case EdgeKind::panel_top:
+        return "PanelTop";
+    case EdgeKind::screen_floor:
+        return "ScreenFloor";
+    case EdgeKind::screen_ceiling:
+        return "ScreenCeiling";
+    }
+    return "?";
+}
 
 /// A horizontal line segment a pet can stand on.
 ///

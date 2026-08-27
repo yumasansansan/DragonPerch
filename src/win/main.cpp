@@ -1,18 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "console.hpp"
 #include "dcomp_renderer.hpp"
+#include "desktop_scanner.hpp"
 #include "dragonperch/geometry.hpp"
 #include "log.hpp"
 #include "overlay_window.hpp"
+#include "win_event_watcher.hpp"
 #include "win_headers.hpp"
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <exception>
 #include <format>
 #include <span>
+#include <cstdint>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 namespace dp::win {
@@ -115,6 +120,76 @@ int probe_composition(int seconds)
     return 0;
 }
 
+/// Class and caption behind an edge, so a bogus ledge can be identified by eye rather than
+/// guessed at. The first time the C# prototype printed this, three suspicious full-width
+/// ledges at y=0 turned out to be three perfectly ordinary maximised windows -- which is
+/// how the need for occlusion clipping was found.
+std::string describe(const WalkableEdge& edge)
+{
+    if (edge.kind != EdgeKind::window_top) {
+        // Cast for the format: these ids are sentinels and negated HMONITORs, and "0x-1"
+        // reads worse than the unsigned form.
+        return std::format("owner=0x{:X}", static_cast<std::uint64_t>(edge.owner_id));
+    }
+
+    auto hwnd = reinterpret_cast<HWND>(static_cast<std::intptr_t>(edge.owner_id));
+
+    std::array<wchar_t, 128> cls{};
+    const int cls_length = GetClassNameW(hwnd, cls.data(), static_cast<int>(cls.size()));
+
+    std::array<wchar_t, 128> text{};
+    const int text_length = GetWindowTextW(hwnd, text.data(), static_cast<int>(text.size()));
+
+    return std::format("[{}] \"{}\"",
+                       to_utf8(std::wstring_view{cls.data(), static_cast<std::size_t>(cls_length)}),
+                       to_utf8(std::wstring_view{text.data(), static_cast<std::size_t>(text_length)}));
+}
+
+void print(const WorldSnapshot& snapshot)
+{
+    log_line("");
+    log_line(std::format("--- snapshot {} ---", snapshot.version()));
+
+    for (const OutputInfo& output : snapshot.outputs()) {
+        log_line(std::format("  output {:<14} bounds=({},{})-({},{}) work=({},{})-({},{}) scale={:.2f}",
+                             output.name, output.bounds.left(), output.bounds.top(),
+                             output.bounds.right(), output.bounds.bottom(), output.work_area.left(),
+                             output.work_area.top(), output.work_area.right(),
+                             output.work_area.bottom(), output.scale));
+    }
+
+    log_line(std::format("  {} walkable edges:", snapshot.edges().size()));
+    for (const WalkableEdge& edge : snapshot.edges()) {
+        log_line(std::format("    {:<13} y={:>6}  x={:>6}..{:<6} w={:>5}  {}",
+                             kind_name(edge.kind), edge.y, edge.left, edge.right, edge.width(),
+                             describe(edge)));
+    }
+}
+
+/// Milestone 3.
+///
+/// The renderer and the simulation are not connected yet, so this prints what the scanner
+/// found instead: run it, drag a window, and check the numbers move the way the real title
+/// bar does.
+int dump_world(int seconds)
+{
+    WinEventWatcher watcher;
+    watcher.set_changed_handler(&print);
+    watcher.start();
+
+    log_line("");
+    log_line(std::format("watching for {}s -- drag, resize, open or close a window", seconds));
+
+    // Nothing to pump on this thread: the watcher owns its own message loop, because
+    // SetWinEventHook delivers through the queue of whichever thread installed it.
+    std::this_thread::sleep_for(std::chrono::seconds(seconds));
+
+    log_line("");
+    log_line(std::format("hook callbacks: {} accepted, {} filtered out",
+                         watcher.events_seen(), watcher.events_filtered()));
+    return 0;
+}
+
 int run(std::span<const std::wstring_view> args)
 {
     const auto has = [&](std::wstring_view flag) {
@@ -128,8 +203,14 @@ int run(std::span<const std::wstring_view> args)
         return probe_composition(has(L"--hold") ? 30 : 8);
     }
 
+    if (has(L"--dump-world")) {
+        log_line(std::format("log: {}", log_path()));
+        return dump_world(has(L"--hold") ? 60 : 15);
+    }
+
     log_line("DragonPerch " DRAGONPERCH_VERSION);
     log_line("  --probe-composition [--hold]   milestone 1: draw through DirectComposition");
+    log_line("  --dump-world [--hold]          milestone 3: print the walkable edges as they change");
     return 0;
 }
 

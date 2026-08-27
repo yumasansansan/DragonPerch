@@ -13,6 +13,7 @@
 #include <dwmapi.h>
 #include <dxgi1_6.h>
 #include <shellapi.h>
+#include <shellscalingapi.h>
 #include <wrl/client.h>
 
 #include <system_error>

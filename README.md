@@ -8,8 +8,8 @@ Dragons walk along the top edge of your windows, sit on your taskbar, and fall o
 drag the window out from under them. C++23, GPU rendering, as close to the platform as
 practical.
 
-> Status: **milestone 2.** The simulation and its tests are in; the Windows GPU path is
-> proven. The two have not been connected yet, so nothing walks on screen.
+> Status: **milestone 3.** The simulation, the GPU path and the window tracking all work.
+> They have not been connected to each other yet, so nothing walks on screen.
 > See [docs/plan.md](docs/plan.md).
 
 ---
@@ -97,8 +97,14 @@ no windows and no platform involved at all.
 ./build/windows-x64/src/win/Debug/dragonperch.exe --probe-composition --hold
 ```
 
-Milestone 1: draws an opaque quad, a half-transparent one overlapping it, and an outline,
-through DirectComposition on a click-through window. Diagnostics go to stdout **and** to
+```bash
+./build/windows-x64/src/win/Debug/dragonperch.exe --dump-world --hold
+```
+
+The first draws an opaque quad, a half-transparent one overlapping it, and an outline,
+through DirectComposition on a click-through window. The second prints the walkable edges
+and reprints them whenever the desktop changes — drag a window and watch the numbers follow
+its title bar. Diagnostics go to stdout **and** to
 `dragonperch.log` beside the executable, because a GUI-subsystem binary cannot rely on
 having a console.
 

@@ -2,6 +2,8 @@
 
 add_executable(dragonperch WIN32
     main.cpp
+    desktop_scanner.cpp
+    win_event_watcher.cpp
     overlay_window.cpp
     dcomp_renderer.cpp
     console.cpp
@@ -17,7 +19,8 @@ target_link_libraries(dragonperch PRIVATE
     d2d1
     dwmapi
     user32
-    shell32)
+    shell32
+    shcore)      # GetDpiForMonitor
 
 target_include_directories(dragonperch PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
