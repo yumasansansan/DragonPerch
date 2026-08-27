@@ -8,8 +8,9 @@ Dragons walk along the top edge of your windows, sit on your taskbar, and fall o
 drag the window out from under them. C++23, GPU rendering, as close to the platform as
 practical.
 
-> Status: **milestone 1.** The build works on both platforms and the Windows GPU path is
-> proven. Nothing walks yet. See [docs/plan.md](docs/plan.md).
+> Status: **milestone 2.** The simulation and its tests are in; the Windows GPU path is
+> proven. The two have not been connected yet, so nothing walks on screen.
+> See [docs/plan.md](docs/plan.md).
 
 ---
 
@@ -79,6 +80,16 @@ rather than rejected:
 `/GL` and `/LTCG` are a pair — one without the other loses the optimisation — so link-time
 optimisation is expressed as `CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE` instead of raw
 flags, which keeps the two halves together and gives `-flto` on Clang for free.
+
+## Tests
+
+```bash
+ctest --test-dir build/windows-x64 --build-config Debug --output-on-failure
+```
+
+The simulation takes a world snapshot and a delta time and produces sprite positions, and a
+fake world is just a list of line segments — so the physics is tested with no compositor,
+no windows and no platform involved at all.
 
 ## Trying it
 

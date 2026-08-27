@@ -20,6 +20,15 @@ target_link_libraries(dragonperch PRIVATE
     shell32)
 
 target_include_directories(dragonperch PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+# On this target, not globally. These are Windows API settings and only this head touches
+# the Windows API -- and leaking _UNICODE into everything else broke the test binary, which
+# picked up a wmain entry point from Catch2 while the linker was looking for main.
+target_compile_definitions(dragonperch PRIVATE
+    UNICODE
+    _UNICODE
+    NOMINMAX                # or windows.h steals std::min and std::max
+    WIN32_LEAN_AND_MEAN)
 target_compile_definitions(dragonperch PRIVATE DRAGONPERCH_VERSION="${PROJECT_VERSION}")
 
 # The manifest arrives through dragonperch.rc, so stop the linker generating one of its

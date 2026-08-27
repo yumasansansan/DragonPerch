@@ -20,13 +20,6 @@ include(CompilerOptions)
 # Keeps clangd and other tooling working on the Linux side.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if(MSVC)
-    add_compile_definitions(
-        UNICODE _UNICODE
-        NOMINMAX                    # or windows.h steals std::min / std::max
-        WIN32_LEAN_AND_MEAN)
-endif()
-
 # Visual Studio: start debugging the Windows head rather than ALL_BUILD.
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT dragonperch)
 
@@ -40,5 +33,5 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
-    # add_subdirectory(tests)       # milestone 2
+    add_subdirectory(tests)
 endif()

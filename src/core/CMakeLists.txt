@@ -6,6 +6,9 @@
 
 add_library(dragonperch_core STATIC
     dragonperch/geometry.cpp
+    dragonperch/placeholder_pack.cpp
+    dragonperch/simulation.cpp
+    dragonperch/sprites.cpp
     dragonperch/world.cpp)
 
 target_include_directories(dragonperch_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

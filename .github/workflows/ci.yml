@@ -36,6 +36,9 @@ jobs:
       - name: Build everything
         run: cmake --build build/linux-x64 --config ${{ matrix.configuration }}
 
+      - name: Test
+        run: ctest --test-dir build/linux-x64 --build-config ${{ matrix.configuration }} --output-on-failure
+
   windows:
     name: windows (MSVC, ${{ matrix.configuration }})
     runs-on: windows-2025-vs2026
@@ -53,3 +56,6 @@ jobs:
 
       - name: Build
         run: cmake --build build/windows-x64 --config ${{ matrix.configuration }}
+
+      - name: Test
+        run: ctest --test-dir build/windows-x64 --build-config ${{ matrix.configuration }} --output-on-failure
