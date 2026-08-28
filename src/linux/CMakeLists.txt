@@ -35,8 +35,10 @@ add_executable(dragonperch-wl
     egl_context.cpp
     gles_renderer.cpp
     frame_clock.cpp
+    control.cpp
     kwin_geometry.cpp
     kwin_script.cpp
+    session_bus.cpp
     sprite_pack_loader.cpp
     png.cpp
     log.cpp)

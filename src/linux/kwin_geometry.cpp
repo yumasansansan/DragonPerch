@@ -4,6 +4,7 @@
 #include "dragonperch/edge_builder.hpp"
 #include "dragonperch/text.hpp"
 #include "log.hpp"
+#include "session_bus.hpp"
 
 #include <algorithm>
 #include <array>
@@ -19,7 +20,6 @@
 namespace dp::wl {
 namespace {
 
-constexpr const char* bus_name = "org.dragonperch.Geometry";
 constexpr const char* object_path = "/org/dragonperch/Geometry";
 constexpr const char* interface_name = "org.dragonperch.Geometry1";
 
@@ -86,11 +86,7 @@ bool to_int(std::string_view text, int& out) noexcept
 } // namespace
 
 KWinGeometryProvider::KWinGeometryProvider() = default;
-
-KWinGeometryProvider::~KWinGeometryProvider()
-{
-    stop();
-}
+KWinGeometryProvider::~KWinGeometryProvider() = default;
 
 void KWinGeometryProvider::set_outputs(std::span<const OutputInfo> outputs)
 {
@@ -112,21 +108,10 @@ void KWinGeometryProvider::set_changed_handler(ChangedHandler handler)
     handler_ = std::move(handler);
 }
 
-void KWinGeometryProvider::start()
+void KWinGeometryProvider::publish(SessionBus& bus)
 {
-    if (started_) {
-        return;
-    }
-    started_ = true;
-
-    if (const int failed = sd_bus_open_user(&bus_); failed < 0) {
-        throw std::runtime_error(
-            cat("cannot reach the session bus: ", std::strerror(-failed)));
-    }
-
-    // Declared here rather than at namespace scope so it can name a private member. The
-    // table is read by sd-bus for as long as the slot lives, so it has to outlive this
-    // call -- hence static.
+    // Declared here so it can name a private member, and static so it outlives the call --
+    // sd-bus reads the table for as long as the object is published.
     static const sd_bus_vtable vtable[] = {
         SD_BUS_VTABLE_START(0),
         SD_BUS_METHOD("Update", "s", "", &KWinGeometryProvider::on_update,
@@ -134,67 +119,17 @@ void KWinGeometryProvider::start()
         SD_BUS_VTABLE_END,
     };
 
-    if (const int failed = sd_bus_add_object_vtable(bus_, &slot_, object_path, interface_name,
-                                                    vtable, this);
-        failed < 0) {
-        throw std::runtime_error(
-            cat("cannot publish ", object_path, ": ", std::strerror(-failed)));
-    }
+    bus.add_object(object_path, interface_name, vtable, this);
+}
 
-    // No replace, no queue: a second DragonPerch must fail here rather than silently take
-    // the name from the first and leave it drawing a desktop that never changes again.
-    if (const int failed = sd_bus_request_name(bus_, bus_name, 0); failed < 0) {
-        throw std::runtime_error(
-            cat("cannot claim ", bus_name,
-                " -- another DragonPerch is probably already running: ", std::strerror(-failed)));
+void KWinGeometryProvider::start()
+{
+    if (started_) {
+        return;
     }
+    started_ = true;
 
-    // Publish what is known before any report arrives: the outputs, and a floor on each. A
-    // pet spawned before KWin has said anything then lands on the bottom of the screen
-    // rather than falling for ever.
     apply("v 1");
-
-    worker_ = std::thread{[this] { run(); }};
-    log_line(cat("listening on ", bus_name, " for the KWin script"));
-}
-
-void KWinGeometryProvider::run()
-{
-    while (!stopping_.load(std::memory_order_relaxed)) {
-        const int processed = sd_bus_process(bus_, nullptr);
-        if (processed < 0) {
-            log_line(cat("session bus error: ", std::strerror(-processed)));
-            return;
-        }
-        if (processed > 0) {
-            // More may be queued behind it; go round again without waiting.
-            continue;
-        }
-
-        // A timeout rather than an indefinite wait, so that stopping does not depend on
-        // KWin sending one last message to wake this thread up.
-        if (const int failed = sd_bus_wait(bus_, 200'000); failed < 0) {
-            log_line(cat("session bus wait failed: ", std::strerror(-failed)));
-            return;
-        }
-    }
-}
-
-void KWinGeometryProvider::stop() noexcept
-{
-    stopping_.store(true, std::memory_order_relaxed);
-    if (worker_.joinable()) {
-        worker_.join();
-    }
-
-    if (slot_ != nullptr) {
-        sd_bus_slot_unref(slot_);
-        slot_ = nullptr;
-    }
-    if (bus_ != nullptr) {
-        sd_bus_unref(bus_);
-        bus_ = nullptr;
-    }
 }
 
 int KWinGeometryProvider::on_update(sd_bus_message* message, void* userdata, sd_bus_error*)

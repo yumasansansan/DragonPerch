@@ -12,7 +12,7 @@
 #include "dragonperch/placeholder_pack.hpp"
 #include "self_test.hpp"
 #endif
-#include "stop_signal.hpp"
+#include "control.hpp"
 #include "png.hpp"
 #include "sprite_pack_loader.hpp"
 #include "sprite_renderer.hpp"
@@ -26,6 +26,7 @@
 #include <format>
 #include <span>
 #include <stdexcept>
+#include <utility>
 #include <atomic>
 #include <cstdint>
 #include <filesystem>
@@ -245,7 +246,6 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
         }
     }
 
-    create_stop_signal();
     log_line(cat(simulation.pets().size(), " pet(s) on ", world_now.outputs().size(),
                  " output(s)"));
     log_line("to stop: close the console, or run  dragonperch --stop");
@@ -253,11 +253,36 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     DwmFrameClock clock;
     PetHost host{simulation, world, renderer, clock};
 
+    // On this thread, so the handler runs between frames rather than alongside one -- the
+    // messages arrive through the same pump the overlay windows use.
+    ControlServer control;
+    if (!control.start([&host](Command command) {
+            log_line(cat("control: ", name_of(command)));
+            switch (command) {
+            case Command::quit:
+                g_stop.store(true, std::memory_order_relaxed);
+                break;
+            case Command::pause:
+                host.set_paused(true);
+                break;
+            case Command::resume:
+                host.set_paused(false);
+                break;
+            case Command::toggle_pause:
+                host.set_paused(!host.paused());
+                break;
+            case Command::reload:
+                // Milestone 10. Nothing to re-read yet.
+                break;
+            }
+        })) {
+        log_line("control: no window, so --stop and the tray will not reach this instance");
+    }
+
     host.run([] {
         // The overlay windows live on this thread, so their queue has to be drained or they
         // stop answering WM_NCHITTEST and click-through quietly stops working.
-        return !OverlayWindow::pump() || g_stop.load(std::memory_order_relaxed)
-               || stop_requested();
+        return !OverlayWindow::pump() || g_stop.load(std::memory_order_relaxed);
     });
 
     renderer.device().drain_debug_messages();
@@ -349,12 +374,21 @@ int run(std::span<const std::wstring_view> args)
         return 0;
     }
 
-    if (has(L"--stop")) {
-        if (!raise_stop_signal()) {
-            log_line("nothing to stop: no DragonPerch is running in this session");
+    // One flag per command, all going through the same message.
+    for (const auto& [flag, command] : {
+             std::pair{L"--stop", Command::quit},
+             std::pair{L"--pause", Command::pause},
+             std::pair{L"--resume", Command::resume},
+             std::pair{L"--reload", Command::reload},
+         }) {
+        if (!has(flag)) {
+            continue;
+        }
+        if (!send_command(command)) {
+            log_line("no DragonPerch is running in this session");
             return 1;
         }
-        log_line("asked it to stop");
+        log_line(cat("asked it to ", name_of(command)));
         return 0;
     }
 
@@ -420,6 +454,8 @@ int run(std::span<const std::wstring_view> args)
     log_line("  --pets N                       run the pets (the default with no arguments)");
     log_line("  --pack FILE                    use a sprite pack; repeat for more than one");
     log_line("  --stop                         ask a running DragonPerch to quit");
+    log_line("  --pause / --resume             freeze the pets where they are, or let them go");
+    log_line("  --reload                       re-read the settings (milestone 10)");
     log_line("  --version                      print the version and exit");
 #ifdef DRAGONPERCH_DIAGNOSTICS
     log_line("  --probe-composition [--hold]   milestone 1: draw through DirectComposition");

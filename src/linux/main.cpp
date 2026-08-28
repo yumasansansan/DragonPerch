@@ -3,11 +3,13 @@
 #include "dragonperch/simulation.hpp"
 #include "frame_clock.hpp"
 #include "gles_renderer.hpp"
+#include "control.hpp"
 #include "kwin_geometry.hpp"
 #include "kwin_script.hpp"
 #include "layer_surface.hpp"
 #include "dragonperch/text.hpp"
 #include "log.hpp"
+#include "session_bus.hpp"
 #include "sprite_pack_loader.hpp"
 #include "wayland_display.hpp"
 
@@ -37,6 +39,13 @@
 
 namespace dp::wl {
 namespace {
+
+/// Two names on one connection. `org.dragonperch.Geometry` is what the installed KWin
+/// script calls, and renaming it would break every script older than the binary; the
+/// control interface gets a name of its own rather than living under the geometry one,
+/// which is only a name but is the wrong name.
+constexpr const char* geometry_bus_name = "org.dragonperch.Geometry";
+constexpr const char* control_bus_name = "org.dragonperch.Control";
 
 std::atomic<bool> g_stop{false};
 
@@ -125,12 +134,42 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     WaylandDisplay display;
     display.connect();
 
-    // Before anything is drawn, and before the overlays exist. Claiming the bus name is
-    // what makes KWin's reports reach us at all, and asking for one has to come after
-    // that -- the first report is the difference between the pets standing on the panel
-    // and standing underneath it.
+    // Before anything is drawn, and before the overlays exist. Claiming the names is what
+    // makes KWin's reports reach us at all, and asking for one has to come after that --
+    // the first report is the difference between the pets standing on the panel and
+    // standing underneath it.
+    SessionBus bus;
+    bus.open();
+    bus.request_name(geometry_bus_name);
+    bus.request_name(control_bus_name);
+
     KWinGeometryProvider world;
     world.set_outputs(display.outputs());
+    world.publish(bus);
+
+    ControlService control;
+    PetHost* host_for_control = nullptr;
+    control.publish(bus, [&](Command command) {
+        switch (command) {
+        case Command::quit:
+            g_stop.store(true, std::memory_order_relaxed);
+            break;
+        case Command::pause:
+        case Command::resume:
+        case Command::toggle_pause:
+            if (host_for_control != nullptr) {
+                host_for_control->set_paused(command == Command::pause
+                                             || (command == Command::toggle_pause
+                                                 && !host_for_control->paused()));
+            }
+            break;
+        case Command::reload:
+            // Milestone 10. Nothing to re-read yet.
+            break;
+        }
+    });
+
+    bus.start();
     world.start();
     ask_kwin_for_a_report();
 
@@ -178,6 +217,11 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     FrameClock clock{display, renderer.overlays().front().surface()};
     PetHost host{simulation, world, renderer, clock};
 
+    // Published before the host existed, because the bus has to be claimed before KWin is
+    // asked for anything. The handler runs on the bus thread and only ever touches an
+    // atomic, which is what makes handing it a pointer here safe.
+    host_for_control = &host;
+
     host.run([&] {
         if (clock.disconnected() || g_stop.load(std::memory_order_relaxed)) {
             return true;
@@ -199,7 +243,6 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
         log_line("    kwin/install.sh");
     }
 
-    world.stop();
     return 0;
 }
 
@@ -215,9 +258,15 @@ int dump_world(int seconds)
     WaylandDisplay display;
     display.connect();
 
+    SessionBus bus;
+    bus.open();
+    bus.request_name(geometry_bus_name);
+
     KWinGeometryProvider world;
     world.set_outputs(display.outputs());
     world.log_raw_reports(true);
+    world.publish(bus);
+    bus.start();
 
     const auto started = std::chrono::steady_clock::now();
     world.set_changed_handler([started](const WorldSnapshot& snapshot) {
@@ -259,7 +308,6 @@ int dump_world(int seconds)
         log_line("    kwin/install.sh");
     }
 
-    world.stop();
     return 0;
 }
 
@@ -276,11 +324,32 @@ int run(std::span<const std::string_view> args)
         return 0;
     }
 
+    // One flag per command, all going through the same method call.
+    for (const auto& [flag, command] : {
+             std::pair{std::string_view{"--stop"}, Command::quit},
+             std::pair{std::string_view{"--pause"}, Command::pause},
+             std::pair{std::string_view{"--resume"}, Command::resume},
+             std::pair{std::string_view{"--reload"}, Command::reload},
+         }) {
+        if (!has(flag)) {
+            continue;
+        }
+        if (!send_command(command)) {
+            log_line("no DragonPerch is running in this session");
+            return 1;
+        }
+        log_line(cat("asked it to ", name_of(command)));
+        return 0;
+    }
+
     if (has("--help") || has("-h")) {
         log_line("DragonPerch " DRAGONPERCH_VERSION);
         log_line("  --pets N        how many of each mascot (the default with no arguments)");
         log_line("  --pack FILE     use a sprite pack; repeat for more than one");
         log_line("  --version       print the version and exit");
+        log_line("  --stop          ask a running DragonPerch to quit");
+        log_line("  --pause / --resume  freeze the pets where they are, or let them go");
+        log_line("  --reload        re-read the settings (milestone 10)");
 #ifdef DRAGONPERCH_DIAGNOSTICS
         log_line("  --dump-world [--hold]         print the edges as KWin reports them");
         log_line("  --probe-composition [--hold]  tint the screen, and nothing else");

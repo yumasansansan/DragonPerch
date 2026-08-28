@@ -131,6 +131,7 @@ is rectangles and a stacking order, and it is shared by both backends.
 ```
 
 ```bash
+./build/windows-x64/src/win/Debug/dragonperch.exe --pause
 ./build/windows-x64/src/win/Debug/dragonperch.exe --stop
 ```
 
@@ -167,7 +168,18 @@ That gives a *release* binary with the diagnostics in, which is what to build wh
 shipped build misbehaves. A Debug build has different timing and a different Direct2D
 layer, so it answers a different question.
 
-`--stop` is there because Ctrl+C on Windows nearly works and cannot be relied on. This is a
+`--stop`, `--pause`, `--resume` and `--reload` all go through one control interface — a
+message-only window answering `WM_COPYDATA` on Windows, `org.dragonperch.Control` on the
+session bus on Linux. Neither needs a thread of its own: Windows already pumps messages for
+the overlay windows, and Linux already processes the bus the KWin reports arrive on. The
+tray icon and the settings program will be two more callers of the same four commands.
+
+Pausing stops the simulation and stops drawing; the overlays stay exactly as they are,
+showing the last frame. Rebuilding them on resume would be a second path through the window
+and surface code, which is the part of this program that has been wrong most often.
+
+`--stop` in particular is there because Ctrl+C on Windows nearly works and cannot be relied
+on. This is a
 GUI-subsystem binary, so the shell does not wait for it and the prompt comes straight back;
 whether the Ctrl+C typed at that prompt becomes a console event is then up to the shell.
 `cmd` sends one, PowerShell 7 does not — PSReadLine handles the key itself. Closing the

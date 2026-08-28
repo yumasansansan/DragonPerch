@@ -8,15 +8,14 @@
 #include <mutex>
 #include <span>
 #include <string_view>
-#include <thread>
 #include <vector>
 
-struct sd_bus;
 struct sd_bus_message;
-struct sd_bus_slot;
 struct sd_bus_error;
 
 namespace dp::wl {
+
+class SessionBus;
 
 /// Where the windows are, according to KWin.
 ///
@@ -26,10 +25,14 @@ namespace dp::wl {
 /// `kwin/dragonperch-geometry/`, which pushes a line of text per window over the session
 /// bus every time the desktop changes.
 ///
-/// This owns the receiving end: it claims `org.dragonperch.Geometry` on the session bus and
-/// turns each report into a WorldSnapshot. All of the judgement lives here rather than in
-/// the script, because the script runs on KWin's main thread and anything slow there is
+/// This is the receiving end: it publishes `/org/dragonperch/Geometry` on the session bus
+/// and turns each report into a WorldSnapshot. All of the judgement lives here rather than
+/// in the script, because the script runs on KWin's main thread and anything slow there is
 /// session-wide jank.
+///
+/// The connection and the thread belong to SessionBus, not here. The control interface
+/// publishes on the same one, and a provider that owned the bus would have had to lend it
+/// out.
 class KWinGeometryProvider final : public IWorldProvider {
 public:
     KWinGeometryProvider();
@@ -48,14 +51,16 @@ public:
     [[nodiscard]] WorldSnapshot current() const override;
     void set_changed_handler(ChangedHandler handler) override;
 
-    /// Claims the bus name and starts listening on its own thread. Throws if the session
-    /// bus is unreachable, or if something else already owns the name.
-    ///
-    /// Calling it again does nothing, which the IWorldProvider contract requires: PetHost
-    /// starts the provider itself.
-    void start() override;
+    /// Registers the object. Call before the bus starts processing, so that the first
+    /// report cannot arrive before there is anything to receive it.
+    void publish(SessionBus& bus);
 
-    void stop() noexcept;
+    /// Publishes what is known before KWin has said anything: the outputs, and a floor on
+    /// each. A pet spawned first then lands on the bottom of the screen rather than falling
+    /// for ever.
+    ///
+    /// Idempotent, which the IWorldProvider contract requires: PetHost calls it too.
+    void start() override;
 
     /// Prints every report from KWin exactly as it arrived, before anything is made of it.
     ///
@@ -72,14 +77,9 @@ private:
     static int on_update(sd_bus_message* message, void* userdata, sd_bus_error* error);
 
     void apply(std::string_view report);
-    void run();
 
-    sd_bus* bus_ = nullptr;
-    sd_bus_slot* slot_ = nullptr;
-    std::thread worker_;
     bool started_ = false;
     bool log_raw_ = false;
-    std::atomic<bool> stopping_{false};
     std::atomic<std::uint64_t> reports_{0};
 
     /// `current()` is read from the render loop while the bus thread publishes.
