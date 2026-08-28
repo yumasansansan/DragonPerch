@@ -15,7 +15,7 @@
 namespace dp::wl {
 namespace {
 
-constexpr const char* bus_name = "org.dragonperch.Control";
+constexpr const char* bus_name = "org.dragonperch";
 constexpr const char* object_path = "/org/dragonperch/Control";
 constexpr const char* interface_name = "org.dragonperch.Control1";
 

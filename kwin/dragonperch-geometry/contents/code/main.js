@@ -16,7 +16,7 @@
 // it -- including the heartbeat -- silently never runs. That is exactly what happened, and
 // it looked like "the pets are in the wrong place until you move a window".
 
-const SERVICE = "org.dragonperch.Geometry";
+const SERVICE = "org.dragonperch";
 const PATH = "/org/dragonperch/Geometry";
 const INTERFACE = "org.dragonperch.Geometry1";
 

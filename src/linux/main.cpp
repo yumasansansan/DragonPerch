@@ -40,12 +40,15 @@
 namespace dp::wl {
 namespace {
 
-/// Two names on one connection. `org.dragonperch.Geometry` is what the installed KWin
-/// script calls, and renaming it would break every script older than the binary; the
-/// control interface gets a name of its own rather than living under the geometry one,
-/// which is only a name but is the wrong name.
-constexpr const char* geometry_bus_name = "org.dragonperch.Geometry";
-constexpr const char* control_bus_name = "org.dragonperch.Control";
+/// One well-known name for the program, with an object per thing it does. Two names for
+/// one process was an accident of the geometry object having arrived first.
+///
+/// The KWin script calls this name, and the script is installed by the same package as the
+/// binary -- so there is no version to be skewed against. A copy left behind in
+/// ~/.local/share by an earlier `kwin/install.sh` would shadow the packaged one and go on
+/// calling the old name; that shows up as "the KWin script never said anything", which is
+/// a message the program already prints along with what to do about it.
+constexpr const char* bus_name = "org.dragonperch";
 
 std::atomic<bool> g_stop{false};
 
@@ -140,8 +143,7 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     // standing underneath it.
     SessionBus bus;
     bus.open();
-    bus.request_name(geometry_bus_name);
-    bus.request_name(control_bus_name);
+    bus.request_name(bus_name);
 
     KWinGeometryProvider world;
     world.set_outputs(display.outputs());
@@ -260,7 +262,7 @@ int dump_world(int seconds)
 
     SessionBus bus;
     bus.open();
-    bus.request_name(geometry_bus_name);
+    bus.request_name(bus_name);
 
     KWinGeometryProvider world;
     world.set_outputs(display.outputs());

@@ -76,15 +76,33 @@ std::filesystem::path find_kwin_script()
 {
     std::error_code failed;
 
+    std::filesystem::path found;
     for (const std::filesystem::path& candidate : {
              executable_directory() / ".." / "share" / relative,
              data_home() / relative,
              std::filesystem::path{"/usr/share"} / relative,
              std::filesystem::path{"/usr/local/share"} / relative,
          }) {
-        if (!candidate.empty() && std::filesystem::exists(candidate, failed)) {
-            return std::filesystem::weakly_canonical(candidate, failed);
+        if (candidate.empty() || !std::filesystem::exists(candidate, failed)) {
+            continue;
         }
+
+        if (found.empty()) {
+            found = std::filesystem::weakly_canonical(candidate, failed);
+            continue;
+        }
+
+        // A copy in the user's data directory shadows the packaged one, which is right for
+        // developing and wrong after an upgrade: `kwin/install.sh` run once from a checkout
+        // leaves a script behind that a later package will not replace. Silently loading the
+        // older of the two is the sort of thing that costs an evening, so say it.
+        log_line(cat("kwin: ", found.string(), " is being used, and ", candidate.string(),
+                     " is being shadowed. Delete the first if it is stale."));
+        break;
+    }
+
+    if (!found.empty()) {
+        return found;
     }
 
     // The source tree, so it can be tried without installing anything.

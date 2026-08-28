@@ -26,7 +26,8 @@ enum class Command {
 
 [[nodiscard]] std::string_view name_of(Command command) noexcept;
 
-/// `org.dragonperch.Control` at `/org/dragonperch/Control`.
+/// `org.dragonperch.Control1` at `/org/dragonperch/Control`, on the `org.dragonperch`
+/// name.
 ///
 /// Published on the connection the geometry reports already arrive on: both are D-Bus,
 /// neither is busy, and a second connection with a second thread would buy nothing.

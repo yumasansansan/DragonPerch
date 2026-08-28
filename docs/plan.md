@@ -538,8 +538,13 @@ Building one mechanism for all three is the point of doing this first.
 
 | | Transport | Endpoint |
 |---|---|---|
-| Linux | D-Bus, on the connection already open | `org.dragonperch.Control` at `/org/dragonperch/Control` |
+| Linux | D-Bus, on the connection already open | `org.dragonperch`, object `/org/dragonperch/Control` |
 | Windows | `WM_COPYDATA` to a message-only window | class `DragonPerch.Control`, found with `FindWindowExW` |
+
+One well-known name for the program, with an object per thing it does -- geometry reports
+arrive at `/org/dragonperch/Geometry` on the same name. Two names for one process was an
+accident of the geometry object having been written first, and the KWin script ships in the
+same package as the binary, so there was never a version to be skewed against.
 
 ```
 Quit()                  stop and unwind
