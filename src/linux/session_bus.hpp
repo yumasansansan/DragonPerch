@@ -7,6 +7,8 @@
 
 struct sd_bus;
 struct sd_bus_slot;
+struct sd_bus_message;
+struct sd_bus_error;
 struct sd_bus_vtable;
 
 namespace dp::wl {
@@ -43,6 +45,11 @@ public:
     /// must outlive this call.
     void add_object(const char* path, const char* interface, const sd_bus_vtable* vtable,
                     void* userdata);
+
+    /// Asks to be told about messages matching `rule`. Registered before `start`, like
+    /// everything else that touches the connection.
+    void add_match(const char* rule, int (*handler)(sd_bus_message*, void*, sd_bus_error*),
+                   void* userdata);
 
     /// Starts processing on its own thread. Idempotent.
     void start();

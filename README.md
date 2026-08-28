@@ -168,6 +168,11 @@ That gives a *release* binary with the diagnostics in, which is what to build wh
 shipped build misbehaves. A Debug build has different timing and a different Direct2D
 layer, so it answers a different question.
 
+There is a tray icon on both platforms, and it is the ordinary way to stop DragonPerch:
+right-click it for Pause and Quit. On Windows it is `Shell_NotifyIcon` with a system menu;
+on Linux it is StatusNotifierItem, where the menu is *described* rather than drawn — Plasma
+builds it from the labels, in Breeze, following the user's theme with no code on our side.
+
 `--stop`, `--pause`, `--resume` and `--reload` all go through one control interface — a
 message-only window answering `WM_COPYDATA` on Windows, `org.dragonperch.Control` on the
 session bus on Linux. Neither needs a thread of its own: Windows already pumps messages for

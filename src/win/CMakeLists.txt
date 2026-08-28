@@ -12,6 +12,7 @@ add_executable(dragonperch WIN32
     png.cpp
     sprite_pack_loader.cpp
     control.cpp
+    tray.cpp
     sprite_renderer.cpp
     console.cpp
     log.cpp
@@ -28,6 +29,7 @@ target_link_libraries(dragonperch PRIVATE
     user32
     shell32
     shcore       # GetDpiForMonitor
+    comctl32
     windowscodecs
     ole32)       # WIC
 

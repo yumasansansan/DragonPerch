@@ -16,6 +16,7 @@
 #include "png.hpp"
 #include "sprite_pack_loader.hpp"
 #include "sprite_renderer.hpp"
+#include "tray.hpp"
 #include "win_event_watcher.hpp"
 #include "win_headers.hpp"
 
@@ -248,40 +249,52 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
 
     log_line(cat(simulation.pets().size(), " pet(s) on ", world_now.outputs().size(),
                  " output(s)"));
-    log_line("to stop: close the console, or run  dragonperch --stop");
+    log_line("to stop: the tray icon, or close the console, or  dragonperch --stop");
 
     DwmFrameClock clock;
     PetHost host{simulation, world, renderer, clock};
 
+    // One handler for both the control interface and the tray, so the two cannot drift
+    // into meaning different things by the same name.
+    const auto command = [&host](Command what) {
+        log_line(cat("command: ", name_of(what)));
+        switch (what) {
+        case Command::quit:
+            g_stop.store(true, std::memory_order_relaxed);
+            break;
+        case Command::pause:
+            host.set_paused(true);
+            break;
+        case Command::resume:
+            host.set_paused(false);
+            break;
+        case Command::toggle_pause:
+            host.set_paused(!host.paused());
+            break;
+        case Command::reload:
+            // Milestone 10. Nothing to re-read yet.
+            break;
+        }
+    };
+
     // On this thread, so the handler runs between frames rather than alongside one -- the
     // messages arrive through the same pump the overlay windows use.
     ControlServer control;
-    if (!control.start([&host](Command command) {
-            log_line(cat("control: ", name_of(command)));
-            switch (command) {
-            case Command::quit:
-                g_stop.store(true, std::memory_order_relaxed);
-                break;
-            case Command::pause:
-                host.set_paused(true);
-                break;
-            case Command::resume:
-                host.set_paused(false);
-                break;
-            case Command::toggle_pause:
-                host.set_paused(!host.paused());
-                break;
-            case Command::reload:
-                // Milestone 10. Nothing to re-read yet.
-                break;
-            }
-        })) {
+    if (!control.start(command)) {
         log_line("control: no window, so --stop and the tray will not reach this instance");
+    }
+
+    // Same thread as the overlays and the control window, so its menu runs between frames
+    // and the handler can touch anything the loop owns.
+    TrayIcon tray;
+    if (!tray.add(command, [&host] { return host.paused(); })) {
+        log_line("tray: no icon; use the console or  dragonperch --stop");
     }
 
     host.run([] {
         // The overlay windows live on this thread, so their queue has to be drained or they
-        // stop answering WM_NCHITTEST and click-through quietly stops working.
+        // stop answering WM_NCHITTEST and click-through quietly stops working. The tray's
+        // window and the control window are on it too, and are pumped by the same call.
         return !OverlayWindow::pump() || g_stop.load(std::memory_order_relaxed);
     });
 

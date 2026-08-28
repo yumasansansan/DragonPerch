@@ -453,7 +453,7 @@ Each names how it is verified. No milestone is done because it compiles.
 | 6 | ~~Wayland layer-shell surface + EGL on Plasma~~ **done** | Dragons visible on Plasma Wayland under llvmpipe; clicks pass through; `--probe-composition` tints the screen and reports frames presented |
 | 7 | ~~KWin script + sd-bus geometry~~ **done** | Pets stand on real Plasma title bars and on the panel; `--dump-world` prints KWin's report as sent |
 | 8 | ~~KDE mascot artwork replaces the placeholder~~ **done** | Konqi, Katie and Kori walk on the taskbar together, each facing the way it is going; the two that carry KDE's K draw both directions rather than mirroring |
-| 9 | Control interface, then a tray icon on both platforms | Right-click gives pause, settings and quit, in Breeze on Linux and WinUI on Windows; `--stop` becomes one caller of the same mechanism; the icon survives an Explorer restart and a tray appearing late; the daemon still builds and runs with no shell installed |
+| 9 | ~~Control interface, then a tray icon on both platforms~~ **Windows done, Linux written** | Right-click gives pause, settings and quit, in Breeze on Linux and WinUI on Windows; `--stop` becomes one caller of the same mechanism; the icon survives an Explorer restart and a tray appearing late; the daemon still builds and runs with no shell installed |
 | 10 | Settings file, then a settings page in each shell | Changing the pet count takes effect without a restart; the daemon still builds with no Qt, no .NET and no App SDK |
 | 11 | Pause for full-screen apps on Wayland | A full-screen window hides the pets on that monitor, as it already does on Windows |
 | 12 | wlroots adapters | Pets on title bars under Sway and Hyprland |

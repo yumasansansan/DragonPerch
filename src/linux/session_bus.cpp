@@ -43,6 +43,16 @@ void SessionBus::add_object(const char* path, const char* interface, const sd_bu
     slots_.push_back(slot);
 }
 
+void SessionBus::add_match(const char* rule,
+                           int (*handler)(sd_bus_message*, void*, sd_bus_error*), void* userdata)
+{
+    sd_bus_slot* slot = nullptr;
+    if (const int failed = sd_bus_add_match(bus_, &slot, rule, handler, userdata); failed < 0) {
+        throw std::runtime_error(cat("cannot watch for ", rule, ": ", std::strerror(-failed)));
+    }
+    slots_.push_back(slot);
+}
+
 void SessionBus::start()
 {
     if (started_) {

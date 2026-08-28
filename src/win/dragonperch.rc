@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <winuser.h>
 
+#include "resource.h"
+
 // Embed the manifest as a resource rather than handing a .manifest file to the linker.
 //
 // Both routes end in the same resource; this one just has one less tool in it. The other
@@ -10,3 +12,8 @@
 // fine, so the preset and the developer environment both pin that SDK -- but not depending
 // on the tool in the first place is better than depending on picking the right one.
 CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"
+
+// The application icon, generated from KDE's Konqi.svg by tools/make_icons.py. Eight sizes
+// in the one file, because the shell picks between them: the tray asks for a small one and
+// Alt-Tab for a large one, and letting Windows scale a 256 down to 16 produces a smear.
+IDI_DRAGONPERCH ICON "../../packaging/dragonperch.ico"

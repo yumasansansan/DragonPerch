@@ -11,6 +11,7 @@
 #include "log.hpp"
 #include "session_bus.hpp"
 #include "sprite_pack_loader.hpp"
+#include "tray.hpp"
 #include "wayland_display.hpp"
 
 #include <algorithm>
@@ -149,14 +150,16 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     world.set_outputs(display.outputs());
     world.publish(bus);
 
-    ControlService control;
-
-    // Atomic because the handler runs on the bus thread while this is written here. The
-    // control object has to be published before KWin is asked for anything, and the host
-    // does not exist until the renderer does, so the two cannot be ordered away.
+    // Atomic because the handlers run on the bus thread while this is written here. The
+    // objects have to be published before KWin is asked for anything, and the host does not
+    // exist until the renderer does, so the two cannot be ordered away.
     std::atomic<PetHost*> host_for_control{nullptr};
-    control.publish(bus, [&](Command command) {
-        switch (command) {
+
+    // One handler for the control interface and the tray, so the two cannot drift into
+    // meaning different things by the same name.
+    const auto command = [&host_for_control](Command what) {
+        log_line(cat("command: ", name_of(what)));
+        switch (what) {
         case Command::quit:
             g_stop.store(true, std::memory_order_relaxed);
             break;
@@ -165,8 +168,8 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
         case Command::toggle_pause: {
             PetHost* target = host_for_control.load(std::memory_order_acquire);
             if (target != nullptr) {
-                target->set_paused(command == Command::pause
-                                   || (command == Command::toggle_pause && !target->paused()));
+                target->set_paused(what == Command::pause
+                                   || (what == Command::toggle_pause && !target->paused()));
             }
             break;
         }
@@ -174,6 +177,15 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
             // Milestone 10. Nothing to re-read yet.
             break;
         }
+    };
+
+    ControlService control;
+    control.publish(bus, command);
+
+    TrayIcon tray;
+    tray.publish(bus, command, [&host_for_control] {
+        PetHost* target = host_for_control.load(std::memory_order_acquire);
+        return target != nullptr && target->paused();
     });
 
     // The bootstrap floor is published before the bus can deliver anything, not after. The
@@ -192,6 +204,10 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
 
     bus.start();
     ask_kwin_for_a_report();
+
+    // After the bus is running: it is a method call on the watcher, and the reply has to be
+    // able to arrive.
+    (void)tray.register_with_watcher();
 
     GlesRenderer renderer;
     renderer.create(display);

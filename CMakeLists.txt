@@ -98,5 +98,15 @@ if(UNIX AND NOT APPLE)
     install(FILES packaging/dragonperch.desktop
         DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 
+    # Beside the artwork, because that is where the program looks: the tray sends the icon
+    # over D-Bus as pixels, so it has to be found whether or not anything was installed.
+    install(FILES packaging/dragonperch.png
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/dragonperch)
+
+    # And into the icon theme as well, so the .desktop entry's Icon=dragonperch resolves
+    # and a desktop that would rather use a themed name than our pixels can.
+    install(FILES packaging/dragonperch.png
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/64x64/apps)
+
     include(Packaging)
 endif()
