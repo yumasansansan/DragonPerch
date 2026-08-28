@@ -57,6 +57,8 @@ dp::DecodedImage decode_image(const std::filesystem::path& file)
     return image;
 }
 
+#ifdef DRAGONPERCH_DIAGNOSTICS
+
 void encode_png(const std::filesystem::path& file, std::span<const std::byte> premultiplied_bgra,
                 PixelSize size)
 {
@@ -95,5 +97,7 @@ void encode_png(const std::filesystem::path& file, std::span<const std::byte> pr
     check(frame->Commit(), "IWICBitmapFrameEncode::Commit");
     check(encoder->Commit(), "IWICBitmapEncoder::Commit");
 }
+
+#endif
 
 } // namespace dp::win

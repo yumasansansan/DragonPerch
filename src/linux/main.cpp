@@ -77,6 +77,8 @@ void ask_kwin_for_a_report()
     }
 }
 
+#ifdef DRAGONPERCH_DIAGNOSTICS
+
 /// Milestone 6's check: can this put pixels on the screen at all?
 ///
 /// Clears each overlay to a translucent colour and holds. Nothing else is involved -- no
@@ -114,6 +116,8 @@ int probe_composition(int seconds)
     }
     return 0;
 }
+
+#endif // DRAGONPERCH_DIAGNOSTICS
 
 int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
 {
@@ -194,6 +198,8 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     return 0;
 }
 
+#ifdef DRAGONPERCH_DIAGNOSTICS
+
 /// Milestone 7's check, and the one to run first on a new machine.
 ///
 /// Prints what KWin says about the desktop and nothing else -- no EGL, no surfaces, no
@@ -252,6 +258,8 @@ int dump_world(int seconds)
     return 0;
 }
 
+#endif // DRAGONPERCH_DIAGNOSTICS
+
 int run(std::span<const std::string_view> args)
 {
     const auto has = [&](std::string_view flag) {
@@ -267,12 +275,19 @@ int run(std::span<const std::string_view> args)
         log_line("DragonPerch " DRAGONPERCH_VERSION);
         log_line("  --pets N        how many of each mascot (the default with no arguments)");
         log_line("  --pack FILE     use a sprite pack; repeat for more than one");
+        log_line("  --version       print the version and exit");
+#ifdef DRAGONPERCH_DIAGNOSTICS
         log_line("  --dump-world [--hold]         print the edges as KWin reports them");
         log_line("  --probe-composition [--hold]  tint the screen, and nothing else");
-        log_line("  --version                     print the version and exit");
+#else
+        log_line("");
+        log_line("The diagnostic modes are left out of a release build. Configure with");
+        log_line("-D DRAGONPERCH_DIAGNOSTICS=ON to get a release binary that still has them.");
+#endif
         return 0;
     }
 
+#ifdef DRAGONPERCH_DIAGNOSTICS
     if (has("--probe-composition")) {
         return probe_composition(has("--hold") ? 30 : 8);
     }
@@ -280,6 +295,7 @@ int run(std::span<const std::string_view> args)
     if (has("--dump-world")) {
         return dump_world(has("--hold") ? 60 : 15);
     }
+#endif
 
     int count = 3;
     for (std::size_t i = 0; i + 1 < args.size(); ++i) {

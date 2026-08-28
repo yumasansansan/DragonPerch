@@ -8,7 +8,9 @@
 #include "dragonperch/geometry.hpp"
 #include "log.hpp"
 #include "overlay_window.hpp"
+#ifdef DRAGONPERCH_DIAGNOSTICS
 #include "self_test.hpp"
+#endif
 #include "stop_signal.hpp"
 #include "png.hpp"
 #include "sprite_pack_loader.hpp"
@@ -43,6 +45,8 @@ void request_stop()
 {
     g_stop.store(true, std::memory_order_relaxed);
 }
+
+#ifdef DRAGONPERCH_DIAGNOSTICS
 
 void report_notification_state(const char* when)
 {
@@ -188,6 +192,8 @@ int dump_world(int seconds)
     return 0;
 }
 
+#endif // DRAGONPERCH_DIAGNOSTICS
+
 /// Milestone 4: the simulation, the window tracking and the GPU path, connected.
 int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
 {
@@ -251,6 +257,8 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     renderer.device().drain_debug_messages();
     return 0;
 }
+
+#ifdef DRAGONPERCH_DIAGNOSTICS
 
 /// Writes the procedural placeholder out as a real sprite pack: a PNG atlas and the
 /// definition that goes with it.
@@ -319,6 +327,8 @@ duration = 200
     return 0;
 }
 
+#endif // DRAGONPERCH_DIAGNOSTICS
+
 int run(std::span<const std::wstring_view> args)
 {
     const auto has = [&](std::wstring_view flag) {
@@ -342,10 +352,12 @@ int run(std::span<const std::wstring_view> args)
         return 0;
     }
 
+#ifdef DRAGONPERCH_DIAGNOSTICS
     if (has(L"--probe-composition")) {
         log_line(std::format("log: {}", log_path()));
         return probe_composition(has(L"--hold") ? 30 : 8);
     }
+#endif
 
     const auto value_after = [&](std::wstring_view flag) -> std::optional<std::wstring> {
         for (std::size_t i = 0; i + 1 < args.size(); ++i) {
@@ -356,6 +368,7 @@ int run(std::span<const std::wstring_view> args)
         return std::nullopt;
     };
 
+#ifdef DRAGONPERCH_DIAGNOSTICS
     if (const std::optional<std::wstring> directory = value_after(L"--export-placeholder")) {
         log_line(std::format("log: {}", log_path()));
         return export_placeholder(*directory);
@@ -365,6 +378,7 @@ int run(std::span<const std::wstring_view> args)
         log_line(std::format("log: {}", log_path()));
         return self_test::run();
     }
+#endif
 
     if (has(L"--pets") || args.empty()) {
         int count = 3;
@@ -389,20 +403,28 @@ int run(std::span<const std::wstring_view> args)
         return run_pets(count, packs);
     }
 
+#ifdef DRAGONPERCH_DIAGNOSTICS
     if (has(L"--dump-world")) {
         log_line(std::format("log: {}", log_path()));
         return dump_world(has(L"--hold") ? 60 : 15);
     }
+#endif
 
     log_line("DragonPerch " DRAGONPERCH_VERSION);
-    log_line("  --probe-composition [--hold]   milestone 1: draw through DirectComposition");
-    log_line("  --dump-world [--hold]          milestone 3: print the walkable edges as they change");
     log_line("  --pets N                       run the pets (the default with no arguments)");
+    log_line("  --pack FILE                    use a sprite pack; repeat for more than one");
     log_line("  --stop                         ask a running DragonPerch to quit");
     log_line("  --version                      print the version and exit");
+#ifdef DRAGONPERCH_DIAGNOSTICS
+    log_line("  --probe-composition [--hold]   milestone 1: draw through DirectComposition");
+    log_line("  --dump-world [--hold]          milestone 3: print the walkable edges as they change");
     log_line("  --self-test                    click-through and notification-state check");
-    log_line("  --pack FILE                    use a sprite pack; repeat for more than one");
     log_line("  --export-placeholder DIR       write the placeholder out as a pack template");
+#else
+    log_line("");
+    log_line("The diagnostic modes are left out of a release build. Configure with");
+    log_line("-D DRAGONPERCH_DIAGNOSTICS=ON for a release binary that still has them.");
+#endif
     return 0;
 }
 

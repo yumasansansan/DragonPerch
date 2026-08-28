@@ -11,7 +11,6 @@ add_executable(dragonperch WIN32
     output_surface.cpp
     png.cpp
     sprite_pack_loader.cpp
-    self_test.cpp
     stop_signal.cpp
     sprite_renderer.cpp
     console.cpp
@@ -43,6 +42,13 @@ target_compile_definitions(dragonperch PRIVATE
     NOMINMAX                # or windows.h steals std::min and std::max
     WIN32_LEAN_AND_MEAN)
 target_compile_definitions(dragonperch PRIVATE DRAGONPERCH_VERSION="${DRAGONPERCH_FULL_VERSION}")
+
+# See the root CMakeLists for why this is a switch rather than a check on NDEBUG. The
+# self-test is a whole file, so it leaves the build rather than being compiled to nothing.
+target_compile_definitions(dragonperch
+    PRIVATE $<${DRAGONPERCH_DIAGNOSTICS_CONDITION}:DRAGONPERCH_DIAGNOSTICS>)
+target_sources(dragonperch
+    PRIVATE $<${DRAGONPERCH_DIAGNOSTICS_CONDITION}:${CMAKE_CURRENT_SOURCE_DIR}/self_test.cpp>)
 
 # The manifest arrives through dragonperch.rc, so stop the linker generating one of its
 # own and invoking mt.exe over it.

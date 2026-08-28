@@ -28,7 +28,10 @@ qdbus6 org.kde.KWin /Scripting org.kde.kwin.Scripting.start >/dev/null 2>&1 || t
 echo "installed and enabled."
 echo
 echo "Check it is talking, with DragonPerch running:"
-echo "    ./build/linux-x64/src/linux/dragonperch-wl --dump-world --hold"
+echo "    ./build/linux-x64/src/linux/Debug/dragonperch-wl --dump-world --hold"
+echo
+echo "(--dump-world is a diagnostic, so it is in the Debug build. For a release binary"
+echo " that still has it, configure with -D DRAGONPERCH_DIAGNOSTICS=ON.)"
 echo
 echo "If nothing arrives, the script's own output is in the journal:"
 echo "    journalctl --user -f -t kwin_wayland"

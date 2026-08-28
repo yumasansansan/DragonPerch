@@ -154,6 +154,19 @@ and reprints them whenever the desktop changes — drag a window and watch the n
 its title bar. The third is the app: it loads every mascot in `assets/` and shares the pets
 out between them, so that is six dragons, two of each.
 
+**The diagnostic modes are Debug-only.** `--probe-composition`, `--dump-world`,
+`--self-test` and `--export-placeholder` are compiled out of a release build, which is what
+the packages and the nightlies are. They are not dead weight — every hard bug in this
+project was found by one of them — so the switch is separate from the configuration:
+
+```bash
+cmake --preset windows-x64 -D DRAGONPERCH_DIAGNOSTICS=ON
+```
+
+That gives a *release* binary with the diagnostics in, which is what to build when a
+shipped build misbehaves. A Debug build has different timing and a different Direct2D
+layer, so it answers a different question.
+
 `--stop` is there because Ctrl+C on Windows nearly works and cannot be relied on. This is a
 GUI-subsystem binary, so the shell does not wait for it and the prompt comes straight back;
 whether the Ctrl+C typed at that prompt becomes a console event is then up to the shell.

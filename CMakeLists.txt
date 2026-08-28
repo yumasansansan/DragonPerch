@@ -32,6 +32,22 @@ message(STATUS "DragonPerch version: ${DRAGONPERCH_FULL_VERSION}")
 # GUI-subsystem program and its standard output depends on how it was launched.
 file(WRITE ${CMAKE_BINARY_DIR}/version.txt "${DRAGONPERCH_FULL_VERSION}")
 
+# The diagnostic modes -- --probe-composition, --dump-world, --self-test and
+# --export-placeholder -- are compiled in for Debug and left out of Release.
+#
+# They are not dead weight: every hard bug in this project was found by one of them, and
+# they exist to be run against the real thing. So this is a switch rather than an #ifndef
+# NDEBUG, and turning it on gives a Release binary with the diagnostics in -- which is what
+# to send somebody when a shipped build misbehaves, rather than a Debug build that has
+# different timing and a different D2D layer and so is answering a different question.
+option(DRAGONPERCH_DIAGNOSTICS "Include the diagnostic modes in Release builds too" OFF)
+
+# A generator expression, not an if(CMAKE_BUILD_TYPE). Both generators here pick the
+# configuration at build time, so testing it at configure time silently does nothing --
+# the same trap as the optimisation flags in cmake/CompilerOptions.cmake.
+set(DRAGONPERCH_DIAGNOSTICS_CONDITION
+    $<OR:$<CONFIG:Debug>,$<BOOL:${DRAGONPERCH_DIAGNOSTICS}>>)
+
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 if(UNIX AND NOT APPLE)
