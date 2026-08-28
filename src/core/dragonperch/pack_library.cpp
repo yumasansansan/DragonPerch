@@ -5,8 +5,9 @@
 #include "dragonperch/text.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <fstream>
-#include <sstream>
+#include <ios>
 #include <stdexcept>
 #include <string>
 #include <system_error>
@@ -17,14 +18,25 @@ namespace {
 
 std::string read_file(const std::filesystem::path& path)
 {
-    std::ifstream stream(path, std::ios::binary);
+    std::ifstream stream(path, std::ios::binary | std::ios::ate);
     if (!stream) {
         throw std::runtime_error(cat("cannot open ", path.string()));
     }
 
-    std::ostringstream buffer;
-    buffer << stream.rdbuf();
-    return std::move(buffer).str();
+    // Sized and read in one go rather than through an ostringstream. The stream buffer
+    // route is two lines shorter and pulls <sstream> and the locale machinery in with it,
+    // for a file that is a few hundred bytes of INI.
+    const std::streamoff size = stream.tellg();
+    if (size < 0) {
+        throw std::runtime_error(cat("cannot measure ", path.string()));
+    }
+
+    std::string text(static_cast<std::size_t>(size), 0);
+    stream.seekg(0);
+    stream.read(text.data(), size);
+
+    text.resize(static_cast<std::size_t>(stream.gcount()));
+    return text;
 }
 
 } // namespace

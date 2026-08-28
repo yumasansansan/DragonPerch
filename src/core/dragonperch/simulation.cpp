@@ -33,6 +33,7 @@ std::string_view animation_for(PetState state) noexcept
 Pet::Pet(int id, const SpritePack& pack, PixelPoint position)
     : id_(id)
     , pack_(&pack)
+    , animation_(&pack.require(animation_for(PetState::falling)))
     , position_(position)
 {
 }
@@ -43,19 +44,15 @@ void Pet::advance(Duration dt) noexcept
     animation_elapsed_ += dt;
 }
 
-void Pet::enter(PetState state) noexcept
+void Pet::enter(PetState state)
 {
     if (state_ == state) {
         return;
     }
     state_ = state;
+    animation_ = &pack_->require(animation_for(state));
     state_elapsed_ = Duration::zero();
     animation_elapsed_ = Duration::zero();
-}
-
-const Animation& Pet::current_animation() const
-{
-    return pack_->require(animation_for(state_));
 }
 
 const AnimationFrame& Pet::current_frame() const
@@ -280,7 +277,7 @@ void Simulation::update_falling(Pet& pet, double seconds)
     }
 }
 
-void Simulation::drop(Pet& pet) noexcept
+void Simulation::drop(Pet& pet)
 {
     pet.perch_.reset();
     pet.velocity_y_ = 0.0;

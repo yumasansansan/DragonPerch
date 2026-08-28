@@ -56,17 +56,27 @@ public:
 
     [[nodiscard]] Duration state_elapsed() const noexcept { return state_elapsed_; }
 
-    [[nodiscard]] const Animation& current_animation() const;
+    /// The animation for the state the pet is in.
+    ///
+    /// Resolved when the state changes rather than when it is asked for. It used to be a
+    /// `std::map` lookup keyed on a string, run twice per pet per frame -- once here and
+    /// once through `current_frame` -- to answer a question whose answer only changes when
+    /// a pet starts walking or stops.
+    [[nodiscard]] const Animation& current_animation() const noexcept { return *animation_; }
     [[nodiscard]] const AnimationFrame& current_frame() const;
 
 private:
     friend class Simulation;
 
     void advance(Duration dt) noexcept;
-    void enter(PetState state) noexcept;
+
+    /// Throws if the pack has no animation for `state` -- which is the documented moment
+    /// for that: the first time a pet enters a state the pack cannot draw.
+    void enter(PetState state);
 
     int id_ = 0;
     const SpritePack* pack_ = nullptr;
+    const Animation* animation_ = nullptr;
     PixelPoint position_{};
     PetState state_ = PetState::falling;
     int facing_ = 1;
@@ -118,7 +128,7 @@ private:
     void reconcile_perch(Pet& pet);
     void update_walking(Pet& pet, double seconds);
     void update_falling(Pet& pet, double seconds);
-    static void drop(Pet& pet) noexcept;
+    static void drop(Pet& pet);
 
     SimulationOptions options_;
     std::vector<Pet> pets_;

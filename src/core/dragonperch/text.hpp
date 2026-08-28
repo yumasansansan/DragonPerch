@@ -41,6 +41,17 @@ inline void append(std::string& out, char part)
     out += part;
 }
 
+/// Null-tolerant on purpose. `glGetString` and `eglQueryString` return null when there is
+/// no context or the query is not supported, and building a `string_view` from that is
+/// undefined -- which is what the `std::format` these replaced did too. A message with a
+/// gap in it beats a crash while reporting what went wrong.
+inline void append(std::string& out, const char* part)
+{
+    if (part != nullptr) {
+        out += part;
+    }
+}
+
 /// `char` and `bool` are integral and are not numbers here: one is a character and the
 /// other would print as 0 or 1, which is never what a message wants.
 template <typename T>

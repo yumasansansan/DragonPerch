@@ -19,6 +19,7 @@ add_executable(dragonperch_tests
     simulation_test.cpp
     sprite_pack_file_test.cpp
     sprites_test.cpp
+    text_test.cpp
     world_test.cpp)
 
 # Deliberately not DragonPerch::options. The project builds with warnings as errors and

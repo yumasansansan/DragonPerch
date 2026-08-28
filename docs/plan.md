@@ -188,6 +188,22 @@ For scale, the two next-largest savings: the diagnostic modes were 25,088 bytes 
 the procedural placeholder 11,776 (2.9%). Together they are a quarter of what `std::format`
 alone cost.
 
+With that gone the map is flat -- nothing left is more than a fifth of the binary -- and
+what remains is mostly the standard library doing ordinary work:
+
+| | bytes | note |
+|---|---:|---|
+| `pack_library.obj` | ~38,000 | `std::filesystem`: `directory_iterator` and `path` |
+| `sprite_pack_file.obj` | ~24,000 | the INI parser, `std::map`, `std::vector<std::pair<std::string, ...>>` |
+| `msvcprt:vector_algorithms.obj` | ~15,000 | MSVC's SIMD tables for `std::find` and friends |
+
+The two that could still go are `<filesystem>`, if directory enumeration moved into the
+heads behind a callback the way image decoding already has, and the `std::map` in a
+`SpritePack`, which could be a sorted vector. Both are worth perhaps twenty kilobytes
+between them and neither is free: the first adds a platform-specific path to each head, and
+the second trades a clear container for a hand-rolled lookup. Neither is worth doing until
+something else makes it worth doing.
+
 All compiler and linker flags live in `cmake/CompilerOptions.cmake`, on a single interface
 target. Release-only flags use `$<$<CONFIG:Release>:...>`, because the multi-config
 generators choose the configuration at build time and a `CMAKE_BUILD_TYPE` test at configure

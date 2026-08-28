@@ -6,6 +6,7 @@
 #include "log.hpp"
 
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <cstring>
 #include <stdexcept>
@@ -39,21 +40,38 @@ std::int64_t hash_id(std::string_view text) noexcept
     return static_cast<std::int64_t>(hash);
 }
 
-/// Splits on single spaces. The report is machine-written, so this does not have to cope
-/// with runs of whitespace, quoting or anything else -- and if it ever does, that is a
-/// change in the script and both halves move together.
-std::vector<std::string_view> split(std::string_view line)
+/// The most fields any line has is eight -- `w id x y width height z kind`. Room is kept
+/// for one more so that a longer line can be seen to be longer, rather than being
+/// truncated to exactly the length that would make it look valid.
+constexpr std::size_t maximum_fields = 8;
+constexpr std::size_t field_capacity = maximum_fields + 1;
+
+/// One line, split on single spaces.
+///
+/// Into a fixed array rather than a vector, because a drag produces a report per
+/// compositor frame and every report is a line per window -- allocating and growing a
+/// vector for each of them is a lot of churn to describe eight words with a known maximum.
+///
+/// The report is machine-written, so this does not have to cope with runs of whitespace,
+/// quoting or anything else; if it ever does, that is a change in the script and both
+/// halves move together.
+struct Fields {
+    std::array<std::string_view, field_capacity> at{};
+    std::size_t count = 0;
+};
+
+Fields split(std::string_view line)
 {
-    std::vector<std::string_view> fields;
+    Fields fields;
     std::size_t start = 0;
 
-    while (start <= line.size()) {
+    while (start <= line.size() && fields.count < field_capacity) {
         const std::size_t space = line.find(' ', start);
         if (space == std::string_view::npos) {
-            fields.push_back(line.substr(start));
+            fields.at[fields.count++] = line.substr(start);
             break;
         }
-        fields.push_back(line.substr(start, space - start));
+        fields.at[fields.count++] = line.substr(start, space - start);
         start = space + 1;
     }
     return fields;
@@ -219,42 +237,43 @@ void KWinGeometryProvider::apply(std::string_view report)
             continue;
         }
 
-        const std::vector<std::string_view> fields = split(line);
+        const Fields fields = split(line);
 
-        if (fields[0] == "s" && fields.size() == 6) {
+        if (fields.at[0] == "s" && fields.count == 6) {
             int x = 0;
             int y = 0;
             int width = 0;
             int height = 0;
-            if (!to_int(fields[2], x) || !to_int(fields[3], y) || !to_int(fields[4], width)
-                || !to_int(fields[5], height)) {
+            if (!to_int(fields.at[2], x) || !to_int(fields.at[3], y)
+                || !to_int(fields.at[4], width) || !to_int(fields.at[5], height)) {
                 continue;
             }
 
             // Matched by connector name -- "DP-1", "eDP-1" -- which is what wl_output.name
             // reports on one side and what KWin calls the screen on the other. There is no
             // other identifier the two halves share.
-            const auto it = std::ranges::find(outputs, fields[1], &OutputInfo::name);
+            const auto it = std::ranges::find(outputs, fields.at[1], &OutputInfo::name);
             if (it != outputs.end()) {
                 it->work_area = PixelRect{x, y, width, height};
             }
             continue;
         }
 
-        if (fields[0] == "w" && fields.size() == 8) {
+        if (fields.at[0] == "w" && fields.count == 8) {
             int x = 0;
             int y = 0;
             int width = 0;
             int height = 0;
             int z = 0;
             int kind = 0;
-            if (!to_int(fields[2], x) || !to_int(fields[3], y) || !to_int(fields[4], width)
-                || !to_int(fields[5], height) || !to_int(fields[6], z) || !to_int(fields[7], kind)) {
+            if (!to_int(fields.at[2], x) || !to_int(fields.at[3], y)
+                || !to_int(fields.at[4], width) || !to_int(fields.at[5], height)
+                || !to_int(fields.at[6], z) || !to_int(fields.at[7], kind)) {
                 continue;
             }
 
             candidates.push_back(WindowCandidate{
-                .id = hash_id(fields[1]),
+                .id = hash_id(fields.at[1]),
                 .frame = PixelRect{x, y, width, height},
                 .z = z,
                 .kind = kind == 1 ? EdgeKind::panel_top : EdgeKind::window_top,

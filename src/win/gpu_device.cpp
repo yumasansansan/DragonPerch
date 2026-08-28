@@ -4,6 +4,8 @@
 #include "log.hpp"
 #include "dragonperch/text.hpp"
 
+#include <cstddef>
+#include <string_view>
 #include <vector>
 
 namespace dp::win {
@@ -140,8 +142,13 @@ void GpuDevice::drain_debug_messages() const
             continue;
         }
 
+        // DescriptionByteLength counts the terminator, so taking it whole puts a stray
+        // NUL in the middle of the log.
+        const std::size_t text_length = message->DescriptionByteLength > 0
+                                            ? message->DescriptionByteLength - 1
+                                            : 0;
         log_line(cat("d3d[", static_cast<int>(message->Severity), "]: ",
-                     std::string_view(message->pDescription, message->DescriptionByteLength)));
+                     std::string_view(message->pDescription, text_length)));
     }
 
     info_queue_->ClearStoredMessages();
