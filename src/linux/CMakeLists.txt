@@ -39,6 +39,7 @@ add_executable(dragonperch-wl
     kwin_geometry.cpp
     kwin_script.cpp
     session_bus.cpp
+    settings_file.cpp
     tray.cpp
     sprite_pack_loader.cpp
     png.cpp

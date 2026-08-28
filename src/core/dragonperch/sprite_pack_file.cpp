@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "dragonperch/sprite_pack_file.hpp"
 
+#include "dragonperch/ini.hpp"
+
 #include "dragonperch/text.hpp"
 
 #include <algorithm>
@@ -15,17 +17,6 @@
 namespace dp {
 namespace {
 
-constexpr std::string_view whitespace = " \t\r\n";
-
-std::string_view trim(std::string_view text)
-{
-    const std::size_t first = text.find_first_not_of(whitespace);
-    if (first == std::string_view::npos) {
-        return {};
-    }
-    return text.substr(first, text.find_last_not_of(whitespace) - first + 1);
-}
-
 [[noreturn]] void fail(std::size_t line, std::string_view what)
 {
     throw std::runtime_error(cat("sprite pack line ", line, ": ", what));
@@ -33,7 +24,7 @@ std::string_view trim(std::string_view text)
 
 int to_int(std::string_view text, std::size_t line, std::string_view what)
 {
-    const std::string_view value = trim(text);
+    const std::string_view value = ini::trim(text);
     int result = 0;
     const auto [ptr, ec] = std::from_chars(value.data(), value.data() + value.size(), result);
     if (ec != std::errc{} || ptr != value.data() + value.size()) {
@@ -52,7 +43,7 @@ std::vector<int> to_int_list(std::string_view text, std::size_t line, std::strin
         const std::string_view item =
             text.substr(start, comma == std::string_view::npos ? std::string_view::npos
                                                                : comma - start);
-        if (!trim(item).empty()) {
+        if (!ini::trim(item).empty()) {
             values.push_back(to_int(item, line, what));
         }
 
@@ -68,84 +59,19 @@ std::vector<int> to_int_list(std::string_view text, std::size_t line, std::strin
     return values;
 }
 
-/// One `[section]` and its keys, in the order they were read.
-struct Section {
-    std::string name;
-    std::size_t line = 0;
-    std::vector<std::pair<std::string, std::pair<std::string, std::size_t>>> keys;
-
-    [[nodiscard]] const std::pair<std::string, std::size_t>* find(std::string_view key) const
-    {
-        const auto it = std::ranges::find(keys, key, [](const auto& entry) {
-            return std::string_view{entry.first};
-        });
-        return it == keys.end() ? nullptr : &it->second;
-    }
-
-    [[nodiscard]] const std::pair<std::string, std::size_t>& require(std::string_view key) const
-    {
-        const auto* value = find(key);
-        if (value == nullptr) {
-            fail(line, cat("section [", name, "] has no '", key, "'"));
-        }
-        return *value;
-    }
-};
-
-std::vector<Section> parse_sections(std::string_view text)
+/// The value of a key a pack cannot do without.
+const ini::Entry& require(const ini::Section& section, std::string_view key)
 {
-    std::vector<Section> sections;
-    std::size_t line_number = 0;
-    std::size_t start = 0;
-
-    while (start <= text.size()) {
-        const std::size_t newline = text.find('\n', start);
-        const std::string_view raw =
-            text.substr(start, newline == std::string_view::npos ? std::string_view::npos
-                                                                 : newline - start);
-        ++line_number;
-
-        std::string_view line = trim(raw);
-
-        // Both comment markers: '#' is what most people type, ';' is what KConfig writes.
-        if (const std::size_t comment = line.find_first_of("#;"); comment != std::string_view::npos) {
-            line = trim(line.substr(0, comment));
-        }
-
-        if (!line.empty()) {
-            if (line.front() == '[') {
-                if (line.back() != ']') {
-                    fail(line_number, "unterminated section header");
-                }
-                sections.push_back(Section{std::string{trim(line.substr(1, line.size() - 2))},
-                                           line_number, {}});
-            } else {
-                const std::size_t equals = line.find('=');
-                if (equals == std::string_view::npos) {
-                    fail(line_number, cat("expected 'key = value', got '", line, "'"));
-                }
-                if (sections.empty()) {
-                    fail(line_number, "key outside any section");
-                }
-
-                sections.back().keys.emplace_back(
-                    std::string{trim(line.substr(0, equals))},
-                    std::pair{std::string{trim(line.substr(equals + 1))}, line_number});
-            }
-        }
-
-        if (newline == std::string_view::npos) {
-            break;
-        }
-        start = newline + 1;
+    const ini::Entry* entry = section.find(key);
+    if (entry == nullptr) {
+        fail(section.line, cat("section [", section.name, "] has no ", key));
     }
-
-    return sections;
+    return *entry;
 }
 
-const Section& require_pack_section(const std::vector<Section>& sections)
+const ini::Section& require_pack_section(const std::vector<ini::Section>& sections)
 {
-    const auto it = std::ranges::find(sections, "pack", &Section::name);
+    const auto it = std::ranges::find(sections, "pack", &ini::Section::name);
     if (it == sections.end()) {
         throw std::runtime_error("sprite pack has no [pack] section");
     }
@@ -156,62 +82,62 @@ const Section& require_pack_section(const std::vector<Section>& sections)
 
 std::string parse_atlas_filename(std::string_view text)
 {
-    const std::vector<Section> sections = parse_sections(text);
-    return require_pack_section(sections).require("atlas").first;
+    const std::vector<ini::Section> sections = ini::parse(text);
+    return require(require_pack_section(sections), "atlas").value;
 }
 
 SpritePackFile parse_sprite_pack(std::string_view text, int atlas_id, PixelSize atlas_size)
 {
-    const std::vector<Section> sections = parse_sections(text);
-    const Section& pack_section = require_pack_section(sections);
+    const std::vector<ini::Section> sections = ini::parse(text);
+    const ini::Section& pack_section = require_pack_section(sections);
 
-    const auto& [atlas, atlas_line] = pack_section.require("atlas");
-    const auto& [width_text, width_line] = pack_section.require("frame-width");
-    const auto& [height_text, height_line] = pack_section.require("frame-height");
+    const ini::Entry& atlas = require(pack_section, "atlas");
+    const ini::Entry& width = require(pack_section, "frame-width");
+    const ini::Entry& height = require(pack_section, "frame-height");
 
-    const PixelSize cell{to_int(width_text, width_line, "frame-width"),
-                         to_int(height_text, height_line, "frame-height")};
+    const PixelSize cell{to_int(width.value, width.line, "frame-width"),
+                         to_int(height.value, height.line, "frame-height")};
     if (cell.width <= 0 || cell.height <= 0) {
-        fail(width_line, "frame-width and frame-height must be positive");
+        fail(width.line, "frame-width and frame-height must be positive");
     }
 
     const int columns = atlas_size.width / cell.width;
     const int rows = atlas_size.height / cell.height;
     if (columns <= 0 || rows <= 0) {
-        fail(width_line, cat("a ", atlas_size.width, "x", atlas_size.height, " atlas holds no ",
+        fail(width.line, cat("a ", atlas_size.width, "x", atlas_size.height, " atlas holds no ",
                              cell.width, "x", cell.height, " cells"));
     }
 
     std::map<std::string, Animation, std::less<>> animations;
 
-    for (const Section& section : sections) {
+    for (const ini::Section& section : sections) {
         if (section.name == "pack") {
             continue;
         }
 
-        const auto& [frames_text, frames_line] = section.require("frames");
-        const std::vector<int> indices = to_int_list(frames_text, frames_line, "frames");
+        const ini::Entry& frames = require(section, "frames");
+        const std::vector<int> indices = to_int_list(frames.value, frames.line, "frames");
 
-        const auto& [duration_text, duration_line] = section.require("duration");
-        const int duration_ms = to_int(duration_text, duration_line, "duration");
+        const ini::Entry& duration = require(section, "duration");
+        const int duration_ms = to_int(duration.value, duration.line, "duration");
         if (duration_ms <= 0) {
-            fail(duration_line, "duration must be positive");
+            fail(duration.line, "duration must be positive");
         }
 
         // Bottom-centre unless stated: the anchor is the pet's feet, and for a sprite drawn
         // standing on the ground that is where they are.
         PixelOffset anchor{cell.width / 2, cell.height};
-        if (const auto* value = section.find("anchor"); value != nullptr) {
-            const std::vector<int> parts = to_int_list(value->first, value->second, "anchor");
+        if (const ini::Entry* value = section.find("anchor"); value != nullptr) {
+            const std::vector<int> parts = to_int_list(value->value, value->line, "anchor");
             if (parts.size() != 2) {
-                fail(value->second, "anchor takes two numbers");
+                fail(value->line, "anchor takes two numbers");
             }
             anchor = PixelOffset{parts[0], parts[1]};
         }
 
         bool loop = true;
-        if (const auto* value = section.find("loop"); value != nullptr) {
-            loop = value->first == "true" || value->first == "1" || value->first == "yes";
+        if (const ini::Entry* value = section.find("loop"); value != nullptr) {
+            loop = value->value == "true" || value->value == "1" || value->value == "yes";
         }
 
         const auto build = [&](const std::vector<int>& list, std::size_t line) {
@@ -237,18 +163,19 @@ SpritePackFile parse_sprite_pack(std::string_view text, int atlas_id, PixelSize 
         // right default; with it the pack draws both directions, which is what artwork
         // containing lettering needs.
         std::vector<AnimationFrame> frames_left;
-        if (const auto* value = section.find("frames-left"); value != nullptr) {
-            const std::vector<int> left = to_int_list(value->first, value->second, "frames-left");
+        if (const ini::Entry* value = section.find("frames-left"); value != nullptr) {
+            const std::vector<int> left = to_int_list(value->value, value->line, "frames-left");
             if (left.size() != indices.size()) {
-                fail(value->second, cat("frames-left has ", left.size(), " frames but frames has ",
+                fail(value->line, cat("frames-left has ", left.size(), " frames but frames has ",
                                         indices.size(),
                                         "; they run on the same clock and must match"));
             }
-            frames_left = build(left, value->second);
+            frames_left = build(left, value->line);
         }
 
-        animations.emplace(section.name, Animation{section.name, build(indices, frames_line), loop,
-                                                   std::move(frames_left)});
+        animations.emplace(section.name,
+                           Animation{section.name, build(indices, frames.line), loop,
+                                     std::move(frames_left)});
     }
 
     if (animations.empty()) {
@@ -256,15 +183,15 @@ SpritePackFile parse_sprite_pack(std::string_view text, int atlas_id, PixelSize 
     }
 
     const auto text_or = [&](std::string_view key, std::string_view fallback) {
-        const auto* value = pack_section.find(key);
-        return value == nullptr ? std::string{fallback} : value->first;
+        const ini::Entry* value = pack_section.find(key);
+        return value == nullptr ? std::string{fallback} : value->value;
     };
 
     return SpritePackFile{
         SpritePack{text_or("id", "konqi"), text_or("name", "Konqi"),
                    text_or("artwork-licence", "CC-BY-SA-4.0"), text_or("attribution", ""),
                    atlas_id, std::move(animations)},
-        atlas,
+        atlas.value,
     };
 }
 

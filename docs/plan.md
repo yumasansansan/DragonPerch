@@ -436,7 +436,7 @@ daemon's language.
   Qt/QML, so C++ is natural.
 
 Config format: INI, at `~/.config/dragonperch/dragonperchrc` and
-`%APPDATA%\DragonPerch\config.ini`. INI keeps the Linux side compatible with KConfig
+`%APPDATA%\DragonPerch\dragonperchrc`. INI keeps the Linux side compatible with KConfig
 conventions.
 
 ---
@@ -805,23 +805,49 @@ draws it.
 §8 chose the shape and it holds: **a separate program per platform**, so each gets its
 native toolkit without imposing one on the daemon.
 
-#### The file, and the part that is shared
+#### The file, and the part that is shared -- **done**
 
-INI, at `~/.config/dragonperch/dragonperchrc` and `%APPDATA%\DragonPerch\config.ini`. INI
-because KConfig writes it, which is what makes the Linux settings program able to use
-KConfig rather than a parser of its own.
+INI, at `~/.config/dragonperch/dragonperchrc` and
+`%APPDATA%\DragonPerch\dragonperchrc`. INI because KConfig writes it, which is what makes
+the Linux settings program able to use KConfig rather than a parser of its own; the same
+file name on both platforms because there is no reason for them to differ and one name is
+one thing to document.
 
-The core already has an INI parser -- `parse_sections` in `sprite_pack_file.cpp` is generic
-and only its caller is pack-specific. Lift it into `dragonperch/ini.hpp` and have both use
-it. That is a small refactor with a test already behind it.
+`parse_sections` in `sprite_pack_file.cpp` turned out to be generic with only its caller
+pack-specific, and is now `dragonperch/ini.hpp` with both callers on it.
 
-Then `dragonperch/settings.hpp` in the core: a `Settings` struct, `load_settings(path)`,
-`save_settings(path, settings)`. The daemon reads it at startup and again on `Reload()`.
+`dragonperch/settings.hpp` holds the `Settings` struct, `parse_settings` and
+`write_settings`. Three things about it are deliberate:
 
-Applying a change without a restart needs two small additions to `Simulation`:
-`set_options(SimulationOptions)`, and a way to add and remove pets so that changing the
-count does not mean rebuilding the world. Both are core work, both are testable with no
-platform involved, and both should be done before either UI exists.
+- **`Settings` is not `SimulationOptions`.** That struct is the physics' own vocabulary and
+  carries knobs -- terminal velocity, the chance of turning at an edge -- meant for whoever
+  writes the simulation, not whoever runs it. `to_options()` is the narrow gate between
+  them, and a test asserts that nothing else gets through.
+- **Nothing in it throws.** A value that cannot be read keeps its default and a file that
+  will not parse at all is every default. This file is edited by hand and written by two
+  other programs; a dragon that never appears because of a stray bracket is worse than one
+  that appears with the defaults.
+- **`std::strtod`, not `std::from_chars`.** Reading one `double` with `from_chars` drags in
+  the Ryu conversion tables -- the same 118 KB that `dragonperch/text.hpp` exists to keep
+  out. `strtod` is an import against the C runtime. `two_places()` formats the value back
+  out for the same reason.
+
+Applying a change without a restart needed two additions to `Simulation`, both now present:
+`set_options` (which preserves the seed, so adjusting a speed does not re-randomise
+everyone) and `clear_pets`.
+
+Where the file lives is the one platform-specific part, so it is `settings_file.cpp` in
+each head. `Settings::needs_respawn` decides which of the two kinds of reload a change
+calls for: adjusting a walk speed while a pet is mid-stride must not teleport it, and
+changing which mascots exist cannot be done any other way. The two heads apply it
+differently, and the difference is the same one as for pausing -- on Windows the handlers
+run on the render thread and reach the simulation directly; on Wayland they run on the bus
+thread and set `g_reload`, which the render loop reads between frames.
+
+`--pets N` now means the same thing as `pets-per-mascot` and overrides it. It used to mean
+a total shared out between the mascots round-robin, which made `--pets 2` with three
+mascots a puzzle. With one of each as the default, the no-argument case is three dragons
+either way.
 
 #### Windows: the same shell process, WinUI 3, in C#
 

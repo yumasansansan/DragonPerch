@@ -14,6 +14,7 @@
 #endif
 #include "control.hpp"
 #include "png.hpp"
+#include "settings_file.hpp"
 #include "sprite_pack_loader.hpp"
 #include "sprite_renderer.hpp"
 #include "tray.hpp"
@@ -233,19 +234,45 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
                                  "a build directory");
     }
 
+    Settings settings = load_settings();
+    if (pet_count > 0) {
+        // An explicit --pets beats the file. Somebody who typed a number expects that
+        // number, whatever they saved last week.
+        settings.pets_per_mascot = pet_count;
+    }
+
     Simulation simulation;
     std::mt19937 spawn{1};
-    std::size_t next = 0;
-    for (const OutputInfo& output : world_now.outputs()) {
-        std::uniform_int_distribution<int> across(output.bounds.left() + 64,
-                                                  output.bounds.right() - 64);
-        for (int i = 0; i < pet_count; ++i) {
-            // Round robin rather than at random, so that asking for three pets gets one of
-            // each mascot instead of three of whichever the dice picked.
-            simulation.spawn(packs[next++ % packs.size()],
-                             PixelPoint{across(spawn), output.bounds.top() + 8});
+
+    // Spawning is something that has to be doable twice, because reloading settings that
+    // change the cast cannot be done any other way. The outputs are read afresh each time:
+    // a reload may be the first thing that happens after a monitor was plugged in.
+    const auto populate = [&] {
+        simulation.clear_pets();
+        simulation.set_options(settings.to_options());
+
+        const WorldSnapshot now = world.current();
+        for (const OutputInfo& output : now.outputs()) {
+            if (!settings.wants_output(output.name)) {
+                continue;
+            }
+
+            std::uniform_int_distribution<int> across(output.bounds.left() + 64,
+                                                      output.bounds.right() - 64);
+            for (const SpritePack& pack : packs) {
+                if (!settings.wants_mascot(pack.id())) {
+                    continue;
+                }
+                // One loop per mascot rather than one round-robin loop over a count, so
+                // that "two each" means two each and not two divided between three.
+                for (int i = 0; i < settings.pets_per_mascot; ++i) {
+                    simulation.spawn(pack, PixelPoint{across(spawn), output.bounds.top() + 8});
+                }
+            }
         }
-    }
+    };
+
+    populate();
 
     log_line(cat(simulation.pets().size(), " pet(s) on ", world_now.outputs().size(),
                  " output(s)"));
@@ -255,8 +282,10 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     PetHost host{simulation, world, renderer, clock};
 
     // One handler for both the control interface and the tray, so the two cannot drift
-    // into meaning different things by the same name.
-    const auto command = [&host](Command what) {
+    // into meaning different things by the same name. Everything it touches lives on this
+    // thread -- the messages arrive through the same pump the overlays use -- so unlike the
+    // Wayland head it can reach the simulation directly rather than through a flag.
+    const auto command = [&](Command what) {
         log_line(cat("command: ", name_of(what)));
         switch (what) {
         case Command::quit:
@@ -271,9 +300,22 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
         case Command::toggle_pause:
             host.set_paused(!host.paused());
             break;
-        case Command::reload:
-            // Milestone 10. Nothing to re-read yet.
+        case Command::reload: {
+            const Settings fresh = load_settings();
+
+            // Only a change to the cast needs the pets spawning again. Adjusting a walk
+            // speed while one is mid-stride should not teleport it back to the top.
+            const bool respawn = settings.needs_respawn(fresh);
+            settings = fresh;
+
+            if (respawn) {
+                populate();
+                log_line(cat(simulation.pets().size(), " pet(s) after reload"));
+            } else {
+                simulation.set_options(settings.to_options());
+            }
             break;
+        }
         }
     };
 
@@ -434,7 +476,9 @@ int run(std::span<const std::wstring_view> args)
 #endif
 
     if (has(L"--pets") || args.empty()) {
-        int count = 3;
+        // Zero means "whatever the settings file says", which is what running with no
+        // arguments has to mean now that there is a settings file.
+        int count = 0;
         for (std::size_t i = 0; i + 1 < args.size(); ++i) {
             if (args[i] == L"--pets") {
                 count = std::clamp(_wtoi(std::wstring{args[i + 1]}.c_str()), 1, 64);
@@ -464,11 +508,11 @@ int run(std::span<const std::wstring_view> args)
 #endif
 
     log_line("DragonPerch " DRAGONPERCH_VERSION);
-    log_line("  --pets N                       run the pets (the default with no arguments)");
+    log_line("  --pets N                       how many of each mascot; overrides the settings");
     log_line("  --pack FILE                    use a sprite pack; repeat for more than one");
     log_line("  --stop                         ask a running DragonPerch to quit");
     log_line("  --pause / --resume             freeze the pets where they are, or let them go");
-    log_line("  --reload                       re-read the settings (milestone 10)");
+    log_line("  --reload                       re-read the settings file");
     log_line("  --version                      print the version and exit");
 #ifdef DRAGONPERCH_DIAGNOSTICS
     log_line("  --probe-composition [--hold]   milestone 1: draw through DirectComposition");

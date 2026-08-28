@@ -14,7 +14,7 @@ practical.
 >
 > **Linux works too.** The Wayland head draws through EGL on a layer-shell overlay, and a
 > KWin script tells it where the windows are — verified on Plasma 6 under llvmpipe. A tray
-> icon and settings are next; see [docs/plan.md](docs/plan.md).
+> icon is done and the settings programs are next; see [docs/plan.md](docs/plan.md).
 
 ---
 
@@ -178,6 +178,16 @@ message-only window answering `WM_COPYDATA` on Windows, `org.dragonperch.Control
 session bus on Linux. Neither needs a thread of its own: Windows already pumps messages for
 the overlay windows, and Linux already processes the bus the KWin reports arrive on. The
 tray icon and the settings program will be two more callers of the same four commands.
+
+`--reload` re-reads the settings file, which is INI and lives at
+`~/.config/dragonperch/dragonperchrc` or `%APPDATA%\DragonPerch\dragonperchrc`. There is
+no settings program yet, so for now it is a file to edit by hand; a line that cannot be
+read is ignored and keeps its default, rather than the whole file being refused. Changing a
+speed is applied to the pets where they stand, while changing which mascots there are
+spawns them again -- there is no other way to do that one.
+
+`--pets N` means how many of *each* mascot and overrides `pets-per-mascot` in the file. The
+default is one each, so with the three mascots that ship it is three dragons.
 
 Pausing stops the simulation and stops drawing; the overlays stay exactly as they are,
 showing the last frame. Rebuilding them on resume would be a second path through the window

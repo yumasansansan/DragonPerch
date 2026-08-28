@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <utility>
 
@@ -74,6 +75,18 @@ Pet& Simulation::spawn(const SpritePack& pack, PixelPoint at)
     // across a spawn. Callers get a reference that is valid until the next one.
     pets_.emplace_back(static_cast<int>(pets_.size()), pack, at);
     return pets_.back();
+}
+
+void Simulation::clear_pets() noexcept
+{
+    pets_.clear();
+}
+
+void Simulation::set_options(const SimulationOptions& options) noexcept
+{
+    const std::uint32_t seed = options_.seed;
+    options_ = options;
+    options_.seed = seed;
 }
 
 void Simulation::set_world(WorldSnapshot world)

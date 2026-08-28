@@ -10,6 +10,7 @@
 #include "dragonperch/text.hpp"
 #include "log.hpp"
 #include "session_bus.hpp"
+#include "settings_file.hpp"
 #include "sprite_pack_loader.hpp"
 #include "tray.hpp"
 #include "wayland_display.hpp"
@@ -62,6 +63,11 @@ std::atomic<bool> g_stop{false};
 /// can touch the host directly, which is the difference between the platforms rather than
 /// an inconsistency.
 std::atomic<bool> g_paused{false};
+
+/// Set by the bus thread, acted on by the render loop, for the same reason as g_paused:
+/// re-reading the settings means spawning and destroying pets, and doing that underneath a
+/// frame that is walking the same vector is the one thing the split exists to prevent.
+std::atomic<bool> g_reload{false};
 
 void on_signal(int)
 {
@@ -179,7 +185,7 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
             g_paused.store(!g_paused.load(std::memory_order_relaxed), std::memory_order_relaxed);
             break;
         case Command::reload:
-            // Milestone 10. Nothing to re-read yet.
+            g_reload.store(true, std::memory_order_relaxed);
             break;
         }
     };
@@ -235,19 +241,43 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
                                  "a build directory");
     }
 
+    Settings settings = load_settings();
+    if (pet_count > 0) {
+        // An explicit --pets beats the file. Somebody who typed a number expects that
+        // number, whatever they saved last week.
+        settings.pets_per_mascot = pet_count;
+    }
+
     Simulation simulation;
     std::mt19937 spawn{1};
-    std::size_t next = 0;
-    for (const OutputInfo& output : display.outputs()) {
-        std::uniform_int_distribution<int> across(output.bounds.left() + 64,
-                                                  output.bounds.right() - 64);
-        for (int i = 0; i < pet_count; ++i) {
-            // Round robin rather than at random, so that asking for three pets gets one of
-            // each mascot instead of three of whichever the dice picked.
-            simulation.spawn(packs[next++ % packs.size()],
-                             PixelPoint{across(spawn), output.bounds.top() + 8});
+
+    // Spawning is something that has to be doable twice, because reloading settings that
+    // change the cast cannot be done any other way.
+    const auto populate = [&] {
+        simulation.clear_pets();
+        simulation.set_options(settings.to_options());
+
+        for (const OutputInfo& output : display.outputs()) {
+            if (!settings.wants_output(output.name)) {
+                continue;
+            }
+
+            std::uniform_int_distribution<int> across(output.bounds.left() + 64,
+                                                      output.bounds.right() - 64);
+            for (const SpritePack& pack : packs) {
+                if (!settings.wants_mascot(pack.id())) {
+                    continue;
+                }
+                // One loop per mascot rather than one round-robin loop over a count, so
+                // that "two each" means two each and not two divided between three.
+                for (int i = 0; i < settings.pets_per_mascot; ++i) {
+                    simulation.spawn(pack, PixelPoint{across(spawn), output.bounds.top() + 8});
+                }
+            }
         }
-    }
+    };
+
+    populate();
 
     log_line(cat(simulation.pets().size(), " pet(s) on ", display.outputs().size(),
                  " output(s); Ctrl+C to stop"));
@@ -259,6 +289,25 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
         // The bus thread's flag, applied here rather than there. run() calls this every
         // iteration -- including while paused, every pause_poll -- so resuming is noticed.
         host.set_paused(g_paused.load(std::memory_order_relaxed));
+
+        // Likewise for a reload: read on this thread, between frames, where destroying and
+        // spawning pets cannot land in the middle of a step. exchange rather than a load
+        // and a store, so two --reloads in the same frame do not become three.
+        if (g_reload.exchange(false, std::memory_order_relaxed)) {
+            const Settings fresh = load_settings();
+
+            // Only a change to the cast needs the pets spawning again. Adjusting a walk
+            // speed while one is mid-stride should not teleport it back to the top.
+            const bool respawn = settings.needs_respawn(fresh);
+            settings = fresh;
+
+            if (respawn) {
+                populate();
+                log_line(cat(simulation.pets().size(), " pet(s) after reload"));
+            } else {
+                simulation.set_options(settings.to_options());
+            }
+        }
 
         if (clock.disconnected() || g_stop.load(std::memory_order_relaxed)) {
             return true;
@@ -389,12 +438,12 @@ int run(std::span<const std::string_view> args)
 
     if (has("--help") || has("-h")) {
         log_line("DragonPerch " DRAGONPERCH_VERSION);
-        log_line("  --pets N        how many of each mascot (the default with no arguments)");
+        log_line("  --pets N        how many of each mascot; overrides the settings");
         log_line("  --pack FILE     use a sprite pack; repeat for more than one");
         log_line("  --version       print the version and exit");
         log_line("  --stop          ask a running DragonPerch to quit");
         log_line("  --pause / --resume  freeze the pets where they are, or let them go");
-        log_line("  --reload        re-read the settings (milestone 10)");
+        log_line("  --reload        re-read the settings file");
 #ifdef DRAGONPERCH_DIAGNOSTICS
         log_line("  --dump-world [--hold]         print the edges as KWin reports them");
         log_line("  --probe-composition [--hold]  tint the screen, and nothing else");
@@ -416,7 +465,9 @@ int run(std::span<const std::string_view> args)
     }
 #endif
 
-    int count = 3;
+    // Zero means "whatever the settings file says", which is what running with no
+    // arguments has to mean now that there is a settings file.
+    int count = 0;
     for (std::size_t i = 0; i + 1 < args.size(); ++i) {
         if (args[i] == "--pets") {
             count = std::clamp(std::atoi(std::string{args[i + 1]}.c_str()), 1, 64);

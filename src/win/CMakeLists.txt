@@ -10,6 +10,7 @@ add_executable(dragonperch WIN32
     gpu_device.cpp
     output_surface.cpp
     png.cpp
+    settings_file.cpp
     sprite_pack_loader.cpp
     control.cpp
     tray.cpp

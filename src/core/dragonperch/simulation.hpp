@@ -118,6 +118,18 @@ public:
 
     Pet& spawn(const SpritePack& pack, PixelPoint at);
 
+    /// Removes every pet. What a settings change that alters *which* dragons there are has
+    /// to do -- adjusting a walk speed does not disturb anybody, and changing the cast
+    /// does. The head respawns afterwards, because only it knows which packs it has.
+    void clear_pets() noexcept;
+
+    /// Replaces the tuning. Takes effect on the next update; nothing is re-simulated, so a
+    /// pet mid-stride keeps its stride and takes the new speed from here on.
+    ///
+    /// The seed is deliberately not re-read: reseeding on every settings change would make
+    /// the behaviour depend on how often somebody opened the settings.
+    void set_options(const SimulationOptions& options) noexcept;
+
     void set_world(WorldSnapshot world);
     [[nodiscard]] const WorldSnapshot& world() const noexcept { return world_; }
 

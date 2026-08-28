@@ -8,8 +8,10 @@ add_library(dragonperch_core STATIC
     dragonperch/edge_builder.cpp
     dragonperch/geometry.cpp
     dragonperch/host.cpp
+    dragonperch/ini.cpp
     dragonperch/pack_library.cpp
     dragonperch/placeholder_pack.cpp
+    dragonperch/settings.cpp
     dragonperch/simulation.cpp
     dragonperch/sprite_pack_file.cpp
     dragonperch/sprites.cpp
