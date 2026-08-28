@@ -63,8 +63,9 @@ WorldSnapshot WinEventWatcher::current() const
 
 void WinEventWatcher::set_changed_handler(ChangedHandler handler)
 {
-    const std::lock_guard lock(snapshot_mutex_);
-    changed_ = std::move(handler);
+    // Not under snapshot_mutex_: the slot has its own, and clearing has to wait for a call
+    // that is already running rather than for the snapshot to be free.
+    changed_.set(std::move(handler));
 }
 
 void WinEventWatcher::start()
@@ -76,12 +77,15 @@ void WinEventWatcher::start()
 
     g_watcher.store(this, std::memory_order_release);
 
+    // Primed before the threads exist, not after. Publishing from here once the publish
+    // thread was already running put two threads through `++version_`, which is a
+    // read-modify-write and was outside the lock -- and two snapshots sharing a version is
+    // exactly what makes PetHost skip reconciling a perch, leaving a pet standing where a
+    // window used to be.
+    publish();
+
     pump_thread_ = std::thread(&WinEventWatcher::pump_messages, this);
     publish_thread_ = std::thread(&WinEventWatcher::publish_loop, this);
-
-    // Prime the world, so the first frame is not empty and a caller can read the monitor
-    // layout straight after start().
-    publish();
 }
 
 void WinEventWatcher::pump_messages()
@@ -175,20 +179,14 @@ void WinEventWatcher::publish()
 {
     desktop_scanner::Scan scan = desktop_scanner::scan();
 
-    ChangedHandler handler;
     WorldSnapshot snapshot{++version_, std::move(scan.edges), std::move(scan.outputs)};
 
     {
         const std::lock_guard lock(snapshot_mutex_);
         current_ = snapshot;
-        handler = changed_;
     }
 
-    // Outside the lock: the handler runs the simulation's world swap, and holding a mutex
-    // across a callback into other code is how deadlocks are built.
-    if (handler) {
-        handler(snapshot);
-    }
+    changed_.call(snapshot);
 }
 
 } // namespace dp::win

@@ -42,6 +42,10 @@ function connect(owner, name, handler) {
 
     const signal = owner[name];
     if (signal === null || signal === undefined || typeof signal.connect !== "function") {
+        // Said out loud. A signal this KWin does not have means something silently stops
+        // being watched, and finding that by noticing the pets are stale is a bad way to
+        // spend an evening.
+        log("no signal " + name + " on this KWin; not watching it");
         return false;
     }
 
@@ -176,9 +180,15 @@ function watch(window) {
     connect(window, "desktopsChanged", report);
 }
 
-const initial = workspace.stackingOrder;
-for (let i = 0; i < initial.length; ++i) {
-    watch(initial[i]);
+// Guarded like everything else here. This was the one statement at the top level that
+// could throw, and the connections, the heartbeat and the first report all come after it.
+try {
+    const initial = workspace.stackingOrder;
+    for (let i = 0; i < initial.length; ++i) {
+        watch(initial[i]);
+    }
+} catch (error) {
+    log("could not walk the initial stacking order: " + error);
 }
 
 connect(workspace, "windowAdded", function (window) {

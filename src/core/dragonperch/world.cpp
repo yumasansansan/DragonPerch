@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <utility>
 
 namespace dp {
@@ -25,10 +26,14 @@ void WorldSnapshot::sort(std::vector<WalkableEdge>& edges)
     });
 }
 
-const WalkableEdge* WorldSnapshot::edge_below(PixelPoint from) const noexcept
+const WalkableEdge* WorldSnapshot::edge_below(PixelPoint from, int no_lower_than,
+                                              int minimum_width) const noexcept
 {
     for (const WalkableEdge& e : edges_) {
-        if (e.y <= from.y || !e.contains_x(from.x)) {
+        if (e.y <= from.y || e.y > no_lower_than) {
+            continue;
+        }
+        if (!e.contains_x(from.x) || e.width() < minimum_width) {
             continue;
         }
         // Sorted by y ascending, so the first hit is already the highest one.
@@ -37,17 +42,15 @@ const WalkableEdge* WorldSnapshot::edge_below(PixelPoint from) const noexcept
     return nullptr;
 }
 
+const WalkableEdge* WorldSnapshot::edge_below(PixelPoint from) const noexcept
+{
+    return edge_below(from, std::numeric_limits<int>::max(), 0);
+}
+
 const WalkableEdge* WorldSnapshot::find_by_owner(std::int64_t owner_id) const noexcept
 {
     auto it = std::ranges::find(edges_, owner_id, &WalkableEdge::owner_id);
     return it == edges_.end() ? nullptr : &*it;
-}
-
-const OutputInfo* WorldSnapshot::output_at(PixelPoint p) const noexcept
-{
-    auto it = std::ranges::find_if(
-        outputs_, [p](const OutputInfo& o) { return o.bounds.contains(p); });
-    return it == outputs_.end() ? nullptr : &*it;
 }
 
 } // namespace dp

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "dragonperch/handler_slot.hpp"
 #include "dragonperch/world.hpp"
 
 #include <atomic>
@@ -88,7 +89,7 @@ private:
     std::vector<OutputInfo> outputs_;
     std::uint64_t version_ = 0;
 
-    ChangedHandler handler_;
+    HandlerSlot handler_;
 };
 
 } // namespace dp::wl

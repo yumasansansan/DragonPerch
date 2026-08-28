@@ -53,6 +53,12 @@ std::chrono::nanoseconds FrameClock::wait_for_next_frame()
             return {};
         }
     }
+    if (!arrived_) {
+        // Left the wait because the compositor went away, not because it presented
+        // anything. Counting this would make "0 frames presented" -- the line that says
+        // nothing was ever drawn -- read as 1.
+        return {};
+    }
     arrived_ = false;
     ++frames_;
 

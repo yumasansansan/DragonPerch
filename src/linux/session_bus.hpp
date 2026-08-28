@@ -48,8 +48,6 @@ public:
     void start();
     void stop() noexcept;
 
-    [[nodiscard]] bool connected() const noexcept { return bus_ != nullptr; }
-
 private:
     void run();
 

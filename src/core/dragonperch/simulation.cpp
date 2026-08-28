@@ -232,19 +232,10 @@ void Simulation::update_falling(Pet& pet, double seconds)
     const PixelPoint target{pet.position_.x, pet.position_.y + dy};
 
     // Swept, not a point test at the destination: at terminal velocity a frame covers more
-    // than a title bar's height, and a point test would tunnel straight through.
-    const WalkableEdge* landing = nullptr;
-    for (const WalkableEdge& edge : world_.edges()) {
-        if (edge.y <= pet.position_.y || edge.y > target.y) {
-            continue;
-        }
-        if (!edge.contains_x(target.x) || edge.width() < options_.minimum_perch_width) {
-            continue;
-        }
-        // Edges are sorted by y ascending, so the first hit is the highest one.
-        landing = &edge;
-        break;
-    }
+    // than a title bar's height, and a point test would tunnel straight through. Falling is
+    // vertical, so target.x is pet.position_.x and one x serves for both ends.
+    const WalkableEdge* landing =
+        world_.edge_below(pet.position_, target.y, options_.minimum_perch_width);
 
     if (landing != nullptr) {
         pet.position_ = PixelPoint{target.x, landing->y};

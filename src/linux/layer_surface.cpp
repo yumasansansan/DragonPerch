@@ -120,6 +120,14 @@ void LayerSurface::create(WaylandDisplay& display, EglContext& egl, const Output
     wl_surface_set_input_region(surface_, nothing);
     wl_region_destroy(nothing);
 
+    // Set once, from the scale the output had when this was created.
+    //
+    // A monitor whose scale changes while DragonPerch is running keeps the old one, and
+    // the pets are drawn at the wrong size until it is restarted. Following it properly
+    // means listening for wl_output.scale -- or wl_surface.preferred_buffer_scale on a
+    // new enough compositor -- and rebuilding the EGL window, which is the surface code
+    // this program has got wrong most often. Left as a known limitation rather than done
+    // badly; see docs/plan.md.
     wl_surface_set_buffer_scale(surface_, scale_);
 
     // A commit with no buffer attached is what asks for the first configure. Attaching

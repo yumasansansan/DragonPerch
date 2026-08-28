@@ -75,18 +75,51 @@ TEST_CASE("edges are half-open on the x axis", "[world]")
     CHECK(e.width() == 10);
 }
 
-TEST_CASE("output_at maps a point to its monitor", "[world]")
+
+TEST_CASE("a swept edge_below does not reach past where the fall ends", "[world]")
 {
-    const OutputInfo left{1, PixelRect{0, 0, 1920, 1080}, PixelRect{0, 0, 1920, 1032}, 1.0, "left"};
-    const OutputInfo right{2, PixelRect{1920, 0, 2560, 1440}, PixelRect{1920, 0, 2560, 1392}, 1.5,
-                           "right"};
-    const WorldSnapshot world{1, {}, {left, right}};
+    // What a falling pet asks. At terminal velocity one frame covers more than a title
+    // bar's height, so the question is "what did I pass through", not "what is under me".
+    std::vector<WalkableEdge> edges{
+        WalkableEdge{1, 100, 0, 400, EdgeKind::window_top, 0},
+        WalkableEdge{2, 500, 0, 400, EdgeKind::window_top, 0},
+    };
+    WorldSnapshot::sort(edges);
+    const WorldSnapshot world{1, std::move(edges), {}};
 
-    REQUIRE(world.output_at(PixelPoint{100, 100}) != nullptr);
-    CHECK(world.output_at(PixelPoint{100, 100})->id == 1);
+    // Falling from y=0 to y=200 passes the first and not the second.
+    const WalkableEdge* hit = world.edge_below(PixelPoint{200, 0}, 200, 0);
+    REQUIRE(hit != nullptr);
+    CHECK(hit->owner_id == 1);
 
-    REQUIRE(world.output_at(PixelPoint{2000, 100}) != nullptr);
-    CHECK(world.output_at(PixelPoint{2000, 100})->id == 2);
+    // Stopping short of both lands on neither -- the bug this replaces was a point test at
+    // the destination, which would have missed the edge at 100 entirely.
+    CHECK(world.edge_below(PixelPoint{200, 0}, 50, 0) == nullptr);
 
-    CHECK(world.output_at(PixelPoint{-1, 0}) == nullptr);
+    // Falling far enough for both still takes the higher.
+    const WalkableEdge* far = world.edge_below(PixelPoint{200, 0}, 900, 0);
+    REQUIRE(far != nullptr);
+    CHECK(far->owner_id == 1);
+}
+
+TEST_CASE("a swept edge_below skips slivers", "[world]")
+{
+    // A ten-pixel ledge is the visible corner of something mostly hidden. Landing on it
+    // looks like a bug, so the minimum width is asked for here rather than filtered after.
+    std::vector<WalkableEdge> edges{
+        WalkableEdge{1, 100, 200, 210, EdgeKind::window_top, 0},
+        WalkableEdge{2, 300, 0, 400, EdgeKind::window_top, 0},
+    };
+    WorldSnapshot::sort(edges);
+    const WorldSnapshot world{1, std::move(edges), {}};
+
+    const WalkableEdge* hit = world.edge_below(PixelPoint{205, 0}, 900, 64);
+    REQUIRE(hit != nullptr);
+    CHECK(hit->owner_id == 2);
+
+    // Without the minimum it is the sliver that answers, which is what makes this worth a
+    // parameter rather than a caller's job.
+    const WalkableEdge* any = world.edge_below(PixelPoint{205, 0}, 900, 0);
+    REQUIRE(any != nullptr);
+    CHECK(any->owner_id == 1);
 }

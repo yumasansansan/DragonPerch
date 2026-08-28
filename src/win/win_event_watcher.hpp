@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "dragonperch/handler_slot.hpp"
 #include "dragonperch/world.hpp"
 #include "win_headers.hpp"
 
@@ -69,7 +70,7 @@ private:
 
     mutable std::mutex snapshot_mutex_;
     WorldSnapshot current_;
-    ChangedHandler changed_;
+    HandlerSlot changed_;
     std::uint64_t version_ = 0;
 
     std::mutex dirty_mutex_;

@@ -95,11 +95,18 @@ public:
     [[nodiscard]] std::span<const OutputInfo> outputs() const noexcept { return outputs_; }
 
     /// Highest edge strictly below `from` that spans `from.x`: the landing target.
+    ///
+    /// `no_lower_than` bounds the search, and is what a falling pet needs rather than a
+    /// point test at its destination -- at terminal velocity one frame covers more than a
+    /// title bar's height, and a point test tunnels straight through. Edges narrower than
+    /// `minimum_width` are skipped: those are tooltip slivers, not perches.
+    [[nodiscard]] const WalkableEdge* edge_below(PixelPoint from, int no_lower_than,
+                                                 int minimum_width) const noexcept;
+
+    /// Unbounded, and any width. The plain question, for callers that are not falling.
     [[nodiscard]] const WalkableEdge* edge_below(PixelPoint from) const noexcept;
 
     [[nodiscard]] const WalkableEdge* find_by_owner(std::int64_t owner_id) const noexcept;
-
-    [[nodiscard]] const OutputInfo* output_at(PixelPoint p) const noexcept;
 
     /// Sorts in place into the order the lookups above assume.
     static void sort(std::vector<WalkableEdge>& edges);

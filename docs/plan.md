@@ -472,6 +472,22 @@ simulation is ported.
 
 ---
 
+### Known limitations
+
+Named because they are decisions, not oversights.
+
+- **A monitor's scale is read once.** `LayerSurface` sets `wl_surface.set_buffer_scale`
+  from the scale the output had when it was created. Changing a display's scaling while
+  DragonPerch is running leaves the pets drawn at the old size until it is restarted.
+  Following it means listening for `wl_output.scale` -- or `wl_surface.preferred_buffer_scale`
+  on a new enough compositor -- and rebuilding the EGL window, which is the surface code
+  this program has got wrong more often than any other. Not worth doing badly.
+- **A paused loop does not dispatch Wayland.** `PetHost` sleeps rather than waiting on the
+  frame clock while paused, so a compositor that went away during a pause is not noticed
+  until it resumes. Stopping uses the signal flag and the control interface, and both work.
+
+---
+
 ## 11. Open risks
 
 1. ~~Layered + composition rendering.~~ Settled in milestone 1: it works. Milestone 4 added
