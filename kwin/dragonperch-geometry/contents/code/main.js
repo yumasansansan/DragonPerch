@@ -4,8 +4,7 @@
 //
 // A Wayland client cannot see another client's windows -- that is the protocol working as
 // designed, not a gap to route around. The compositor is the only thing that knows, so on
-// Plasma the answer is to run a few lines of JavaScript inside it. This also works under
-// KWin on X11, so one implementation covers both session types.
+// Plasma the answer is to run a few lines of JavaScript inside it.
 //
 // This script runs on KWin's main thread. Anything slow here is session-wide jank, so it
 // does the least it possibly can: format a line per window and hand the string to D-Bus.

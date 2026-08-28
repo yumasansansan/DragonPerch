@@ -328,6 +328,11 @@ int run(std::span<const std::wstring_view> args)
     attach_parent_console();
     handle_console_stop(&request_stop);
 
+    if (has(L"--version")) {
+        log_line(DRAGONPERCH_VERSION);
+        return 0;
+    }
+
     if (has(L"--stop")) {
         if (!raise_stop_signal()) {
             log_line("nothing to stop: no DragonPerch is running in this session");
@@ -394,6 +399,7 @@ int run(std::span<const std::wstring_view> args)
     log_line("  --dump-world [--hold]          milestone 3: print the walkable edges as they change");
     log_line("  --pets N                       run the pets (the default with no arguments)");
     log_line("  --stop                         ask a running DragonPerch to quit");
+    log_line("  --version                      print the version and exit");
     log_line("  --self-test                    click-through and notification-state check");
     log_line("  --pack FILE                    use a sprite pack; repeat for more than one");
     log_line("  --export-placeholder DIR       write the placeholder out as a pack template");

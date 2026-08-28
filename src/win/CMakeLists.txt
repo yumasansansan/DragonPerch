@@ -42,7 +42,7 @@ target_compile_definitions(dragonperch PRIVATE
     _UNICODE
     NOMINMAX                # or windows.h steals std::min and std::max
     WIN32_LEAN_AND_MEAN)
-target_compile_definitions(dragonperch PRIVATE DRAGONPERCH_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(dragonperch PRIVATE DRAGONPERCH_VERSION="${DRAGONPERCH_FULL_VERSION}")
 
 # The manifest arrives through dragonperch.rc, so stop the linker generating one of its
 # own and invoking mt.exe over it.

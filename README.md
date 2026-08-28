@@ -2,7 +2,7 @@
 # DragonPerch
 
 **Konqi and friends romp across your window title bars and panels — a cross-platform
-XPenguins for Windows and Linux (X11/Wayland).**
+XPenguins for Windows and Wayland.**
 
 Dragons walk along the top edge of your windows, sit on your taskbar, and fall off when you
 drag the window out from under them. C++23, GPU rendering, as close to the platform as
@@ -13,8 +13,8 @@ practical.
 > way of full-screen apps.
 >
 > **Linux works too.** The Wayland head draws through EGL on a layer-shell overlay, and a
-> KWin script tells it where the windows are — verified on Plasma 6 under llvmpipe. X11, a
-> tray icon and settings are next; see [docs/plan.md](docs/plan.md).
+> KWin script tells it where the windows are — verified on Plasma 6 under llvmpipe. A tray
+> icon and settings are next; see [docs/plan.md](docs/plan.md).
 
 ---
 
@@ -28,10 +28,13 @@ discover into a list of horizontal line segments, and the physics walks those.
 | | Overlay surface | Other windows' geometry |
 |---|---|---|
 | Windows | DirectComposition on a layered host window | `EnumWindows` + DWM |
-| Linux / X11 | override-redirect ARGB + XShape | EWMH |
 | Wayland / KWin (Plasma) | `zwlr_layer_shell_v1` | a **KWin script** over D-Bus |
 | Wayland / wlroots | `zwlr_layer_shell_v1` | `swaymsg` / `hyprctl` |
 | Wayland / GNOME | ✘ no layer shell | ✘ — would need a Shell extension |
+
+X11 is deliberately not a target: it would need a second world provider, a worse frame
+clock, and a third platform to carry through every feature from here on, for a session type
+Plasma is retiring. See [docs/plan.md](docs/plan.md) §13.1.
 
 ## Building
 
@@ -172,9 +175,20 @@ attaches the same files as artifacts for fourteen days. Both come from the one s
 
 | File | What to do with it |
 |---|---|
-| `dragonperch_0.1.0_amd64.deb` | `sudo apt install ./dragonperch_*.deb` |
-| `dragonperch-0.1.0-Linux.tar.gz` | unpack anywhere and run `usr/bin/dragonperch-wl` |
-| `dragonperch-windows-x64.zip` | unpack and run `dragonperch.exe` |
+| `dragonperch_0.1.0~20260828.1830.g462431a_amd64.deb` | `sudo apt install ./dragonperch_*.deb` |
+| `dragonperch_0.1.0~…_x86_64.tar.gz` | unpack anywhere and run `usr/bin/dragonperch-wl` |
+| `dragonperch_0.1.0~…_x64.zip` | unpack and run `dragonperch.exe` |
+
+Every nightly carries its build time and commit in the version, so `apt` upgrades one to
+the next rather than refusing the newer file as a downgrade. The **tilde is what makes that
+work**: Debian sorts `~` before everything, including nothing at all, so
+
+```
+0.1.0~20260828.1830.g462431a  <  0.1.0~20260829.0300.gdeadbee  <  0.1.0
+```
+
+— nightlies ascend, and a real `0.1.0` supersedes every nightly of it. `dragonperch
+--version` prints exactly what is installed.
 
 The artwork is found relative to the executable, so an unpacked tarball works without being
 installed and without an environment variable. Installing the package does **not** enable

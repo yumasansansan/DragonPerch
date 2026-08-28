@@ -13,7 +13,7 @@ namespace dp {
 ///
 /// This is the last point at which anything resembling a window exists. Every backend
 /// discovers them differently -- `EnumWindows` plus DWM on Windows, a KWin script over
-/// D-Bus on Plasma, EWMH on X11 -- and they all arrive here, as a rectangle and a place in
+/// D-Bus on Plasma -- and they all arrive here, as a rectangle and a place in
 /// the stack.
 struct WindowCandidate {
     std::int64_t id = 0;

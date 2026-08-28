@@ -51,7 +51,7 @@ target_link_libraries(dragonperch-wl PRIVATE
     PkgConfig::PNG)
 
 target_include_directories(dragonperch-wl PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(dragonperch-wl PRIVATE DRAGONPERCH_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(dragonperch-wl PRIVATE DRAGONPERCH_VERSION="${DRAGONPERCH_FULL_VERSION}")
 
 # No RPATH, and none to strip out at install time either. Everything this links is a
 # system library already on the loader's default path, so an RPATH could only ever be a

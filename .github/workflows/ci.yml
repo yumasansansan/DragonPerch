@@ -47,8 +47,10 @@ jobs:
       # The preset names clang-22 rather than clang, because plain `clang` on this image is
       # 21 and picking up a different compiler than intended is the kind of thing that only
       # shows up as a confusing diagnostic much later.
+      # The version carries the build time and the commit, so that apt can tell one
+      # nightly from the next -- see cmake/Packaging.cmake for why the tilde matters.
       - name: Configure
-        run: cmake --preset linux-x64
+        run: cmake --preset linux-x64 -D DRAGONPERCH_VERSION_SUFFIX="~$(date -u +%Y%m%d.%H%M).g$(git rev-parse --short HEAD)"
 
       # The portability guard, built first and named so its failure is unambiguous. The core
       # must compile with no platform anything; if this step breaks, a backend has leaked
@@ -71,7 +73,7 @@ jobs:
 
       - name: Upload the packages
         if: matrix.configuration == 'Release'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dragonperch-linux-x86_64
           path: |
@@ -93,7 +95,10 @@ jobs:
       # CI builds through the same solution a developer opens locally, rather than a
       # parallel configuration that drifts.
       - name: Configure
-        run: cmake --preset windows-x64
+        run: |
+          $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMdd.HHmm')
+          $sha = git rev-parse --short HEAD
+          cmake --preset windows-x64 -D DRAGONPERCH_VERSION_SUFFIX="~$stamp.g$sha"
 
       - name: Build
         run: cmake --build build/windows-x64 --config ${{ matrix.configuration }}
@@ -102,21 +107,25 @@ jobs:
         run: ctest --test-dir build/windows-x64 --build-config ${{ matrix.configuration }} --output-on-failure
 
       # No installer, just the pieces: the executable next to the artwork it looks for, in
-      # the layout find_sprite_packs expects when they sit side by side.
-      - name: Stage
+      # the layout find_sprite_packs expects when they sit side by side. Zipped here rather
+      # than in the release job, so the name can carry the version the way the .deb and the
+      # tarball do -- two nightlies in a downloads folder should be tellable apart.
+      - name: Package
         if: matrix.configuration == 'Release'
         run: |
-          New-Item -ItemType Directory -Force staging\assets | Out-Null
+          New-Item -ItemType Directory -Force staging\assets, dist | Out-Null
           Copy-Item build\windows-x64\src\win\Release\dragonperch.exe staging\
           Copy-Item -Recurse assets\konqi, assets\katie, assets\kori staging\assets\
           Get-ChildItem -Recurse staging\assets -Directory -Filter source | Remove-Item -Recurse -Force
+          $version = (Get-Content build\windows-x64/version.txt -Raw).Trim()
+          Compress-Archive staging\* "dist\dragonperch_${version}_x64.zip"
 
       - name: Upload the build
         if: matrix.configuration == 'Release'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dragonperch-windows-x64
-          path: staging/
+          path: dist/
           if-no-files-found: error
           retention-days: 14
 
@@ -133,7 +142,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: dist
 
@@ -141,9 +150,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cd dist/dragonperch-windows-x64 && zip -qr ../dragonperch-windows-x64.zip . && cd ../..
-          rm -rf dist/dragonperch-windows-x64
           # Deleted and recreated rather than edited, so the tag always points at the commit
-          # the packages were actually built from.
+          # the packages were actually built from. The files themselves are versioned, so a
+          # rolling tag costs nothing: what somebody downloaded is written on it.
           gh release delete nightly --cleanup-tag --yes || true
-          gh release create nightly $(find dist -type f) --prerelease --title "Nightly build" --notes "Built from ${{ github.sha }}. Unsigned, untested beyond CI, and replaced by the next build on main."
+          gh release create nightly $(find dist -type f) --prerelease --title "Nightly build" --notes "Built from ${{ github.sha }}. Every file carries the build time and the commit in its version, so apt upgrades one nightly to the next. Unsigned and untested beyond CI."

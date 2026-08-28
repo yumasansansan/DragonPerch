@@ -113,8 +113,7 @@ private:
 /// Supplies and maintains the set of surfaces pets can stand on.
 ///
 /// Implementations must be **event driven, never polling**. On Windows that is
-/// `SetWinEventHook`; on X11 a `StructureNotify` selection plus EWMH property watches; on
-/// KWin a KWin script pushing over D-Bus. Enumerating every top-level window at 60 Hz
+/// `SetWinEventHook`; on Plasma a KWin script pushing over D-Bus. Enumerating every top-level window at 60 Hz
 /// shows up in the user's battery life, and a desktop pet that costs measurable power is a
 /// desktop pet that gets uninstalled.
 ///

@@ -15,6 +15,23 @@ elseif(UNIX AND NOT APPLE)
     enable_language(C)
 endif()
 
+# What a nightly build appends to the version, so that one package can be told from the
+# next. Empty for a release; CI passes something like "~20260828.1830.g462431a".
+#
+# The leading tilde is the load-bearing character. Debian sorts `~` before everything,
+# including the empty string, so 0.1.0~20260828.1830 < 0.1.0~20260829.0300 < 0.1.0 -- which
+# means apt upgrades one nightly to the next, and a real 0.1.0 supersedes every nightly of
+# it. Written any other way round, `apt install ./dragonperch_*.deb` refuses the newer file
+# as a downgrade.
+set(DRAGONPERCH_VERSION_SUFFIX "" CACHE STRING "Appended to the version for nightly builds")
+set(DRAGONPERCH_FULL_VERSION "${PROJECT_VERSION}${DRAGONPERCH_VERSION_SUFFIX}")
+message(STATUS "DragonPerch version: ${DRAGONPERCH_FULL_VERSION}")
+
+# So that a packaging step can read the version rather than work it out again. Asking the
+# built binary would be the obvious thing and is not reliable on Windows, where this is a
+# GUI-subsystem program and its standard output depends on how it was launched.
+file(WRITE ${CMAKE_BINARY_DIR}/version.txt "${DRAGONPERCH_FULL_VERSION}")
+
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 if(UNIX AND NOT APPLE)

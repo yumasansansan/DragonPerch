@@ -12,10 +12,12 @@ set(CPACK_PACKAGE_NAME dragonperch)
 set(CPACK_PACKAGE_VENDOR "DragonPerch contributors")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
 set(CPACK_PACKAGE_HOMEPAGE_URL "${PROJECT_HOMEPAGE_URL}")
-set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(CPACK_PACKAGE_VERSION "${DRAGONPERCH_FULL_VERSION}")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
 
-# dragonperch_0.1.0_amd64.deb rather than the Linux-x86_64 CMake would otherwise pick.
+# dragonperch_0.1.0~20260828.1830.g462431a_x86_64.tar.gz rather than the Linux-x86_64 CMake
+# would otherwise pick. The version is in the name so that two nightlies sitting in a
+# downloads folder can be told apart without opening them.
 set(CPACK_PACKAGE_FILE_NAME
     "${CPACK_PACKAGE_NAME}_${CPACK_PACKAGE_VERSION}_${CMAKE_SYSTEM_PROCESSOR}")
 

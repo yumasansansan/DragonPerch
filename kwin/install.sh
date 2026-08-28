@@ -5,9 +5,6 @@
 #
 # A Wayland client cannot see other clients' windows, so this script is not an optional
 # extra: without it DragonPerch draws pets that have nothing to stand on but the floor.
-#
-# It works under KWin on X11 as well as on Wayland -- the script is the same, and so is
-# everything on the other side of the D-Bus call.
 set -eu
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)

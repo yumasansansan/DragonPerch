@@ -258,12 +258,18 @@ int run(std::span<const std::string_view> args)
         return std::ranges::find(args, flag) != args.end();
     };
 
+    if (has("--version")) {
+        log_line(DRAGONPERCH_VERSION);
+        return 0;
+    }
+
     if (has("--help") || has("-h")) {
         log_line("DragonPerch " DRAGONPERCH_VERSION);
         log_line("  --pets N        how many of each mascot (the default with no arguments)");
         log_line("  --pack FILE     use a sprite pack; repeat for more than one");
         log_line("  --dump-world [--hold]         print the edges as KWin reports them");
         log_line("  --probe-composition [--hold]  tint the screen, and nothing else");
+        log_line("  --version                     print the version and exit");
         return 0;
     }
 
