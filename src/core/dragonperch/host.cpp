@@ -30,6 +30,15 @@ void PetHost::run(const std::function<bool()>& should_stop)
         has_pending_ = true;
     });
 
+    // It captures `this`, and leaving by exception used to skip clearing it -- which left
+    // the provider calling into a PetHost that was about to be destroyed. The exception
+    // paths are the ones nobody exercises, so it cannot be a line at the end of the
+    // function.
+    struct ClearOnTheWayOut {
+        IWorldProvider* world;
+        ~ClearOnTheWayOut() { world->set_changed_handler(nullptr); }
+    } clear{world_};
+
     while (!should_stop()) {
         if (paused_.load(std::memory_order_relaxed)) {
             // Deliberately not waiting on the frame clock. On Wayland that would mean
@@ -56,9 +65,6 @@ void PetHost::run(const std::function<bool()>& should_stop)
         simulation_->update(dt);
         simulation_->render(*renderer_);
     }
-
-    // The handler captures `this`; drop it before the host goes away.
-    world_->set_changed_handler(nullptr);
 }
 
 void PetHost::set_paused(bool paused) noexcept

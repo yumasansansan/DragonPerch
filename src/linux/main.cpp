@@ -150,7 +150,11 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     world.publish(bus);
 
     ControlService control;
-    PetHost* host_for_control = nullptr;
+
+    // Atomic because the handler runs on the bus thread while this is written here. The
+    // control object has to be published before KWin is asked for anything, and the host
+    // does not exist until the renderer does, so the two cannot be ordered away.
+    std::atomic<PetHost*> host_for_control{nullptr};
     control.publish(bus, [&](Command command) {
         switch (command) {
         case Command::quit:
@@ -158,21 +162,35 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
             break;
         case Command::pause:
         case Command::resume:
-        case Command::toggle_pause:
-            if (host_for_control != nullptr) {
-                host_for_control->set_paused(command == Command::pause
-                                             || (command == Command::toggle_pause
-                                                 && !host_for_control->paused()));
+        case Command::toggle_pause: {
+            PetHost* target = host_for_control.load(std::memory_order_acquire);
+            if (target != nullptr) {
+                target->set_paused(command == Command::pause
+                                   || (command == Command::toggle_pause && !target->paused()));
             }
             break;
+        }
         case Command::reload:
             // Milestone 10. Nothing to re-read yet.
             break;
         }
     });
 
-    bus.start();
+    // The bootstrap floor is published before the bus can deliver anything, not after. The
+    // other order has a window in which a real report arrives and is then overwritten by a
+    // snapshot that knows only about the floor -- which would drop every pet to the bottom
+    // of the screen until KWin next said something.
     world.start();
+
+    // Stops the bus thread before `world` and `control` are destroyed. They are declared
+    // after `bus`, so they are destroyed before it, and without this its thread can dispatch
+    // a call into an object that is already gone.
+    const struct StopOnTheWayOut {
+        SessionBus& bus;
+        ~StopOnTheWayOut() { bus.stop(); }
+    } stopper{bus};
+
+    bus.start();
     ask_kwin_for_a_report();
 
     GlesRenderer renderer;
@@ -222,7 +240,7 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     // Published before the host existed, because the bus has to be claimed before KWin is
     // asked for anything. The handler runs on the bus thread and only ever touches an
     // atomic, which is what makes handing it a pointer here safe.
-    host_for_control = &host;
+    host_for_control.store(&host, std::memory_order_release);
 
     host.run([&] {
         if (clock.disconnected() || g_stop.load(std::memory_order_relaxed)) {
@@ -268,7 +286,6 @@ int dump_world(int seconds)
     world.set_outputs(display.outputs());
     world.log_raw_reports(true);
     world.publish(bus);
-    bus.start();
 
     const auto started = std::chrono::steady_clock::now();
     world.set_changed_handler([started](const WorldSnapshot& snapshot) {
@@ -292,7 +309,16 @@ int dump_world(int seconds)
         }
     });
 
+    // Everything registered before the bus can deliver anything: the handler, and the
+    // bootstrap floor. See run_pets for what the other order costs.
     world.start();
+
+    const struct StopOnTheWayOut {
+        SessionBus& bus;
+        ~StopOnTheWayOut() { bus.stop(); }
+    } stopper{bus};
+
+    bus.start();
     ask_kwin_for_a_report();
     log_line(std::format("watching for {}s -- drag, resize, open or close a window", seconds));
     log_line("a snapshot arriving before you touch anything is the KWin script introducing"

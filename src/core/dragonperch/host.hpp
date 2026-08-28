@@ -26,6 +26,12 @@ public:
 
     /// Stops the simulation advancing, and stops drawing.
     ///
+    /// **`should_stop` must not depend on anything only the frame clock updates.** A paused
+    /// loop never waits on the clock, so on Wayland it never dispatches the connection --
+    /// a compositor that went away during a pause would not be noticed until it resumed.
+    /// The signal flag and the control interface both work, which is what stopping actually
+    /// uses.
+    ///
     /// The surfaces are left exactly as they are, still showing the last frame. Tearing
     /// them down and building them again on resume would be a second path through the
     /// window and surface code, which is the part of this program that has been wrong most

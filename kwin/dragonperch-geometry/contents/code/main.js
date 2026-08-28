@@ -195,10 +195,19 @@ connect(workspace, "virtualScreenGeometryChanged", report);
 // for somebody to move a window. Two seconds is far too slow to animate anything and far
 // too cheap to measure.
 //
-// Note singleShot, not repeat: QTimer is a QObject, and `repeat` is QML's Timer. Assigning
-// a property QTimer does not have is not the harmless no-op it looks like.
+// Two things about it are easy to get wrong and both were.
+//
+// singleShot, not repeat: QTimer is a QObject and `repeat` is QML's Timer, and assigning a
+// property QTimer does not have is not the harmless no-op it looks like.
+//
+// And the reference is deliberately at the top level. Declared inside the try block it
+// went out of scope as soon as the block ended, leaving a QObject nothing referred to --
+// which the engine is then free to collect, taking the heartbeat with it and looking
+// exactly like a QTimer that never worked.
+var heartbeat = null;
+
 try {
-    const heartbeat = new QTimer();
+    heartbeat = new QTimer();
     heartbeat.interval = 2000;
     heartbeat.singleShot = false;
     heartbeat.timeout.connect(report);

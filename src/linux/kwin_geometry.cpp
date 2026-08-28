@@ -139,7 +139,15 @@ int KWinGeometryProvider::on_update(sd_bus_message* message, void* userdata, sd_
         return failed;
     }
 
-    static_cast<KWinGeometryProvider*>(userdata)->apply(report == nullptr ? "" : report);
+    auto* self = static_cast<KWinGeometryProvider*>(userdata);
+
+    // Counted here rather than in apply(), which start() also calls to publish the
+    // bootstrap floor. Counting there made heard_from_kwin() true before KWin had said a
+    // word, and the "the script never said anything" message -- the one that tells somebody
+    // their script is not installed -- could never appear.
+    self->reports_.fetch_add(1, std::memory_order_relaxed);
+    self->apply(report == nullptr ? "" : report);
+
     return sd_bus_reply_method_return(message, "");
 }
 
@@ -246,8 +254,6 @@ void KWinGeometryProvider::apply(std::string_view report)
         snapshot = snapshot_;
         handler = handler_;
     }
-
-    reports_.fetch_add(1, std::memory_order_relaxed);
 
     // Outside the lock: the handler hands the snapshot to the render loop, and holding a
     // mutex across a callback into other code is how deadlocks are built.

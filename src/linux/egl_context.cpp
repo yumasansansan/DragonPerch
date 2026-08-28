@@ -102,9 +102,18 @@ EGLSurface EglContext::create_surface(wl_egl_window* window)
 
 void EglContext::destroy_surface(EGLSurface surface) noexcept
 {
-    if (display_ != EGL_NO_DISPLAY && surface != EGL_NO_SURFACE) {
-        eglDestroySurface(display_, surface);
+    if (display_ == EGL_NO_DISPLAY || surface == EGL_NO_SURFACE) {
+        return;
     }
+
+    // Made not-current first. EGL defers destroying a surface that is still bound, and the
+    // caller then frees the wl_egl_window it was built on -- leaving EGL holding a native
+    // window that no longer exists.
+    if (eglGetCurrentSurface(EGL_DRAW) == surface || eglGetCurrentSurface(EGL_READ) == surface) {
+        eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+    }
+
+    eglDestroySurface(display_, surface);
 }
 
 void EglContext::make_current(EGLSurface surface)
