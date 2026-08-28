@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "gles_renderer.hpp"
 
+#include "dragonperch/text.hpp"
 #include "log.hpp"
 #include "wayland_display.hpp"
 
 #include <algorithm>
 #include <array>
-#include <format>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -79,7 +79,7 @@ GLuint compile(GLenum stage, const char* source)
     glGetShaderInfoLog(shader, length, nullptr, message.data());
     glDeleteShader(shader);
 
-    throw std::runtime_error(std::format("shader failed to compile: {}", message));
+    throw std::runtime_error(cat("shader failed to compile: ", message));
 }
 
 } // namespace
@@ -132,8 +132,8 @@ void GlesRenderer::create(WaylandDisplay& display)
     }
 
     egl_.make_current(overlays_.front().egl_surface());
-    log_line(std::format("gl: {} / {}", reinterpret_cast<const char*>(glGetString(GL_RENDERER)),
-                         reinterpret_cast<const char*>(glGetString(GL_VERSION))));
+    log_line(cat("gl: ", reinterpret_cast<const char*>(glGetString(GL_RENDERER)), " / ",
+                 reinterpret_cast<const char*>(glGetString(GL_VERSION))));
 
     build_program();
 }
@@ -163,7 +163,7 @@ void GlesRenderer::build_program()
         glGetProgramiv(program_, GL_INFO_LOG_LENGTH, &length);
         std::string message(static_cast<std::size_t>(std::max(length, 1)), '\0');
         glGetProgramInfoLog(program_, length, nullptr, message.data());
-        throw std::runtime_error(std::format("shader program failed to link: {}", message));
+        throw std::runtime_error(cat("shader program failed to link: ", message));
     }
 
     viewport_uniform_ = glGetUniformLocation(program_, "u_viewport");

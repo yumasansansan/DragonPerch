@@ -2,8 +2,8 @@
 #include "gpu_device.hpp"
 
 #include "log.hpp"
+#include "dragonperch/text.hpp"
 
-#include <format>
 #include <vector>
 
 namespace dp::win {
@@ -140,9 +140,8 @@ void GpuDevice::drain_debug_messages() const
             continue;
         }
 
-        log_line(std::format("d3d[{}]: {}", static_cast<int>(message->Severity),
-                             std::string_view(message->pDescription,
-                                              message->DescriptionByteLength)));
+        log_line(cat("d3d[", static_cast<int>(message->Severity), "]: ",
+                     std::string_view(message->pDescription, message->DescriptionByteLength)));
     }
 
     info_queue_->ClearStoredMessages();

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "dragonperch/sprite_pack_file.hpp"
 
+#include "dragonperch/text.hpp"
+
 #include <algorithm>
 #include <charconv>
-#include <format>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -27,7 +28,7 @@ std::string_view trim(std::string_view text)
 
 [[noreturn]] void fail(std::size_t line, std::string_view what)
 {
-    throw std::runtime_error(std::format("sprite pack line {}: {}", line, what));
+    throw std::runtime_error(cat("sprite pack line ", line, ": ", what));
 }
 
 int to_int(std::string_view text, std::size_t line, std::string_view what)
@@ -36,7 +37,7 @@ int to_int(std::string_view text, std::size_t line, std::string_view what)
     int result = 0;
     const auto [ptr, ec] = std::from_chars(value.data(), value.data() + value.size(), result);
     if (ec != std::errc{} || ptr != value.data() + value.size()) {
-        fail(line, std::format("{} is not a number: '{}'", what, value));
+        fail(line, cat(what, " is not a number: '", value, "'"));
     }
     return result;
 }
@@ -62,7 +63,7 @@ std::vector<int> to_int_list(std::string_view text, std::size_t line, std::strin
     }
 
     if (values.empty()) {
-        fail(line, std::format("{} is empty", what));
+        fail(line, cat(what, " is empty"));
     }
     return values;
 }
@@ -85,7 +86,7 @@ struct Section {
     {
         const auto* value = find(key);
         if (value == nullptr) {
-            fail(line, std::format("section [{}] has no '{}'", name, key));
+            fail(line, cat("section [", name, "] has no '", key, "'"));
         }
         return *value;
     }
@@ -121,7 +122,7 @@ std::vector<Section> parse_sections(std::string_view text)
             } else {
                 const std::size_t equals = line.find('=');
                 if (equals == std::string_view::npos) {
-                    fail(line_number, std::format("expected 'key = value', got '{}'", line));
+                    fail(line_number, cat("expected 'key = value', got '", line, "'"));
                 }
                 if (sections.empty()) {
                     fail(line_number, "key outside any section");
@@ -177,8 +178,8 @@ SpritePackFile parse_sprite_pack(std::string_view text, int atlas_id, PixelSize 
     const int columns = atlas_size.width / cell.width;
     const int rows = atlas_size.height / cell.height;
     if (columns <= 0 || rows <= 0) {
-        fail(width_line, std::format("a {}x{} atlas holds no {}x{} cells", atlas_size.width,
-                                     atlas_size.height, cell.width, cell.height));
+        fail(width_line, cat("a ", atlas_size.width, "x", atlas_size.height, " atlas holds no ",
+                             cell.width, "x", cell.height, " cells"));
     }
 
     std::map<std::string, Animation, std::less<>> animations;
@@ -218,8 +219,8 @@ SpritePackFile parse_sprite_pack(std::string_view text, int atlas_id, PixelSize 
             frames.reserve(list.size());
             for (const int index : list) {
                 if (index < 0 || index >= columns * rows) {
-                    fail(line, std::format("frame {} is outside the {}x{} grid of cells", index,
-                                           columns, rows));
+                    fail(line, cat("frame ", index, " is outside the ", columns, "x", rows,
+                                   " grid of cells"));
                 }
 
                 frames.push_back(AnimationFrame{
@@ -239,10 +240,9 @@ SpritePackFile parse_sprite_pack(std::string_view text, int atlas_id, PixelSize 
         if (const auto* value = section.find("frames-left"); value != nullptr) {
             const std::vector<int> left = to_int_list(value->first, value->second, "frames-left");
             if (left.size() != indices.size()) {
-                fail(value->second,
-                     std::format("frames-left has {} frames but frames has {}; they run on the "
-                                 "same clock and must match",
-                                 left.size(), indices.size()));
+                fail(value->second, cat("frames-left has ", left.size(), " frames but frames has ",
+                                        indices.size(),
+                                        "; they run on the same clock and must match"));
             }
             frames_left = build(left, value->second);
         }

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "dragonperch/sprites.hpp"
 
+#include "dragonperch/text.hpp"
+
 #include <cmath>
-#include <format>
 #include <numeric>
 #include <stdexcept>
 #include <utility>
@@ -82,7 +83,7 @@ const Animation& SpritePack::require(std::string_view animation) const
     const auto it = animations_.find(animation);
     if (it == animations_.end()) {
         throw std::out_of_range(
-            std::format("sprite pack '{}' has no animation '{}'", id_, animation));
+            cat("sprite pack '", id_, "' has no animation '", animation, "'"));
     }
     return it->second;
 }

@@ -2,10 +2,10 @@
 #include "console.hpp"
 
 #include "log.hpp"
+#include "dragonperch/text.hpp"
 #include "win_headers.hpp"
 
 #include <cstdio>
-#include <format>
 #include <io.h>
 #include <iostream>
 
@@ -41,7 +41,7 @@ BOOL WINAPI console_handler(DWORD event)
     case CTRL_CLOSE_EVENT:
     case CTRL_LOGOFF_EVENT:
     case CTRL_SHUTDOWN_EVENT:
-        log_line(std::format("stopping: console event {}", event));
+        log_line(cat("stopping: console event ", event));
         if (g_on_stop != nullptr) {
             g_on_stop();
         }

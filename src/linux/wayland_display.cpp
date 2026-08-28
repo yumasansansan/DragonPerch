@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "wayland_display.hpp"
 
+#include "dragonperch/text.hpp"
 #include "log.hpp"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 #include <algorithm>
 #include <cerrno>
-#include <format>
 #include <stdexcept>
 #include <string_view>
 #include <utility>
@@ -84,11 +84,14 @@ void WaylandDisplay::connect()
     }
 
     rebuild_outputs();
-    log_line(std::format("wayland: {} output(s), layer shell present", outputs_.size()));
+    log_line(cat("wayland: ", outputs_.size(), " output(s), layer shell present"));
     for (const OutputInfo& output : outputs_) {
-        log_line(std::format("  {:<12} {}x{} at {},{} scale {:g}", output.name,
-                             output.bounds.width, output.bounds.height, output.bounds.x,
-                             output.bounds.y, output.scale));
+        // The scale is printed as a whole number because on Wayland it is one -- and
+        // because formatting a double is what drags a hundred kilobytes of conversion
+        // tables into the binary. See dragonperch/text.hpp.
+        log_line(cat("  ", output.name, " ", output.bounds.width, "x", output.bounds.height,
+                     " at ", output.bounds.x, ",", output.bounds.y, " scale ",
+                     static_cast<int>(output.scale)));
     }
 }
 
@@ -125,7 +128,7 @@ void WaylandDisplay::registry_global(void* data, wl_registry* registry, std::uin
         monitor->name = name;
         monitor->handle = static_cast<wl_output*>(wl_registry_bind(
             registry, name, &wl_output_interface, std::min(version, output_version)));
-        monitor->label = std::format("output-{}", name);
+        monitor->label = cat("output-", name);
 
         wl_output_add_listener(monitor->handle, &listener, self);
         self->monitors_.push_back(std::move(monitor));
@@ -143,7 +146,7 @@ void WaylandDisplay::registry_global_remove(void* data, wl_registry*, std::uint3
         return;
     }
 
-    log_line(std::format("wayland: output {} unplugged", (*gone)->label));
+    log_line(cat("wayland: output ", (*gone)->label, " unplugged"));
     wl_output_destroy((*gone)->handle);
     self->monitors_.erase(gone);
     self->rebuild_outputs();

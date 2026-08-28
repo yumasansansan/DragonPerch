@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "kwin_script.hpp"
 
+#include "dragonperch/text.hpp"
 #include "log.hpp"
 
 #include <cstdlib>
 #include <cstring>
-#include <format>
 #include <string>
 #include <system_error>
 
@@ -59,8 +59,8 @@ bool call(sd_bus* bus, const char* method, const char* signature, const char* fi
     }
 
     if (failed < 0) {
-        log_line(std::format("kwin: {} failed: {}", method,
-                             error.message != nullptr ? error.message : std::strerror(-failed)));
+        log_line(cat("kwin: ", method, " failed: ",
+                     error.message != nullptr ? error.message : std::strerror(-failed)));
     }
 
     sd_bus_error_free(&error);

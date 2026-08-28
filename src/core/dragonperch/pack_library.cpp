@@ -2,9 +2,9 @@
 #include "dragonperch/pack_library.hpp"
 
 #include "dragonperch/sprite_pack_file.hpp"
+#include "dragonperch/text.hpp"
 
 #include <algorithm>
-#include <format>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
@@ -19,7 +19,7 @@ std::string read_file(const std::filesystem::path& path)
 {
     std::ifstream stream(path, std::ios::binary);
     if (!stream) {
-        throw std::runtime_error(std::format("cannot open {}", path.string()));
+        throw std::runtime_error(cat("cannot open ", path.string()));
     }
 
     std::ostringstream buffer;

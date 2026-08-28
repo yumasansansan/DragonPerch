@@ -6,6 +6,7 @@
 #include "kwin_geometry.hpp"
 #include "kwin_script.hpp"
 #include "layer_surface.hpp"
+#include "dragonperch/text.hpp"
 #include "log.hpp"
 #include "sprite_pack_loader.hpp"
 #include "wayland_display.hpp"
@@ -73,7 +74,7 @@ void ask_kwin_for_a_report()
     }
 
     if (reload_kwin_script(script)) {
-        log_line(std::format("kwin: asked it to re-run {}", script.string()));
+        log_line(cat("kwin: asked it to re-run ", script.string()));
     }
 }
 
@@ -171,8 +172,8 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
         }
     }
 
-    log_line(std::format("{} pet(s) on {} output(s); Ctrl+C to stop",
-                         simulation.pets().size(), display.outputs().size()));
+    log_line(cat(simulation.pets().size(), " pet(s) on ", display.outputs().size(),
+                 " output(s); Ctrl+C to stop"));
 
     FrameClock clock{display, renderer.overlays().front().surface()};
     PetHost host{simulation, world, renderer, clock};
@@ -185,7 +186,7 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
                                    [](const LayerSurface& overlay) { return overlay.closed(); });
     });
 
-    log_line(std::format("{} frame(s) presented", clock.frames()));
+    log_line(cat(clock.frames(), " frame(s) presented"));
     if (clock.frames() == 0) {
         log_line("None at all, so nothing was ever drawn. Try --probe-composition, which");
         log_line("takes the simulation out of it.");
@@ -339,7 +340,7 @@ int main(int argc, char** argv)
     try {
         return dp::wl::run(args);
     } catch (const std::exception& error) {
-        dp::wl::log_line(std::format("dragonperch: {}", error.what()));
+        dp::wl::log_line(dp::cat("dragonperch: ", error.what()));
         return 1;
     }
 }

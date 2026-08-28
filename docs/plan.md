@@ -169,13 +169,24 @@ program whose only formatting is `std::format("{} and {}", an_int, "text")` link
 visitor instantiates the floating-point path regardless, so the tables come whether a float
 is ever passed or not.
 
-That is not a reason to stop using it — it is readable, type-safe, and this is a 400 KB
-binary rather than a 40 KB one — but it is the single largest thing in here by a wide
-margin, and worth knowing before hunting for kilobytes anywhere else. Anything short of
-replacing it moves a few per cent.
+It was replaced, and the binary halved: **390,144 bytes to 196,096**. Integer conversion is
+free, which is what makes that possible --
 
-For scale, the next two things down: the procedural placeholder was 11,776 bytes (2.9%) and
-was removed; the diagnostic modes were 25,088 (5.9%) and are compiled out of Release.
+| | bytes | Ryu tables linked |
+|---|---:|---|
+| `std::format`, integers only | 215,552 | yes |
+| `std::to_string` | 14,336 | no |
+| `std::to_chars` on an integer | 10,240 | no |
+| `std::to_chars` on a double | 132,608 | yes |
+
+-- so `dragonperch/text.hpp` joins strings and whole numbers with `std::to_chars`, and
+deliberately cannot be passed a `double`. Nothing this program prints needs one. Diagnostic
+code keeps `std::format`, where the padding and alignment earn their place and the size is
+not paid, because it is compiled out of a release build.
+
+For scale, the two next-largest savings: the diagnostic modes were 25,088 bytes (5.9%) and
+the procedural placeholder 11,776 (2.9%). Together they are a quarter of what `std::format`
+alone cost.
 
 All compiler and linker flags live in `cmake/CompilerOptions.cmake`, on a single interface
 target. Release-only flags use `$<$<CONFIG:Release>:...>`, because the multi-config

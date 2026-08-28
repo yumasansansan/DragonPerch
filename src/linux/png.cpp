@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "dragonperch/text.hpp"
 #include "png.hpp"
 
 #include <cstdio>
-#include <format>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -42,7 +42,7 @@ dp::DecodedImage decode_image(const std::filesystem::path& file)
 {
     const std::unique_ptr<std::FILE, FileCloser> handle{std::fopen(file.c_str(), "rb")};
     if (!handle) {
-        throw std::runtime_error(std::format("cannot open {}", file.string()));
+        throw std::runtime_error(cat("cannot open ", file.string()));
     }
 
     PngReader reader;
@@ -61,7 +61,7 @@ dp::DecodedImage decode_image(const std::filesystem::path& file)
 
     // NOLINTNEXTLINE(cert-err52-cpp) -- libpng has no other error mechanism.
     if (setjmp(png_jmpbuf(reader.png)) != 0) {
-        throw std::runtime_error(std::format("{} is not a PNG this can read", file.string()));
+        throw std::runtime_error(cat(file.string(), " is not a PNG this can read"));
     }
 
     png_init_io(reader.png, handle.get());
@@ -80,7 +80,7 @@ dp::DecodedImage decode_image(const std::filesystem::path& file)
     const auto width = static_cast<int>(png_get_image_width(reader.png, reader.info));
     const auto height = static_cast<int>(png_get_image_height(reader.png, reader.info));
     if (width <= 0 || height <= 0) {
-        throw std::runtime_error(std::format("{} has no pixels", file.string()));
+        throw std::runtime_error(cat(file.string(), " has no pixels"));
     }
 
     image.size = PixelSize{width, height};

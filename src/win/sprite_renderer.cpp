@@ -2,9 +2,9 @@
 #include "sprite_renderer.hpp"
 
 #include "fullscreen.hpp"
+#include "dragonperch/text.hpp"
 #include "log.hpp"
 
-#include <format>
 
 #include <utility>
 
@@ -62,9 +62,8 @@ void SpriteRenderer::end_frame()
         const bool should_show = !fullscreen::covers(overlay.monitor);
 
         if (should_show != overlay.surface.visible()) {
-            log_line(std::format("output ({},{}): {} a full-screen app",
-                                 overlay.monitor.left(), overlay.monitor.top(),
-                                 should_show ? "showing after" : "hiding for"));
+            log_line(cat("output (", overlay.monitor.left(), ",", overlay.monitor.top(), "): ",
+                         should_show ? "showing after" : "hiding for", " a full-screen app"));
         }
         overlay.surface.set_visible(should_show);
 

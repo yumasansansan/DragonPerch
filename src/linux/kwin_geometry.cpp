@@ -2,12 +2,12 @@
 #include "kwin_geometry.hpp"
 
 #include "dragonperch/edge_builder.hpp"
+#include "dragonperch/text.hpp"
 #include "log.hpp"
 
 #include <algorithm>
 #include <charconv>
 #include <cstring>
-#include <format>
 #include <stdexcept>
 #include <string>
 #include <system_error>
@@ -103,7 +103,7 @@ void KWinGeometryProvider::start()
 
     if (const int failed = sd_bus_open_user(&bus_); failed < 0) {
         throw std::runtime_error(
-            std::format("cannot reach the session bus: {}", std::strerror(-failed)));
+            cat("cannot reach the session bus: ", std::strerror(-failed)));
     }
 
     // Declared here rather than at namespace scope so it can name a private member. The
@@ -120,15 +120,15 @@ void KWinGeometryProvider::start()
                                                     vtable, this);
         failed < 0) {
         throw std::runtime_error(
-            std::format("cannot publish {}: {}", object_path, std::strerror(-failed)));
+            cat("cannot publish ", object_path, ": ", std::strerror(-failed)));
     }
 
     // No replace, no queue: a second DragonPerch must fail here rather than silently take
     // the name from the first and leave it drawing a desktop that never changes again.
     if (const int failed = sd_bus_request_name(bus_, bus_name, 0); failed < 0) {
-        throw std::runtime_error(std::format(
-            "cannot claim {} -- another DragonPerch is probably already running: {}", bus_name,
-            std::strerror(-failed)));
+        throw std::runtime_error(
+            cat("cannot claim ", bus_name,
+                " -- another DragonPerch is probably already running: ", std::strerror(-failed)));
     }
 
     // Publish what is known before any report arrives: the outputs, and a floor on each. A
@@ -137,7 +137,7 @@ void KWinGeometryProvider::start()
     apply("v 1");
 
     worker_ = std::thread{[this] { run(); }};
-    log_line(std::format("listening on {} for the KWin script", bus_name));
+    log_line(cat("listening on ", bus_name, " for the KWin script"));
 }
 
 void KWinGeometryProvider::run()
@@ -145,7 +145,7 @@ void KWinGeometryProvider::run()
     while (!stopping_.load(std::memory_order_relaxed)) {
         const int processed = sd_bus_process(bus_, nullptr);
         if (processed < 0) {
-            log_line(std::format("session bus error: {}", std::strerror(-processed)));
+            log_line(cat("session bus error: ", std::strerror(-processed)));
             return;
         }
         if (processed > 0) {
@@ -156,7 +156,7 @@ void KWinGeometryProvider::run()
         // A timeout rather than an indefinite wait, so that stopping does not depend on
         // KWin sending one last message to wake this thread up.
         if (const int failed = sd_bus_wait(bus_, 200'000); failed < 0) {
-            log_line(std::format("session bus wait failed: {}", std::strerror(-failed)));
+            log_line(cat("session bus wait failed: ", std::strerror(-failed)));
             return;
         }
     }

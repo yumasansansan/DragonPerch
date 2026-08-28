@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "output_surface.hpp"
 
+#include "dragonperch/text.hpp"
 #include "log.hpp"
 
-#include <format>
 #include <utility>
 
 namespace dp::win {
@@ -70,10 +70,10 @@ void OutputSurface::draw(const PixelRect& dirty, const std::function<void(ID2D1D
     POINT offset{};
     if (const HRESULT hr = surface_->BeginDraw(&update, IID_PPV_ARGS(&dxgi_surface), &offset);
         FAILED(hr)) {
-        log_line(std::format(
-            "BeginDraw failed: surface {}x{}, dirty global ({},{})-({},{}), local ({},{})-({},{})",
-            bounds().width, bounds().height, dirty.left(), dirty.top(), dirty.right(),
-            dirty.bottom(), local.left(), local.top(), local.right(), local.bottom()));
+        log_line(cat("BeginDraw failed: surface ", bounds().width, "x", bounds().height,
+                     ", dirty global (", dirty.left(), ",", dirty.top(), ")-(", dirty.right(), ",",
+                     dirty.bottom(), "), local (", local.left(), ",", local.top(), ")-(",
+                     local.right(), ",", local.bottom(), ")"));
         check(hr, "IDCompositionSurface::BeginDraw");
     }
 

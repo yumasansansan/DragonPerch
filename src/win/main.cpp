@@ -5,6 +5,7 @@
 #include "dragonperch/simulation.hpp"
 #include "frame_clock.hpp"
 #include "dragonperch/geometry.hpp"
+#include "dragonperch/text.hpp"
 #include "log.hpp"
 #include "overlay_window.hpp"
 #ifdef DRAGONPERCH_DIAGNOSTICS
@@ -207,7 +208,7 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
 
     SpriteRenderer renderer;
     renderer.set_outputs(world_now.outputs());
-    log_line(std::format("adapter: {}", to_utf8(renderer.device().adapter_description())));
+    log_line(cat("adapter: ", to_utf8(renderer.device().adapter_description())));
 
     // Declared before the simulation and never appended to after spawning: a Pet holds a
     // pointer to its pack, so the vector must neither reallocate nor go out of scope first.
@@ -245,8 +246,8 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     }
 
     create_stop_signal();
-    log_line(std::format("{} pet(s) on {} output(s)", simulation.pets().size(),
-                         world_now.outputs().size()));
+    log_line(cat(simulation.pets().size(), " pet(s) on ", world_now.outputs().size(),
+                 " output(s)"));
     log_line("to stop: close the console, or run  dragonperch --stop");
 
     DwmFrameClock clock;
@@ -392,7 +393,7 @@ int run(std::span<const std::wstring_view> args)
                 count = std::clamp(_wtoi(std::wstring{args[i + 1]}.c_str()), 1, 64);
             }
         }
-        log_line(std::format("log: {}", log_path()));
+        log_line(cat("log: ", log_path()));
 
         // --pack may be given more than once; the pets are shared out between whatever is
         // named. With none named, every mascot shipped with the build joins in.

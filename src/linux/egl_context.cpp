@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "egl_context.hpp"
 
+#include "dragonperch/text.hpp"
 #include "log.hpp"
 
 #include <array>
-#include <format>
 #include <stdexcept>
 
 #include <EGL/eglext.h>
@@ -15,7 +15,7 @@ namespace {
 
 [[noreturn]] void fail(const char* what)
 {
-    throw std::runtime_error(std::format("{} failed: EGL error 0x{:X}", what, eglGetError()));
+    throw std::runtime_error(cat(what, " failed: EGL error 0x", hex(eglGetError())));
 }
 
 } // namespace
@@ -79,7 +79,7 @@ void EglContext::create(wl_display* display)
         fail("eglCreateContext");
     }
 
-    log_line(std::format("egl: {}.{}, {}", major, minor, eglQueryString(display_, EGL_VENDOR)));
+    log_line(cat("egl: ", major, ".", minor, ", ", eglQueryString(display_, EGL_VENDOR)));
 }
 
 EGLSurface EglContext::create_surface(wl_egl_window* window)

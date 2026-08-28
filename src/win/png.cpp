@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "png.hpp"
+#include "dragonperch/text.hpp"
 
 #include "win_headers.hpp"
 
-#include <format>
 #include <stdexcept>
 
 namespace dp::win {
@@ -42,7 +42,7 @@ dp::DecodedImage decode_image(const std::filesystem::path& file)
     check(converter->GetSize(&width, &height), "IWICFormatConverter::GetSize");
 
     if (width == 0 || height == 0) {
-        throw std::runtime_error(std::format("{} decoded to an empty image", file.string()));
+        throw std::runtime_error(cat(file.string(), " decoded to an empty image"));
     }
 
     const UINT stride = width * 4;

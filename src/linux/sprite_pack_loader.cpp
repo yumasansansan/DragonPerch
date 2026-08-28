@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "sprite_pack_loader.hpp"
 
+#include "dragonperch/text.hpp"
 #include "log.hpp"
 #include "png.hpp"
 
-#include <format>
 #include <string>
 #include <system_error>
 
@@ -39,10 +39,10 @@ std::optional<SpritePack> load_sprite_pack(const std::filesystem::path& definiti
         return std::nullopt;
     }
 
-    log_line(std::format("sprite pack: {} (from {})", pack->display_name(),
-                         definition.filename().string()));
+    log_line(cat("sprite pack: ", pack->display_name(), " (from ",
+                 definition.filename().string(), ")"));
     if (!pack->attribution().empty()) {
-        log_line(std::format("  artwork: {} -- {}", pack->artwork_licence(), pack->attribution()));
+        log_line(cat("  artwork: ", pack->artwork_licence(), " -- ", pack->attribution()));
     }
 
     return pack;

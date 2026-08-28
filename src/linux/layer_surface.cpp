@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "layer_surface.hpp"
 
+#include "dragonperch/text.hpp"
 #include "log.hpp"
 #include "wayland_display.hpp"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
-#include <format>
 #include <stdexcept>
 #include <utility>
 
@@ -147,8 +147,8 @@ void LayerSurface::create(WaylandDisplay& display, EglContext& egl, const Output
     glClear(GL_COLOR_BUFFER_BIT);
     egl.swap(egl_surface_);
 
-    log_line(std::format("layer surface on {}: {}x{} logical, {}x{} buffer", output.name,
-                         bounds_.width, bounds_.height, buffer.width, buffer.height));
+    log_line(cat("layer surface on ", output.name, ": ", bounds_.width, "x", bounds_.height,
+                 " logical, ", buffer.width, "x", buffer.height, " buffer"));
 }
 
 void LayerSurface::configure(void* data, zwlr_layer_surface_v1* layer, std::uint32_t serial,
