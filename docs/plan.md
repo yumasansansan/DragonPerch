@@ -397,8 +397,8 @@ Each names how it is verified. No milestone is done because it compiles.
 | 6 | ~~Wayland layer-shell surface + EGL on Plasma~~ **done** | Dragons visible on Plasma Wayland under llvmpipe; clicks pass through; `--probe-composition` tints the screen and reports frames presented |
 | 7 | ~~KWin script + sd-bus geometry~~ **done** | Pets stand on real Plasma title bars and on the panel; `--dump-world` prints KWin's report as sent |
 | 8 | ~~KDE mascot artwork replaces the placeholder~~ **done** | Konqi, Katie and Kori walk on the taskbar together, each facing the way it is going; the two that carry KDE's K draw both directions rather than mirroring |
-| 9 | Tray icon, on both platforms | Right-click gives pause, settings and quit; no console needed to stop it |
-| 10 | Settings, on both platforms | Changing the pet count takes effect without a restart |
+| 9 | Control interface, then a tray icon on both platforms | Right-click gives pause, settings and quit; `--stop` becomes one caller of the same mechanism; the icon survives an Explorer restart and a tray appearing late |
+| 10 | Settings file, then a settings program on each platform | Changing the pet count takes effect without a restart; the daemon still builds with no Qt and no .NET |
 | 11 | Pause for full-screen apps on Wayland | A full-screen window hides the pets on that monitor, as it already does on Windows |
 | 12 | wlroots adapters | Pets on title bars under Sway and Hyprland |
 
@@ -474,60 +474,158 @@ also still need the *overlay* half, so the existing script buys nothing on its o
 Two backends is the shape this design was drawn for. A third would be the first thing to
 make the core/backend split cost more than it returns.
 
-### 13.2 Tray icon (milestone 9)
+### 13.2 The control interface (milestone 9, first half)
 
-This is what makes `--stop` stop being the answer, and it is the piece that most changes
-how the program feels to live with.
+Both remaining milestones need the same thing before either can start: a way to tell a
+running DragonPerch something. The tray needs *quit* and *pause*; settings needs *reload*.
+Building one mechanism for all three is the point of doing this first.
 
-**Windows** is straightforward and belongs in the daemon: `Shell_NotifyIcon` on a hidden
-message-only window, a `TrackPopupMenu` with Pause, Settings and Quit. A hundred lines of
-Win32 and no dependency. This is also where being a GUI-subsystem binary finally pays for
-itself.
+| | Transport | Endpoint |
+|---|---|---|
+| Linux | D-Bus, on the connection already open | `org.dragonperch.Control` at `/org/dragonperch/Control` |
+| Windows | `WM_COPYDATA` to a message-only window | class `DragonPerch.Control`, found with `FindWindowExW` |
 
-**Linux has no equivalent that is merely an API call.** The XEmbed system tray does not
-exist on Wayland. The mechanism Plasma actually uses is **StatusNotifierItem**: register
-`org.kde.StatusNotifierItem-<pid>-1` on the session bus, hand it to
-`org.kde.StatusNotifierWatcher`, and expose a menu through `com.canonical.dbusmenu`. All of
-it is D-Bus, so sd-bus can do it with no toolkit — but dbusmenu in particular is a fiddly
-interface, and this is several hundred lines rather than a hundred.
+```
+Quit()                  stop and unwind
+SetPaused(b paused)     freeze the simulation, keep the surfaces
+Paused() -> b
+Reload()                re-read the settings file
+```
 
-The alternative is to let the tray live in the settings program, where a toolkit already
-is, and have it drive the daemon over D-Bus. That keeps the daemon toolkit-free at the cost
-of a second process that must always be running.
+Neither transport needs a new thread, which is why these two and not something else. On
+Linux `KWinGeometryProvider` already runs an sd-bus loop and a second vtable on the same
+connection costs nothing. On Windows the tray needs a message-only window anyway, and the
+overlay windows are already pumped on the main thread, so the same window answers both --
+`WM_COPYDATA` is the one Win32 IPC that arrives as a message rather than needing a server.
 
-**Recommendation: hand-write StatusNotifierItem in the daemon.** It matches what the
-Windows side does, keeps "one process, no toolkit" true on both platforms, and the daemon
-already owns a bus name and runs an sd-bus loop. If no watcher is registered — a bare
-wlroots session with no tray — log it and carry on; `--stop` and the console handler remain.
+`--stop` becomes `Quit()` and the named event goes away. Two mechanisms for one job was
+tolerable while there was one job.
 
-### 13.3 Settings (milestone 10)
+*Pause* is worth stating precisely: the simulation stops advancing and the overlays stay
+mapped, showing the last frame. Tearing the surfaces down and rebuilding them would be a
+second code path through everything that has already been got wrong once.
 
-§8 already decided the shape and it still looks right: **the settings UI is a separate
-program**, so each platform gets its native toolkit without imposing it on the daemon.
-WinUI 3 and the Windows Community Toolkit on Windows, Kirigami and KConfig on Linux, ideally
-as a KCM so it turns up in System Settings.
+### 13.3 Tray icon (milestone 9, second half)
 
-What §8 did not settle is how a change reaches a running daemon. A config file alone means
-either polling or a file watcher, and the daemon would have to guess when a half-written
-file is finished.
+**No toolkit on either platform.** This was the open question and it is decided: Win32 on
+one side, sd-bus on the other, and the daemon stays a single process with no Qt in it. The
+alternative -- putting the tray in the settings program, where a toolkit already lives --
+buys a smaller diff at the cost of a second process that must always be running, and of the
+two platforms behaving differently for no reason a user could see.
 
-**Add a control interface, and reuse what is already there.** The daemon owns
-`org.dragonperch.Geometry` on Linux; give it `org.dragonperch.Control` alongside, with
-`Reload()`, `SetPaused(b)` and `Quit()`. On Windows the same three over a named pipe — the
-`--stop` event becomes one case of it. The settings program writes the file and calls
-`Reload()`; the tray menu calls `SetPaused` and `Quit`. One mechanism, three callers.
+#### Windows: `Shell_NotifyIcon`
 
-Settings worth having, in the order they are worth having:
+Roughly two hundred lines and no dependency.
+
+```
+message-only window (HWND_MESSAGE), class DragonPerch.Control
+Shell_NotifyIconW(NIM_ADD)   NIF_ICON | NIF_TIP | NIF_MESSAGE, NOTIFYICON_VERSION_4
+WM_APP+1                     the callback message; WM_CONTEXTMENU and NIN_SELECT
+CreatePopupMenu + TrackPopupMenuEx(TPM_RIGHTBUTTON | TPM_RETURNCMD)
+```
+
+Two details that are always forgotten and are the whole reason to write them down:
+
+- **`TaskbarCreated`.** Explorer restarts more often than people think, and takes every
+  tray icon with it. Register the message with `RegisterWindowMessageW(L"TaskbarCreated")`
+  and re-add the icon when it arrives, or DragonPerch quietly loses its only user
+  interface until the next login.
+- **`SetForegroundWindow` before `TrackPopupMenuEx`**, and a posted null message after.
+  Without it the menu does not dismiss when clicked away from, which looks like a hang.
+
+Icons come from the `.rc` that already carries the manifest. `LoadIconWithScaleDown` picks
+the size, so the `.ico` wants 16, 20, 24, 32, 48 and 256 -- generated from `Konqi.svg` by
+the same Inkscape and Pillow the sprite packs use.
+
+#### Linux: StatusNotifierItem by hand
+
+There is no equivalent of one shell call. XEmbed system trays do not exist on Wayland, and
+what Plasma implements is **StatusNotifierItem** -- D-Bus, so sd-bus can do it, but four
+interfaces rather than one function.
+
+```
+own  org.kde.StatusNotifierItem-<pid>-1
+export /StatusNotifierItem   org.kde.StatusNotifierItem
+    properties  Category=ApplicationStatus, Id, Title, Status=Active,
+                IconPixmap a(iiay), IconName, ToolTip, Menu=/MenuBar, ItemIsMenu=true
+    methods     Activate(ii), SecondaryActivate(ii), ContextMenu(ii), Scroll(is)
+    signals     NewIcon, NewStatus, NewToolTip
+export /MenuBar              com.canonical.dbusmenu
+    GetLayout(i i as) -> (u (ia{sv}av)),  Event(i s v u),  AboutToShow(i) -> b
+    signals     LayoutUpdated, ItemsPropertiesUpdated
+call org.kde.StatusNotifierWatcher.RegisterStatusNotifierItem(s)
+```
+
+`GetLayout` returning `(ia{sv}av)` recursively is the fiddly part -- a variant holding an
+array of variants holding structs -- but the menu here is four flat items, so the recursion
+is one level and `sd_bus_message_open_container` handles it in about a hundred and fifty
+lines. Estimate for the whole thing: five to six hundred lines, which is the honest price
+of not linking Qt.
+
+**Use `IconPixmap`, not just `IconName`.** A themed icon name needs the icon installed into
+`hicolor`, and the tarball is meant to run unpacked. The daemon already decodes PNG with
+libpng, so ship a 64×64 PNG beside the artwork and marshal it as ARGB32 in network byte
+order -- twenty lines, and it works whether or not anything was installed. Set `IconName`
+as well, so a desktop that prefers themed icons gets one.
+
+`StatusNotifierWatcher` is the counterpart of `TaskbarCreated`: watch `NameOwnerChanged`
+for it appearing and re-register. If it never appears -- a bare wlroots session with no
+tray -- log it once and carry on. Ctrl+C still works, and so does `Quit()`.
+
+### 13.4 Settings (milestone 10)
+
+§8 chose the shape and it holds: **a separate program per platform**, so each gets its
+native toolkit without imposing one on the daemon.
+
+#### The file, and the part that is shared
+
+INI, at `~/.config/dragonperch/dragonperchrc` and `%APPDATA%\DragonPerch\config.ini`. INI
+because KConfig writes it, which is what makes the Linux settings program able to use
+KConfig rather than a parser of its own.
+
+The core already has an INI parser -- `parse_sections` in `sprite_pack_file.cpp` is generic
+and only its caller is pack-specific. Lift it into `dragonperch/ini.hpp` and have both use
+it. That is a small refactor with a test already behind it.
+
+Then `dragonperch/settings.hpp` in the core: a `Settings` struct, `load_settings(path)`,
+`save_settings(path, settings)`. The daemon reads it at startup and again on `Reload()`.
+
+Applying a change without a restart needs two small additions to `Simulation`:
+`set_options(SimulationOptions)`, and a way to add and remove pets so that changing the
+count does not mean rebuilding the world. Both are core work, both are testable with no
+platform involved, and both should be done before either UI exists.
+
+#### Windows: WinUI 3, in C#
+
+`SettingsCard` and `SettingsExpander` from the Windows Community Toolkit are Fluent by
+construction, which is the stated goal, and C# is much the shortest route to them --
+C++/WinRT for XAML is a great deal of boilerplate for no gain here.
+
+The cost is real and worth naming: **a second build system.** CMake cannot sensibly build a
+WinUI project, so `tools/settings-windows/` is a `.csproj` built by `dotnet build` and
+invoked separately by CI. The C++ solution stays C++. This is exactly why §8 put the UI in
+its own executable -- the Windows App SDK dependency lives there and never touches the
+daemon.
+
+#### Linux: Kirigami, as a KCM
+
+Build it as `kcm_dragonperch`, a KDE Config Module: Qt6, KF6 (`KCMUtils`, `KConfig`,
+`KI18n`), Kirigami for the QML, built with `extra-cmake-modules`.
+
+A KCM rather than a standalone window because `kcmshell6 kcm_dragonperch` gives the
+standalone case for free -- which is what the tray's Settings item launches -- while also
+turning up in System Settings where a KDE user would look for it first. One target, both
+places.
+
+It adds Qt6 and KF6 as build dependencies, so it is `-DDRAGONPERCH_BUILD_KCM=ON`, off by
+default and on in the packaging build. The daemon must keep building with neither.
+
+#### What is worth settling
 
 | Setting | Why |
 |---|---|
 | How many pets, and which mascots | The first thing anyone wants to change |
 | Walk speed, idle frequency | `SimulationOptions` already carries these |
-| Which monitors to use | A pet wandering onto a TV is not wanted |
+| Which monitors to use | A pet wandering onto a television is not wanted |
 | Start with the session | Currently a manual copy into `~/.config/autostart` |
-| Pause while a full-screen app is running | Implemented on Windows, not yet on Linux |
-
-The last row is a gap worth naming: `fullscreen.cpp` exists on the Windows head and has no
-Wayland counterpart, because a Wayland client cannot see that another window is full-screen.
-The KWin script can, and the report format has a version number precisely so a field can be
-added to it.
+| Pause while a full-screen app is running | Milestone 11; implemented on Windows, and on Wayland only the KWin script can see it |
