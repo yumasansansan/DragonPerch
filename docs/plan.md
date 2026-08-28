@@ -83,6 +83,10 @@ not help either. Content islands are an input-and-output island; we want output 
 
 This is why the plan below uses DirectComposition and not `Microsoft.UI.Composition`.
 
+It is a finding about **overlays**, and not an argument against WinUI anywhere else: an
+island swallowing input is fatal to a click-through surface and irrelevant to a menu, which
+wants input captured. See §13.3.
+
 ### Windows: window enumeration
 
 - Filter on `IsWindowVisible`, `IsIconic`, `GetAncestor(GA_ROOT)`, `WS_EX_TOOLWINDOW`,
@@ -510,16 +514,18 @@ second code path through everything that has already been got wrong once.
 **No toolkit in the daemon, on either platform.** That is the rule; where the tray itself
 lives follows from it rather than the other way round.
 
-On Linux the tray needs no toolkit at all, so it goes in the daemon. On Windows a menu that
-matches where the system is heading does need one, so it goes in a shell process instead --
-`DragonPerch.Shell.exe`, which also carries the settings window §13.4 was already going to
-write in the same technology. The reasoning is under "who draws the menu" below.
+On Linux the tray needs no toolkit at all, so all of it goes in the daemon. On Windows the
+icon is equally cheap and stays there too, but a menu that matches where the system is
+heading does need a toolkit -- so the menu alone is handed to `DragonPerch.Shell.exe`,
+started only when somebody opens it. That program also carries the settings window §13.4
+was already going to write in the same technology. See "who draws the menu" and "paying for
+WinUI" below.
 
-#### Windows: `Shell_NotifyIcon`, from the shell process
+#### Windows: `Shell_NotifyIcon`, in the daemon
 
-Roughly two hundred lines. It lives in `DragonPerch.Shell.exe` rather than in the daemon --
-see "who draws the menu" below for why -- so this is C# calling the same Win32 API, not
-C++.
+Roughly two hundred lines of C++ and no dependency. The icon itself is cheap and has to be
+there whenever the pets are, so it stays with them; only the *menu* is delegated to a
+process that can afford a toolkit. See "paying for WinUI" below.
 
 ```
 message-only window (HWND_MESSAGE), class DragonPerch.Control
@@ -623,27 +629,85 @@ dragonperch.exe          Win32, D2D, DirectComposition. No toolkit, no App SDK.
                          Runs on its own; needs nothing below it.
 
 DragonPerch.Shell.exe    C#, WinUI 3, Windows App SDK.
-                         Owns the tray icon and the Fluent MenuFlyout.
+                         Draws the Fluent MenuFlyout, on demand.
                          Hosts the settings window (§13.4).
                          Drives the daemon over WM_COPYDATA (§13.2).
 ```
 
 This is not a new technology: §13.4 already put the settings window in C# and WinUI 3. It
-merges two planned things into one program rather than adding a third. The tray icon itself
-is still `Shell_NotifyIcon`, P/Invoked from C#, with the flyout shown from a transparent
-host window positioned at the cursor — about a hundred and fifty lines. `H.NotifyIcon.WinUI`
-packages exactly that if the hand-rolled version proves tedious; a NuGet dependency in a
-replaceable UI program is a very different proposition from one in the daemon.
+merges two planned things into one program rather than adding a third. The flyout is shown
+from a transparent host window positioned at the cursor — about a hundred and fifty lines.
+`H.NotifyIcon.WinUI` packages that if the hand-rolled version proves tedious; a NuGet
+dependency in a replaceable UI program is a very different proposition from one in the
+daemon.
 
-The dependency runs one way only. The shell launches the daemon if it is not running and
-can quit it; the daemon neither knows nor cares whether a shell exists, so `--pets 6` from
-a terminal, an autostart entry, and a headless test all work with nothing else installed.
-Losing the shell costs the tray icon, not the dragons.
+The dependency runs one way only. The shell can quit the daemon; the daemon neither knows
+nor cares whether a shell is installed, so `--pets 6` from a terminal, an autostart entry,
+and a headless test all work with nothing else present.
 
 The structural asymmetry with Linux is deliberate and invisible: on both platforms the menu
 is drawn by whatever the platform considers modern, and on both the daemon stays a small
 Win32-or-sd-bus background process. Linux gets there for nothing because dbusmenu is a
 description; Windows gets there by putting the toolkit somewhere it can afford to be.
+
+#### Paying for WinUI only when somebody looks at the menu
+
+The obvious objection to the split above is that it pays for XAML all day so that a menu can
+be right four times a year. Worth taking seriously: most people will leave DragonPerch
+running for weeks and never once open its menu.
+
+Loading late and unloading after are not the same problem, though.
+
+**Loading late works.** Neither half of the Windows App SDK has to be initialised at
+startup: `MddBootstrapInitialize` can be called the first time it is wanted, and
+`WindowsXamlManager::InitializeForCurrentThread` after it. Deferring both until a menu is
+actually asked for costs nothing and is worth doing whatever else is decided -- a pet that
+appears at login before the shell has finished thinking about XAML is strictly better than
+one that does not.
+
+**Unloading is the doubtful half.** `WindowsXamlManager` can be closed and
+`MddBootstrapShutdown` exists, but *shutting XAML down and starting it again in the same
+process* is not a supported path in WinUI 3, and was reliably broken in the UWP islands it
+grew out of. I am not certain enough of that to design on it, and it is a thirty-line
+experiment to settle: initialise, close, initialise again, and see whether the second one
+survives. **That experiment comes before anything is built on either answer.** If it works,
+in-process load-and-unload is the tidiest possible shape. The plan below assumes it does
+not, because that is the way to be wrong safely.
+
+**Process exit is the only unload that certainly works**, which decides the shape:
+
+```
+dragonperch.exe     owns the tray icon, in plain Win32. Always running, ~2 MB,
+                    no App SDK. Handles TaskbarCreated, because it is the thing
+                    that is always there to handle it.
+                       |  right-click at (x, y)
+                       v
+DragonPerch.Shell.exe   started on demand. Shows the Fluent MenuFlyout from a
+                    transparent host window at the cursor, and answers with the
+                    command chosen. Hosts the settings window too.
+```
+
+So nothing is paid until the first right-click -- which for most installations is never.
+
+Two details make it feel instant rather than clever:
+
+- **Pre-warm on hover.** A tray icon is sent `WM_MOUSEMOVE` through its callback message
+  before it is ever clicked. Starting the shell there gives it the couple of hundred
+  milliseconds a person spends moving the mouse onto an icon and pressing the button. A
+  cold WinUI process needs roughly that long to show a window, and a context menu that
+  arrives half a second late feels broken rather than heavy.
+- **Keep it alive afterwards.** The second right-click should be immediate. An idle timeout
+  that exits the shell after some minutes would return the memory, and is deliberately
+  *not* in the first version: it adds a state machine whose interesting case is the shell
+  exiting at the exact moment somebody clicks. Measure the resting cost first, and add the
+  timeout only if the number justifies the race.
+
+This keeps the property that matters. The daemon is small, has no App SDK, survives the
+shell dying, and still runs on its own from a terminal -- while the menu, when somebody
+actually opens it, is a real WinUI flyout rather than an imitation of one.
+
+None of this applies to Linux, where the menu costs nothing to begin with because Plasma
+draws it.
 
 ### 13.4 Settings (milestone 10)
 
