@@ -190,6 +190,18 @@ work**: Debian sorts `~` before everything, including nothing at all, so
 — nightlies ascend, and a real `0.1.0` supersedes every nightly of it. `dragonperch
 --version` prints exactly what is installed.
 
+**The downloaded file's name will have a `.` where that `~` should be.** GitHub rewrites
+anything outside `[A-Za-z0-9._-]` in a release asset's name, so `0.1.0~2026…` arrives as
+`0.1.0.2026…`. It makes no difference: `dpkg` and `apt` read the version from the
+package's control field, and the file name is a convention, not data. Check for yourself —
+
+```bash
+dpkg-deb -f dragonperch_*.deb Version
+```
+
+— and CI prints the same field on every run, alongside a `dpkg --compare-versions` that
+fails the build if it ever stops sorting before the release version.
+
 The artwork is found relative to the executable, so an unpacked tarball works without being
 installed and without an environment variable. Installing the package does **not** enable
 the KWin script and does **not** start anything at login — a program that puts dragons on

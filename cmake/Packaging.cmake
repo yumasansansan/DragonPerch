@@ -25,6 +25,10 @@ set(CPACK_GENERATOR "DEB;TGZ")
 
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_VENDOR}")
 set(CPACK_DEBIAN_PACKAGE_SECTION "x11")
+# name_version_arch.deb, the Debian convention. Note that this name is not what apt reads:
+# the version it compares comes from the control field, which is why GitHub rewriting the
+# tilde out of a release asset's name costs nothing. CI prints the control field on every
+# run so the two can be seen not to matter.
 set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 
 # Worked out by dpkg-shlibdeps from what the binary actually links, rather than written

@@ -71,6 +71,23 @@ jobs:
         run: cpack -C Release
         working-directory: build/linux-x64
 
+      # The version apt actually compares lives in the package's control field, not in the
+      # file name -- which matters here because GitHub rewrites `~` to `.` in release asset
+      # names, so what gets downloaded looks like a release rather than a nightly. Print
+      # the real one, and prove it orders the way a pre-release must, so that neither has
+      # to be taken on trust again.
+      - name: Check the version apt will see
+        if: matrix.configuration == 'Release'
+        working-directory: build/linux-x64
+        run: |
+          deb=$(ls *.deb)
+          version=$(dpkg-deb -f "$deb" Version)
+          echo "file name:     $deb"
+          echo "control field: $version"
+          release=${version%%\~*}
+          dpkg --compare-versions "$version" lt "$release"
+          echo "$version sorts before $release, as a nightly of it must"
+
       - name: Upload the packages
         if: matrix.configuration == 'Release'
         uses: actions/upload-artifact@v7
