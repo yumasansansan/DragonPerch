@@ -397,17 +397,20 @@ Each names how it is verified. No milestone is done because it compiles.
 | 3 | ~~`desktop_scanner` + `win_event_watcher`~~ **done** | `--dump-world` tracks a scripted window 12px per step; occlusion clips a maximised window to its visible run |
 | 4 | ~~Windows head end to end, placeholder sprites~~ **done** | Dragons render on the taskbar through DirectComposition; `--self-test` PASSes with a sprite over the click point; notification state stays `QUNS_ACCEPTS_NOTIFICATIONS` |
 | 5 | ~~Fullscreen detection~~ **done** | A borderless full-screen window hides the pets on that monitor and closing it brings them back, in exactly two transitions |
-| 6 | Wayland layer-shell surface + EGL on Plasma | **written, unverified** -- builds in CI, but nothing has run it on a compositor. Dragons visible on Plasma Wayland; clicks pass through |
-| 7 | KWin script + sd-bus geometry | **written, unverified** -- `--dump-world` is the check. Pets stand on real Plasma title bars and ride dragged windows |
+| 6 | ~~Wayland layer-shell surface + EGL on Plasma~~ **done** | Dragons visible on Plasma Wayland under llvmpipe; clicks pass through; `--probe-composition` tints the screen and reports frames presented |
+| 7 | ~~KWin script + sd-bus geometry~~ **done** | Pets stand on real Plasma title bars and on the panel; `--dump-world` prints KWin's report as sent |
 | 8 | ~~KDE mascot artwork replaces the placeholder~~ **done** | Konqi, Katie and Kori walk on the taskbar together, each facing the way it is going; the two that carry KDE's K draw both directions rather than mirroring |
-| 9 | X11 fallback, wlroots adapters, settings apps | — |
+| 9 | X11 backend | Pets on title bars under a non-KWin X11 WM; the same renderer, a different native surface |
+| 10 | Tray icon, on both platforms | Right-click gives pause, settings and quit; no console needed to stop it |
+| 11 | Settings, on both platforms | Changing the pet count takes effect without a restart |
+| 12 | wlroots adapters | Pets on title bars under Sway and Hyprland |
 
-Milestones 6 and 7 are written but **not** ticked off, and will not be until they have run
-on a Plasma session. CI compiles them, which on the Windows side was never once enough:
-every real finding in this document came from running something and reading a number back.
-The order to check them in is `--dump-world` first -- that is milestone 7 alone, with no
-EGL, no surfaces and no pets, so a failure there cannot be blamed on the renderer -- and
-only then the pets.
+Milestones 6 and 7 took four rounds on a virtual machine after CI was green, which is the
+whole argument for this column. Every one of the four was invisible to a compiler: an
+unmapped surface that made the render loop wait for a frame callback that could never come;
+`signal()` installing a handler with `SA_RESTART` so Ctrl+C never woke the loop; a KWin
+script with no way to introduce itself to a client that started after it; and two separate
+faults that each filtered every ordinary window while leaving panels working.
 
 Milestone 1 is deliberately tiny and first, because it is the one remaining unknown in the
 Windows design. If composition content will not render on a layered window, the whole
@@ -443,3 +446,111 @@ simulation is ported.
 | Placeholder sprite generator | Port — it made the renderer verifiable without artwork |
 | Window-style and notification-state findings | This document, §2 |
 | C#-specific interop layers | Discarded; C++ does not need them |
+
+---
+
+## 13. What comes next: X11, a tray icon, and settings
+
+Three separate pieces of work. They are written down together because the first one decides
+a refactor the other two live with.
+
+### 13.1 X11 (milestone 9)
+
+**X11 does not need a second renderer.** `GlesRenderer` already draws through EGL and GL ES,
+and EGL runs on X11 as happily as on Wayland — the only thing that differs is the native
+window handed to `eglCreatePlatformWindowSurface`. So the work is an abstraction, not a
+port:
+
+```
+IOverlaySurface        make_current, swap, bounds, buffer_size, closed
+  LayerSurface         zwlr_layer_shell_v1                     (exists)
+  X11OverlayWindow     override-redirect ARGB window            (new)
+
+INativeDisplay         EGL platform + native handle, outputs, dispatch, a frame clock
+  WaylandDisplay       EGL_PLATFORM_WAYLAND_KHR                 (exists)
+  X11Display           EGL_PLATFORM_X11_KHR                     (new)
+```
+
+The X11 overlay is a 32-bit-depth `TrueColor` visual with `override_redirect`, kept above
+everything by `_NET_WM_WINDOW_TYPE_DOCK` plus `_NET_WM_STATE_ABOVE`, and made click-through
+by `XShapeCombineRectangles(ShapeInput, ...)` with an empty region — the direct equivalent
+of `wl_surface.set_input_region`, and about as short.
+
+Pacing is where X11 is genuinely poorer. There is no `wl_surface.frame`, and no `DwmFlush`.
+`eglSwapInterval(1)` and letting `eglSwapBuffers` block is the honest substitute: it
+self-throttles to the refresh rate, but unlike the Wayland clock it does **not** stop when
+the overlay is not being shown, so the free "occluded pets cost nothing" property is lost.
+Whether that matters is measurable and should be measured rather than assumed.
+
+Geometry has two sources, and the order matters:
+
+1. **KWin, if it is there.** The existing script and the existing `KWinGeometryProvider`
+   work unchanged under KWin/X11 — the script is JavaScript inside the compositor and does
+   not care which session type it is. So try D-Bus first, on both session types.
+2. **EWMH otherwise**, for i3, Openbox, Xfwm and the rest.
+   `_NET_CLIENT_LIST_STACKING` for the stack, `XGetWindowAttributes` plus
+   `_NET_FRAME_EXTENTS` for each frame, `_NET_WORKAREA` for the usable area,
+   `_NET_WM_WINDOW_TYPE` to tell a dock from a window. Event driven, as the interface
+   requires: `SubstructureNotifyMask` on the root for windows appearing, moving and going,
+   and `PropertyChangeMask` for the stacking list.
+
+Everything downstream is already shared: `append_window_edges` does the occlusion clipping
+for whichever backend produced the rectangles, and it is under test.
+
+### 13.2 Tray icon (milestone 10)
+
+This is what makes `--stop` stop being the answer, and it is the piece that most changes
+how the program feels to live with.
+
+**Windows** is straightforward and belongs in the daemon: `Shell_NotifyIcon` on a hidden
+message-only window, a `TrackPopupMenu` with Pause, Settings and Quit. A hundred lines of
+Win32 and no dependency. This is also where being a GUI-subsystem binary finally pays for
+itself.
+
+**Linux has no equivalent that is merely an API call.** The XEmbed system tray does not
+exist on Wayland. The mechanism Plasma actually uses is **StatusNotifierItem**: register
+`org.kde.StatusNotifierItem-<pid>-1` on the session bus, hand it to
+`org.kde.StatusNotifierWatcher`, and expose a menu through `com.canonical.dbusmenu`. All of
+it is D-Bus, so sd-bus can do it with no toolkit — but dbusmenu in particular is a fiddly
+interface, and this is several hundred lines rather than a hundred.
+
+The alternative is to let the tray live in the settings program, where a toolkit already
+is, and have it drive the daemon over D-Bus. That keeps the daemon toolkit-free at the cost
+of a second process that must always be running.
+
+**Recommendation: hand-write StatusNotifierItem in the daemon.** It matches what the
+Windows side does, keeps "one process, no toolkit" true on both platforms, and the daemon
+already owns a bus name and runs an sd-bus loop. If no watcher is registered — a bare
+wlroots session with no tray — log it and carry on; `--stop` and the console handler remain.
+
+### 13.3 Settings (milestone 11)
+
+§8 already decided the shape and it still looks right: **the settings UI is a separate
+program**, so each platform gets its native toolkit without imposing it on the daemon.
+WinUI 3 and the Windows Community Toolkit on Windows, Kirigami and KConfig on Linux, ideally
+as a KCM so it turns up in System Settings.
+
+What §8 did not settle is how a change reaches a running daemon. A config file alone means
+either polling or a file watcher, and the daemon would have to guess when a half-written
+file is finished.
+
+**Add a control interface, and reuse what is already there.** The daemon owns
+`org.dragonperch.Geometry` on Linux; give it `org.dragonperch.Control` alongside, with
+`Reload()`, `SetPaused(b)` and `Quit()`. On Windows the same three over a named pipe — the
+`--stop` event becomes one case of it. The settings program writes the file and calls
+`Reload()`; the tray menu calls `SetPaused` and `Quit`. One mechanism, three callers.
+
+Settings worth having, in the order they are worth having:
+
+| Setting | Why |
+|---|---|
+| How many pets, and which mascots | The first thing anyone wants to change |
+| Walk speed, idle frequency | `SimulationOptions` already carries these |
+| Which monitors to use | A pet wandering onto a TV is not wanted |
+| Start with the session | Currently a manual copy into `~/.config/autostart` |
+| Pause while a full-screen app is running | Implemented on Windows, not yet on Linux |
+
+The last row is a gap worth naming: `fullscreen.cpp` exists on the Windows head and has no
+Wayland counterpart, because a Wayland client cannot see that another window is full-screen.
+The KWin script can, and the report format has a version number precisely so a field can be
+added to it.

@@ -269,14 +269,4 @@ WaylandDisplay::Dispatch WaylandDisplay::dispatch()
     return errno == EINTR ? Dispatch::interrupted : Dispatch::failed;
 }
 
-bool WaylandDisplay::dispatch_pending()
-{
-    // Only what has already been queued. wl_display_dispatch would block, and this exists
-    // for the caller that must not.
-    if (wl_display_flush(display_) < 0) {
-        return false;
-    }
-    return wl_display_dispatch_pending(display_) >= 0;
-}
-
 } // namespace dp::wl

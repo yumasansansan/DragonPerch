@@ -65,9 +65,6 @@ public:
     /// Reads whatever has arrived, blocking until at least one event does.
     [[nodiscard]] Dispatch dispatch();
 
-    /// Reads whatever has already arrived, without blocking.
-    [[nodiscard]] bool dispatch_pending();
-
 private:
     /// A monitor, as it is described to us across several events before `done`.
     struct Output {

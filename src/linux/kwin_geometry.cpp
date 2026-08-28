@@ -80,7 +80,7 @@ void KWinGeometryProvider::set_outputs(std::span<const OutputInfo> outputs)
     outputs_.assign(outputs.begin(), outputs.end());
 }
 
-const WorldSnapshot& KWinGeometryProvider::current() const
+WorldSnapshot KWinGeometryProvider::current() const
 {
     const std::lock_guard lock{mutex_};
     return snapshot_;
@@ -88,6 +88,9 @@ const WorldSnapshot& KWinGeometryProvider::current() const
 
 void KWinGeometryProvider::set_changed_handler(ChangedHandler handler)
 {
+    // Under the lock, like everything else the bus thread touches. PetHost sets this
+    // *after* start(), so the bus thread can already be running when it lands.
+    const std::lock_guard lock{mutex_};
     handler_ = std::move(handler);
 }
 
@@ -281,16 +284,21 @@ void KWinGeometryProvider::apply(std::string_view report)
     WorldSnapshot::sort(edges);
 
     WorldSnapshot snapshot;
+    ChangedHandler handler;
     {
         const std::lock_guard lock{mutex_};
         outputs_ = outputs;
         snapshot_ = WorldSnapshot{++version_, std::move(edges), outputs};
         snapshot = snapshot_;
+        handler = handler_;
     }
 
     reports_.fetch_add(1, std::memory_order_relaxed);
-    if (handler_) {
-        handler_(snapshot);
+
+    // Outside the lock: the handler hands the snapshot to the render loop, and holding a
+    // mutex across a callback into other code is how deadlocks are built.
+    if (handler) {
+        handler(snapshot);
     }
 }
 

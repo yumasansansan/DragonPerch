@@ -21,6 +21,9 @@ enum class PetState {
     turning,
     falling,
     landing,
+
+    /// Nothing enters this yet; see EdgeKind::screen_ceiling. A pack's `fly` animation is
+    /// therefore never asked for, which is why a pack missing one still runs.
     flying,
 };
 

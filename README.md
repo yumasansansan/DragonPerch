@@ -12,8 +12,9 @@ practical.
 > drawn on the GPU from KDE's own artwork; clicks pass through them, and they get out of the
 > way of full-screen apps.
 >
-> **Linux is written but unproven.** The Wayland head and the KWin script build, and nothing
-> has yet run them on a real Plasma session. See [docs/plan.md](docs/plan.md).
+> **Linux works too.** The Wayland head draws through EGL on a layer-shell overlay, and a
+> KWin script tells it where the windows are — verified on Plasma 6 under llvmpipe. X11, a
+> tray icon and settings are next; see [docs/plan.md](docs/plan.md).
 
 ---
 

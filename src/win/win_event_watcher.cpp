@@ -55,7 +55,7 @@ WinEventWatcher::~WinEventWatcher()
     g_watcher.store(nullptr, std::memory_order_release);
 }
 
-const WorldSnapshot& WinEventWatcher::current() const
+WorldSnapshot WinEventWatcher::current() const
 {
     const std::lock_guard lock(snapshot_mutex_);
     return current_;

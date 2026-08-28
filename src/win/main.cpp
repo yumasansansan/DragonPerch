@@ -194,8 +194,12 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     WinEventWatcher world;
     world.start();
 
+    // Bound to a local: current() hands back a copy now, and a span into a temporary
+    // would dangle before it was read.
+    const WorldSnapshot world_now = world.current();
+
     SpriteRenderer renderer;
-    renderer.set_outputs(world.current().outputs());
+    renderer.set_outputs(world_now.outputs());
     log_line(std::format("adapter: {}", to_utf8(renderer.device().adapter_description())));
 
     // Declared before the simulation and never appended to after spawning: a Pet holds a
@@ -218,7 +222,7 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     Simulation simulation;
     std::mt19937 spawn{1};
     std::size_t next = 0;
-    for (const OutputInfo& output : world.current().outputs()) {
+    for (const OutputInfo& output : world_now.outputs()) {
         std::uniform_int_distribution<int> across(output.bounds.left() + 64,
                                                   output.bounds.right() - 64);
         for (int i = 0; i < pet_count; ++i) {
@@ -231,7 +235,7 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
 
     create_stop_signal();
     log_line(std::format("{} pet(s) on {} output(s)", simulation.pets().size(),
-                         world.current().outputs().size()));
+                         world_now.outputs().size()));
     log_line("to stop: close the console, or run  dragonperch --stop");
 
     DwmFrameClock clock;

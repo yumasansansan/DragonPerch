@@ -232,6 +232,10 @@ void GlesRenderer::draw(const SpriteDraw& sprite)
 
 void GlesRenderer::end_frame()
 {
+    // Once, not once per overlay: grouping by atlas is what turns one draw call per pet
+    // into one per mascot, and the order is the same for every surface.
+    std::ranges::stable_sort(pending_, {}, &SpriteDraw::atlas_id);
+
     for (LayerSurface& overlay : overlays_) {
         if (!overlay.closed()) {
             flush(overlay);
@@ -266,9 +270,7 @@ void GlesRenderer::flush(LayerSurface& overlay)
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_);
 
     // One draw call per atlas, so three mascots cost three calls rather than one per pet.
-    // Sorting is over a handful of entries and saves rebinding the texture each time.
-    std::ranges::stable_sort(pending_, {}, &SpriteDraw::atlas_id);
-
+    // end_frame has already grouped them.
     std::size_t start = 0;
     while (start < pending_.size()) {
         const int atlas_id = pending_[start].atlas_id;

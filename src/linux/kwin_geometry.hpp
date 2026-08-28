@@ -45,7 +45,7 @@ public:
     /// the panels have taken their struts.
     void set_outputs(std::span<const OutputInfo> outputs);
 
-    [[nodiscard]] const WorldSnapshot& current() const override;
+    [[nodiscard]] WorldSnapshot current() const override;
     void set_changed_handler(ChangedHandler handler) override;
 
     /// Claims the bus name and starts listening on its own thread. Throws if the session

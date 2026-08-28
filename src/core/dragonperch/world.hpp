@@ -21,6 +21,10 @@ enum class EdgeKind {
     /// Bottom of an output's usable area. The floor.
     screen_floor,
     /// Top of an output's usable area. Ceiling, for pets that fly.
+    ///
+    /// **Nothing emits this yet.** It is here with PetState::flying, which nothing enters
+    /// either -- the pair is what flying will need, and saying so is cheaper than leaving
+    /// a reader to search for the producer.
     screen_ceiling,
 };
 
@@ -122,7 +126,11 @@ public:
 
     virtual ~IWorldProvider() = default;
 
-    [[nodiscard]] virtual const WorldSnapshot& current() const = 0;
+    /// The world as it stands. **By value, and that is not an oversight**: a provider
+    /// publishes from its own thread, so a reference would point at a member being
+    /// rewritten while the caller reads it -- and taking a lock inside the accessor only
+    /// makes that look safe, because the lock is gone before the caller sees anything.
+    [[nodiscard]] virtual WorldSnapshot current() const = 0;
     virtual void set_changed_handler(ChangedHandler handler) = 0;
 
     /// Begins watching. **Must be idempotent**: `PetHost::run` calls it unconditionally,

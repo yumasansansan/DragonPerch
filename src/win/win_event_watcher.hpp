@@ -32,7 +32,7 @@ public:
     WinEventWatcher& operator=(WinEventWatcher&&) = delete;
     ~WinEventWatcher() override;
 
-    [[nodiscard]] const WorldSnapshot& current() const override;
+    [[nodiscard]] WorldSnapshot current() const override;
     void set_changed_handler(ChangedHandler handler) override;
 
     /// Idempotent: a head legitimately needs the first snapshot before it can build its
