@@ -152,6 +152,31 @@ the generator configures MSVC itself; the Linux image carries Clang 22. The pres
 One compiler per platform rather than several. Building with both Clang and GCC would be a
 better portability check, and this trades that away for a simpler pipeline.
 
+### What is actually in the binary
+
+Measured on the Windows head, Release, diagnostics off, from a linker map:
+
+| | bytes | share |
+|---|---:|---:|
+| `std::format` — Ryu float tables and Unicode property data | ~130,000 | ~32% |
+| our own code, the CRT, and the import tables | ~272,000 | |
+| **total** | **401,920** | |
+
+**`std::format` costs about a third of the binary, and does so whatever you format.** A
+program whose only formatting is `std::format("{} and {}", an_int, "text")` links
+`xcharconv_ryu_tables.obj` and comes to 215,552 bytes; the same program written with
+`std::to_string` and `+` is 14,336. MSVC's `std::format` type-erases its arguments and the
+visitor instantiates the floating-point path regardless, so the tables come whether a float
+is ever passed or not.
+
+That is not a reason to stop using it — it is readable, type-safe, and this is a 400 KB
+binary rather than a 40 KB one — but it is the single largest thing in here by a wide
+margin, and worth knowing before hunting for kilobytes anywhere else. Anything short of
+replacing it moves a few per cent.
+
+For scale, the next two things down: the procedural placeholder was 11,776 bytes (2.9%) and
+was removed; the diagnostic modes were 25,088 (5.9%) and are compiled out of Release.
+
 All compiler and linker flags live in `cmake/CompilerOptions.cmake`, on a single interface
 target. Release-only flags use `$<$<CONFIG:Release>:...>`, because the multi-config
 generators choose the configuration at build time and a `CMAKE_BUILD_TYPE` test at configure
