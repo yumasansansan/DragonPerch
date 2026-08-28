@@ -64,6 +64,16 @@ void OutputSurface::draw(const PixelRect& dirty, const std::function<void(ID2D1D
         local = PixelRect{0, 0, bounds().width, bounds().height};
     }
 
+    // What is actually being updated, back in the global coordinates the transform below
+    // works in. Not `dirty`: on the first draw `local` was widened to the whole surface,
+    // and clipping the clear to `dirty` left the rest of it never written at all.
+    //
+    // In a release build that leftover happens to be zeroes, so it is invisible and the bug
+    // is not. With the D3D debug layer on it is a fill pattern, which showed up as the
+    // whole screen tinted green -- fading wherever a dragon walked, because that is where
+    // damage finally covered it.
+    const PixelRect painted = local.translated(PixelOffset{bounds().left(), bounds().top()});
+
     RECT update{local.left(), local.top(), local.right(), local.bottom()};
 
     ComPtr<IDXGISurface> dxgi_surface;
@@ -104,8 +114,8 @@ void OutputSurface::draw(const PixelRect& dirty, const std::function<void(ID2D1D
         static_cast<float>(offset.y - local.top() - bounds().top())));
 
     d2d->PushAxisAlignedClip(
-        D2D1::RectF(static_cast<float>(dirty.left()), static_cast<float>(dirty.top()),
-                    static_cast<float>(dirty.right()), static_cast<float>(dirty.bottom())),
+        D2D1::RectF(static_cast<float>(painted.left()), static_cast<float>(painted.top()),
+                    static_cast<float>(painted.right()), static_cast<float>(painted.bottom())),
         D2D1_ANTIALIAS_MODE_ALIASED);
 
     d2d->Clear(D2D1::ColorF(0.0F, 0.0F, 0.0F, 0.0F));

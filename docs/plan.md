@@ -66,6 +66,24 @@ against both that quad and the desktop showing through the window, and the notif
 state stays `QUNS_ACCEPTS_NOTIFICATIONS`. This was the last unknown in the Windows design
 and it is now settled.
 
+### Windows: the first draw has to clear all of what it claims
+
+`IDCompositionSurface::BeginDraw` rejects a partial update while any of the surface is
+still undefined, so the first draw widens its update rectangle to the whole surface. The
+clear inside it has to widen too. Clipping the clear to the *requested* dirty rectangle
+while telling DirectComposition the update covers everything leaves the rest of the surface
+never written at all.
+
+In a release build that leftover is zeroes, so it is transparent and the bug is invisible.
+With `D3D11_CREATE_DEVICE_DEBUG` the debug layer fills new resources with a pattern, and it
+showed up as **97.6% of the screen tinted green** -- fading wherever a dragon had walked,
+because that is where damage finally covered it. Measured before and after: 97.6% of the
+screen down to 0.05%, which is one falling dragon.
+
+Worth knowing because the symptom points away from the cause twice over: it looks like a
+debug-only artefact, and it looks like something drawing green rather than something not
+drawing at all.
+
 ### Windows: Do Not Disturb is a size heuristic
 
 `SHQueryUserNotificationState` returns `QUNS_BUSY` when a topmost borderless window covers
