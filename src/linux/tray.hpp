@@ -5,9 +5,9 @@
 
 #include <cstdint>
 #include <functional>
-#include <string>
 #include <vector>
 
+struct sd_bus;
 struct sd_bus_message;
 struct sd_bus_error;
 
@@ -60,8 +60,6 @@ private:
 
     [[nodiscard]] bool paused() const;
 
-    SessionBus* bus_ = nullptr;
-    std::string service_name_;
     Handler handler_;
     PausedQuery paused_query_;
 

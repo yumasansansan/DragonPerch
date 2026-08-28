@@ -6,6 +6,7 @@
 #include "png.hpp"
 #include "session_bus.hpp"
 
+#include <cstddef>
 #include <cstring>
 #include <filesystem>
 #include <string_view>
@@ -13,7 +14,6 @@
 #include <utility>
 
 #include <systemd/sd-bus.h>
-#include <unistd.h>
 
 namespace dp::wl {
 namespace {
@@ -337,6 +337,10 @@ int TrayIcon::on_menu_layout(sd_bus_message* message, void* userdata, sd_bus_err
     if (const int failed = sd_bus_message_read(message, "ii", &parent, &depth); failed < 0) {
         return failed;
     }
+
+    // Read because the arguments have to be consumed in order, and then ignored: this menu
+    // is one level deep, so every depth a host can ask for gets the same answer.
+    (void)depth;
     // The property filter is read and ignored: this menu has five items and sending all of
     // their properties is cheaper than deciding which to leave out.
     if (const int failed = sd_bus_message_skip(message, "as"); failed < 0) {
@@ -345,9 +349,11 @@ int TrayIcon::on_menu_layout(sd_bus_message* message, void* userdata, sd_bus_err
 
     sd_bus_message* reply = nullptr;
     int failed = sd_bus_message_new_method_return(message, &reply);
-    if (failed >= 0) {
-        failed = sd_bus_message_append(reply, "u", self->menu_revision_);
+    if (failed < 0) {
+        return failed;
     }
+
+    failed = sd_bus_message_append(reply, "u", self->menu_revision_);
     if (failed >= 0) {
         failed = append_item(reply, parent, self->paused(), parent == menu_root);
     }
@@ -372,9 +378,11 @@ int TrayIcon::on_menu_group_properties(sd_bus_message* message, void* userdata, 
 
     sd_bus_message* reply = nullptr;
     int failed = sd_bus_message_new_method_return(message, &reply);
-    if (failed >= 0) {
-        failed = sd_bus_message_open_container(reply, SD_BUS_TYPE_ARRAY, "(ia{sv})");
+    if (failed < 0) {
+        return failed;
     }
+
+    failed = sd_bus_message_open_container(reply, SD_BUS_TYPE_ARRAY, "(ia{sv})");
 
     if (failed >= 0) {
         for (const int id : {menu_pause, menu_separator_a, menu_settings, menu_separator_b,
@@ -472,6 +480,8 @@ int TrayIcon::on_watcher_appeared(sd_bus_message* message, void* userdata, sd_bu
     if (sd_bus_message_read(message, "sss", &name, &was, &now) < 0) {
         return 0;
     }
+    (void)name;   // the match already narrowed it to the watcher
+    (void)was;
 
     // Appearing, not going. An owner arriving where there was none is a tray that has just
     // started, and every item in the session has to introduce itself again.
@@ -486,12 +496,8 @@ int TrayIcon::on_watcher_appeared(sd_bus_message* message, void* userdata, sd_bu
 
 void TrayIcon::publish(SessionBus& bus, Handler handler, PausedQuery paused)
 {
-    bus_ = &bus;
     handler_ = std::move(handler);
     paused_query_ = std::move(paused);
-
-    // The convention hosts expect, even though the well-known name is what gets registered.
-    service_name_ = cat("org.kde.StatusNotifierItem-", getpid(), "-1");
 
     const std::filesystem::path icon = find_icon();
     if (icon.empty()) {
@@ -507,10 +513,10 @@ void TrayIcon::publish(SessionBus& bus, Handler handler, PausedQuery paused)
             // the other end, so the multiply has to be undone rather than reordered.
             pixels_.resize(image.pixels.size());
             for (std::size_t i = 0; i + 3 < image.pixels.size(); i += 4) {
-                const auto blue = static_cast<unsigned>(image.pixels[i]);
-                const auto green = static_cast<unsigned>(image.pixels[i + 1]);
-                const auto red = static_cast<unsigned>(image.pixels[i + 2]);
-                const auto alpha = static_cast<unsigned>(image.pixels[i + 3]);
+                const auto blue = std::to_integer<unsigned>(image.pixels[i]);
+                const auto green = std::to_integer<unsigned>(image.pixels[i + 1]);
+                const auto red = std::to_integer<unsigned>(image.pixels[i + 2]);
+                const auto alpha = std::to_integer<unsigned>(image.pixels[i + 3]);
 
                 const auto straight = [alpha](unsigned channel) -> std::uint8_t {
                     if (alpha == 0) {

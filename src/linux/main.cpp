@@ -53,6 +53,16 @@ constexpr const char* bus_name = "org.dragonperch";
 
 std::atomic<bool> g_stop{false};
 
+/// What the bus thread is allowed to say about pausing.
+///
+/// A pointer to the PetHost would be simpler to write and wrong: the bus thread would be
+/// calling into an object the render loop is about to destroy, and no amount of making the
+/// pointer atomic fixes a call that is already running. So the bus thread only ever writes
+/// a flag, and the loop reads it -- on Windows the handlers run on the render thread and
+/// can touch the host directly, which is the difference between the platforms rather than
+/// an inconsistency.
+std::atomic<bool> g_paused{false};
+
 void on_signal(int)
 {
     // Nothing here but a flag. This runs on whatever thread the signal lands on, and
@@ -150,29 +160,24 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     world.set_outputs(display.outputs());
     world.publish(bus);
 
-    // Atomic because the handlers run on the bus thread while this is written here. The
-    // objects have to be published before KWin is asked for anything, and the host does not
-    // exist until the renderer does, so the two cannot be ordered away.
-    std::atomic<PetHost*> host_for_control{nullptr};
-
     // One handler for the control interface and the tray, so the two cannot drift into
-    // meaning different things by the same name.
-    const auto command = [&host_for_control](Command what) {
+    // meaning different things by the same name. It runs on the bus thread and touches
+    // nothing but the two flags above.
+    const auto command = [](Command what) {
         log_line(cat("command: ", name_of(what)));
         switch (what) {
         case Command::quit:
             g_stop.store(true, std::memory_order_relaxed);
             break;
         case Command::pause:
-        case Command::resume:
-        case Command::toggle_pause: {
-            PetHost* target = host_for_control.load(std::memory_order_acquire);
-            if (target != nullptr) {
-                target->set_paused(what == Command::pause
-                                   || (what == Command::toggle_pause && !target->paused()));
-            }
+            g_paused.store(true, std::memory_order_relaxed);
             break;
-        }
+        case Command::resume:
+            g_paused.store(false, std::memory_order_relaxed);
+            break;
+        case Command::toggle_pause:
+            g_paused.store(!g_paused.load(std::memory_order_relaxed), std::memory_order_relaxed);
+            break;
         case Command::reload:
             // Milestone 10. Nothing to re-read yet.
             break;
@@ -183,10 +188,7 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     control.publish(bus, command);
 
     TrayIcon tray;
-    tray.publish(bus, command, [&host_for_control] {
-        PetHost* target = host_for_control.load(std::memory_order_acquire);
-        return target != nullptr && target->paused();
-    });
+    tray.publish(bus, command, [] { return g_paused.load(std::memory_order_relaxed); });
 
     // The bootstrap floor is published before the bus can deliver anything, not after. The
     // other order has a window in which a real report arrives and is then overwritten by a
@@ -253,12 +255,11 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     FrameClock clock{display, renderer.overlays().front().surface()};
     PetHost host{simulation, world, renderer, clock};
 
-    // Published before the host existed, because the bus has to be claimed before KWin is
-    // asked for anything. The handler runs on the bus thread and only ever touches an
-    // atomic, which is what makes handing it a pointer here safe.
-    host_for_control.store(&host, std::memory_order_release);
-
     host.run([&] {
+        // The bus thread's flag, applied here rather than there. run() calls this every
+        // iteration -- including while paused, every pause_poll -- so resuming is noticed.
+        host.set_paused(g_paused.load(std::memory_order_relaxed));
+
         if (clock.disconnected() || g_stop.load(std::memory_order_relaxed)) {
             return true;
         }
