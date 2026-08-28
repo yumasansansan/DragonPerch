@@ -397,8 +397,8 @@ Each names how it is verified. No milestone is done because it compiles.
 | 6 | ~~Wayland layer-shell surface + EGL on Plasma~~ **done** | Dragons visible on Plasma Wayland under llvmpipe; clicks pass through; `--probe-composition` tints the screen and reports frames presented |
 | 7 | ~~KWin script + sd-bus geometry~~ **done** | Pets stand on real Plasma title bars and on the panel; `--dump-world` prints KWin's report as sent |
 | 8 | ~~KDE mascot artwork replaces the placeholder~~ **done** | Konqi, Katie and Kori walk on the taskbar together, each facing the way it is going; the two that carry KDE's K draw both directions rather than mirroring |
-| 9 | Control interface, then a tray icon on both platforms | Right-click gives pause, settings and quit; `--stop` becomes one caller of the same mechanism; the icon survives an Explorer restart and a tray appearing late |
-| 10 | Settings file, then a settings program on each platform | Changing the pet count takes effect without a restart; the daemon still builds with no Qt and no .NET |
+| 9 | Control interface, then a tray icon on both platforms | Right-click gives pause, settings and quit, in Breeze on Linux and WinUI on Windows; `--stop` becomes one caller of the same mechanism; the icon survives an Explorer restart and a tray appearing late; the daemon still builds and runs with no shell installed |
+| 10 | Settings file, then a settings page in each shell | Changing the pet count takes effect without a restart; the daemon still builds with no Qt, no .NET and no App SDK |
 | 11 | Pause for full-screen apps on Wayland | A full-screen window hides the pets on that monitor, as it already does on Windows |
 | 12 | wlroots adapters | Pets on title bars under Sway and Hyprland |
 
@@ -507,15 +507,19 @@ second code path through everything that has already been got wrong once.
 
 ### 13.3 Tray icon (milestone 9, second half)
 
-**No toolkit on either platform.** This was the open question and it is decided: Win32 on
-one side, sd-bus on the other, and the daemon stays a single process with no Qt in it. The
-alternative -- putting the tray in the settings program, where a toolkit already lives --
-buys a smaller diff at the cost of a second process that must always be running, and of the
-two platforms behaving differently for no reason a user could see.
+**No toolkit in the daemon, on either platform.** That is the rule; where the tray itself
+lives follows from it rather than the other way round.
 
-#### Windows: `Shell_NotifyIcon`
+On Linux the tray needs no toolkit at all, so it goes in the daemon. On Windows a menu that
+matches where the system is heading does need one, so it goes in a shell process instead --
+`DragonPerch.Shell.exe`, which also carries the settings window §13.4 was already going to
+write in the same technology. The reasoning is under "who draws the menu" below.
 
-Roughly two hundred lines and no dependency.
+#### Windows: `Shell_NotifyIcon`, from the shell process
+
+Roughly two hundred lines. It lives in `DragonPerch.Shell.exe` rather than in the daemon --
+see "who draws the menu" below for why -- so this is C# calling the same Win32 API, not
+C++.
 
 ```
 message-only window (HWND_MESSAGE), class DragonPerch.Control
@@ -533,9 +537,8 @@ Two details that are always forgotten and are the whole reason to write them dow
 - **`SetForegroundWindow` before `TrackPopupMenuEx`**, and a posted null message after.
   Without it the menu does not dismiss when clicked away from, which looks like a hang.
 
-Icons come from the `.rc` that already carries the manifest. `LoadIconWithScaleDown` picks
-the size, so the `.ico` wants 16, 20, 24, 32, 48 and 256 -- generated from `Konqi.svg` by
-the same Inkscape and Pillow the sprite packs use.
+The `.ico` wants 16, 20, 24, 32, 48 and 256, generated from `Konqi.svg` by the same
+Inkscape and Pillow the sprite packs use, and `LoadIconWithScaleDown` picks between them.
 
 #### Linux: StatusNotifierItem by hand
 
@@ -588,31 +591,59 @@ say. Theme changes follow with no code at all. This is the protocol working as i
 and it is the strongest argument for having chosen it: writing the menu ourselves could
 only be worse.
 
-**On Windows the menu is ours, and Fluent is not free.** `TrackPopupMenuEx` gives a system
-menu, and on Windows 11 that gets rounded corners and the system accent for highlighting
-without asking. What it does *not* get is dark mode: a third-party `TrackPopupMenu` stays
-light on a dark desktop unless the process calls `SetPreferredAppMode` and
-`FlushMenuThemes` — which are real, are what Explorer itself uses, and are **undocumented
-uxtheme ordinals**. Worth taking, worth wrapping in a `GetProcAddress` that fails quietly,
-and not worth depending on.
+**On Windows the menu is ours, and it is going to be a real WinUI 3 `MenuFlyout`.**
 
-Three ways to go further, in order of cost:
+An earlier draft of this section recommended a `TrackPopupMenuEx` system menu, on the
+grounds that a tray context menu is one of the places where a system menu *is* the native
+answer. That was true and is becoming less true every release: Windows 11 has been moving
+its own surfaces onto WinUI, the Run dialog included, and a design that is merely
+system-consistent today is inconsistent with where the system is going. An imitation drawn
+with Direct2D would have the same problem twice over — it would drift as Fluent moves, and
+it would be our job to keep chasing it.
 
-| | Gives | Costs |
-|---|---|---|
-| Win32 menu, plus the dark-mode ordinals | Rounded, accented, follows dark mode | Two undocumented entry points, guarded |
-| Owner-drawn (`MFT_OWNERDRAW`, `WM_DRAWITEM`) with Direct2D and DirectWrite | Full control: Segoe UI Variable, exact colours, no undocumented calls | ~250 lines, and it *imitates* Fluent, so it drifts as Fluent moves |
-| A WinUI 3 `MenuFlyout` | Genuinely Fluent | The Windows App SDK in the daemon — the toolkit dependency this design exists to avoid, plus the input oddities already met in milestone 1 |
+Two of the three objections in that draft do not survive contact:
 
-**Recommendation: the first.** Partly because it is a tenth of the work, but mostly because
-a tray context menu is one of the few places where a system menu *is* the native answer —
-Fluent-era Microsoft applications use one there too. The Fluent target belongs to the
-settings window, where §13.4 puts WinUI 3 and where a user actually spends time. Owner
-drawing stays available if the menu looks wrong beside the rest of Windows 11; a WinUI
-flyout hanging off a tray icon would look unusual rather than modern.
+- *"Content islands swallow mouse input"* — measured in milestone 1, and irrelevant here.
+  That was a click-through overlay, where input passing through was the whole requirement.
+  A menu wants input captured. If anything it is evidence the mechanism captures reliably.
+- *"It imitates Fluent, so it drifts"* — that was the argument against owner drawing, not
+  against using the real thing.
 
-So the honest summary is: Breeze and Qt 6 on Linux for nothing, and on Windows a native
-menu that follows the system rather than a Fluent one.
+The objection that does survive is weight, and it decides where the code goes rather than
+whether to write it. WinUI 3 means the Windows App SDK: a runtime the user must have, or
+forty-odd megabytes of it shipped alongside, plus XAML initialisation in startup time and
+tens of megabytes of working set. In a settings window nobody would notice. In a process
+whose entire claim is that a desktop pet costs nothing to leave running all day, it would
+make the proudest property of this program untrue.
+
+**So the Fluent UI goes in a process of its own, and the daemon does not change.**
+
+```
+dragonperch.exe          Win32, D2D, DirectComposition. No toolkit, no App SDK.
+                         Runs on its own; needs nothing below it.
+
+DragonPerch.Shell.exe    C#, WinUI 3, Windows App SDK.
+                         Owns the tray icon and the Fluent MenuFlyout.
+                         Hosts the settings window (§13.4).
+                         Drives the daemon over WM_COPYDATA (§13.2).
+```
+
+This is not a new technology: §13.4 already put the settings window in C# and WinUI 3. It
+merges two planned things into one program rather than adding a third. The tray icon itself
+is still `Shell_NotifyIcon`, P/Invoked from C#, with the flyout shown from a transparent
+host window positioned at the cursor — about a hundred and fifty lines. `H.NotifyIcon.WinUI`
+packages exactly that if the hand-rolled version proves tedious; a NuGet dependency in a
+replaceable UI program is a very different proposition from one in the daemon.
+
+The dependency runs one way only. The shell launches the daemon if it is not running and
+can quit it; the daemon neither knows nor cares whether a shell exists, so `--pets 6` from
+a terminal, an autostart entry, and a headless test all work with nothing else installed.
+Losing the shell costs the tray icon, not the dragons.
+
+The structural asymmetry with Linux is deliberate and invisible: on both platforms the menu
+is drawn by whatever the platform considers modern, and on both the daemon stays a small
+Win32-or-sd-bus background process. Linux gets there for nothing because dbusmenu is a
+description; Windows gets there by putting the toolkit somewhere it can afford to be.
 
 ### 13.4 Settings (milestone 10)
 
@@ -637,16 +668,19 @@ Applying a change without a restart needs two small additions to `Simulation`:
 count does not mean rebuilding the world. Both are core work, both are testable with no
 platform involved, and both should be done before either UI exists.
 
-#### Windows: WinUI 3, in C#
+#### Windows: the same shell process, WinUI 3, in C#
+
+The settings window is a page in `DragonPerch.Shell.exe`, the program §13.3 gives the tray
+icon to. One WinUI application rather than two, and the tray's Settings item opens a window
+it already owns instead of starting a process.
 
 `SettingsCard` and `SettingsExpander` from the Windows Community Toolkit are Fluent by
 construction, which is the stated goal, and C# is much the shortest route to them --
 C++/WinRT for XAML is a great deal of boilerplate for no gain here.
 
 The cost is real and worth naming: **a second build system.** CMake cannot sensibly build a
-WinUI project, so `tools/settings-windows/` is a `.csproj` built by `dotnet build` and
-invoked separately by CI. The C++ solution stays C++. This is exactly why §8 put the UI in
-its own executable -- the Windows App SDK dependency lives there and never touches the
+WinUI project, so `shell/windows/` is a `.csproj` built by `dotnet build` and invoked
+separately by CI. The C++ solution stays C++, and the Windows App SDK never touches the
 daemon.
 
 #### Linux: Kirigami, as a KCM
