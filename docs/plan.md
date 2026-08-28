@@ -562,6 +562,9 @@ is one level and `sd_bus_message_open_container` handles it in about a hundred a
 lines. Estimate for the whole thing: five to six hundred lines, which is the honest price
 of not linking Qt.
 
+And it is bought back immediately, because those hundred and fifty lines describe a menu
+rather than draw one -- see below.
+
 **Use `IconPixmap`, not just `IconName`.** A themed icon name needs the icon installed into
 `hicolor`, and the tarball is meant to run unpacked. The daemon already decodes PNG with
 libpng, so ship a 64×64 PNG beside the artwork and marshal it as ARGB32 in network byte
@@ -571,6 +574,45 @@ as well, so a desktop that prefers themed icons gets one.
 `StatusNotifierWatcher` is the counterpart of `TaskbarCreated`: watch `NameOwnerChanged`
 for it appearing and re-register. If it never appears -- a bare wlroots session with no
 tray -- log it once and carry on. Ctrl+C still works, and so does `Quit()`.
+
+#### What the menu looks like, and who draws it
+
+The two platforms are not symmetric here, and it is worth being plain about which way each
+one cuts.
+
+**On Linux the menu is not ours to draw.** dbusmenu is a description, not a rendering:
+DragonPerch sends labels, separators, toggle states and icon names, and *Plasma's own tray
+widget builds the menu from them*. So it is Breeze, in Qt 6, with the user's colour scheme,
+font, icon theme and scale factor — not because we matched them but because we never had a
+say. Theme changes follow with no code at all. This is the protocol working as intended,
+and it is the strongest argument for having chosen it: writing the menu ourselves could
+only be worse.
+
+**On Windows the menu is ours, and Fluent is not free.** `TrackPopupMenuEx` gives a system
+menu, and on Windows 11 that gets rounded corners and the system accent for highlighting
+without asking. What it does *not* get is dark mode: a third-party `TrackPopupMenu` stays
+light on a dark desktop unless the process calls `SetPreferredAppMode` and
+`FlushMenuThemes` — which are real, are what Explorer itself uses, and are **undocumented
+uxtheme ordinals**. Worth taking, worth wrapping in a `GetProcAddress` that fails quietly,
+and not worth depending on.
+
+Three ways to go further, in order of cost:
+
+| | Gives | Costs |
+|---|---|---|
+| Win32 menu, plus the dark-mode ordinals | Rounded, accented, follows dark mode | Two undocumented entry points, guarded |
+| Owner-drawn (`MFT_OWNERDRAW`, `WM_DRAWITEM`) with Direct2D and DirectWrite | Full control: Segoe UI Variable, exact colours, no undocumented calls | ~250 lines, and it *imitates* Fluent, so it drifts as Fluent moves |
+| A WinUI 3 `MenuFlyout` | Genuinely Fluent | The Windows App SDK in the daemon — the toolkit dependency this design exists to avoid, plus the input oddities already met in milestone 1 |
+
+**Recommendation: the first.** Partly because it is a tenth of the work, but mostly because
+a tray context menu is one of the few places where a system menu *is* the native answer —
+Fluent-era Microsoft applications use one there too. The Fluent target belongs to the
+settings window, where §13.4 puts WinUI 3 and where a user actually spends time. Owner
+drawing stays available if the menu looks wrong beside the rest of Windows 11; a WinUI
+flyout hanging off a tray icon would look unusual rather than modern.
+
+So the honest summary is: Breeze and Qt 6 on Linux for nothing, and on Windows a native
+menu that follows the system rather than a Fluent one.
 
 ### 13.4 Settings (milestone 10)
 
