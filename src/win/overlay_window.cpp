@@ -72,6 +72,9 @@ OverlayWindow OverlayWindow::create(const PixelRect& bounds)
         nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
 
     check_last_error(hwnd != nullptr, "CreateWindowExW");
+    if (!hwnd) {
+        throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), "CreateWindowExW");
+    }
 
     // Fully opaque: the alpha that matters comes from the composition content. This call
     // exists only because a layered window must have been given attributes once, and being

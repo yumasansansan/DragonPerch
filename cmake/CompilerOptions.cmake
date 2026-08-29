@@ -99,7 +99,7 @@ if(MSVC)
         LINKER:/WX)
 else()
     target_compile_options(dragonperch_options INTERFACE
-        -Wall -Wextra -Wpedantic -Wshadow -Wunused -Werror --analyze)
+        -Wall -Wextra -Wpedantic -Wshadow -Wunused -Werror)
 endif()
 
 # ---------------------------------------------------------------------------------------
