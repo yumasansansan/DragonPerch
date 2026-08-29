@@ -215,7 +215,28 @@ void Simulation::update_walking(Pet& pet, double seconds)
     if (!edge->contains_x(next_x)) {
         // Reached the end of the title bar: turn back, or step off.
         std::uniform_real_distribution<double> coin(0.0, 1.0);
-        if (coin(random_) < options_.turn_at_edge_chance) {
+        const bool wants_to_turn = coin(random_) < options_.turn_at_edge_chance;
+
+        // Stepping off is only a choice when there is something under `next_x` to aim at.
+        // Off the outer end of the outermost ledge there is not, and a pet that steps off
+        // there does not land anywhere -- it falls the whole height of the screen, out of
+        // the world, and is put back at the top by update_falling.
+        //
+        // On a Windows desktop that is not a rare accident but the only thing that can
+        // happen: the taskbar and a maximised window's title bar both span the monitor
+        // exactly, so every ledge ends on the same two columns, and a pet leaving one at
+        // x = 0 or x = width is over nothing whichever ledge it left. Measured over 90
+        // seconds, every single departure was from x = -6..-5 or x = 1920..1925. What that
+        // looks like is a dragon raining down the edge of the screen for ever.
+        //
+        // So: look before stepping. Nothing below means turn round, which is also the
+        // sensible thing for a creature at the end of a ledge over a void to do.
+        const bool somewhere_to_land =
+            world_.edge_below(PixelPoint{next_x, pet.position_.y}, std::numeric_limits<int>::max(),
+                              options_.minimum_perch_width)
+            != nullptr;
+
+        if (wants_to_turn || !somewhere_to_land) {
             pet.enter(PetState::turning);
         } else {
             pet.position_.x = next_x;

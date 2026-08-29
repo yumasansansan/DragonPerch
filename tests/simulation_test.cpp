@@ -159,11 +159,14 @@ TEST_CASE("a pet that walks off the end stops being perched", "[simulation]")
     options.idle_interval = Duration::zero();
     Simulation sim{options};
 
-    sim.set_world(make_world(1, {shelf(1, 500, 0, 200)}));
+    // With a floor under it, because a pet only steps off when there is something below
+    // to land on -- over a void it turns round instead, which is what the shelf on its own
+    // used to test by accident.
+    sim.set_world(make_world(1, {shelf(1, 500, 0, 200), shelf(2, 900, -1000, 1000)}));
     sim.spawn(pack, PixelPoint{190, 0});
 
-    REQUIRE(run_until(sim, [&] { return sim.pets()[0].perch().has_value(); }));
-    REQUIRE(run_until(sim, [&] { return !sim.pets()[0].perch().has_value(); }));
+    REQUIRE(run_until(sim, [&] { return sim.pets()[0].perch() == 1; }));
+    REQUIRE(run_until(sim, [&] { return sim.pets()[0].perch() != 1; }));
 
     CHECK(sim.pets()[0].state() == PetState::falling);
 }
@@ -316,7 +319,9 @@ TEST_CASE("the simulation is deterministic for a given seed", "[simulation]")
         SimulationOptions options;
         options.seed = seed;
         Simulation sim{options};
-        sim.set_world(make_world(1, {shelf(1, 500, 0, 300)}));
+        // Two shelves rather than one: on a single shelf over a void the pet never steps
+        // off, so it paces the same path whatever the seed and the seeds cannot differ.
+        sim.set_world(make_world(1, {shelf(1, 500, 0, 300), shelf(2, 900, -1000, 1000)}));
         sim.spawn(pack, PixelPoint{100, 0});
         for (int i = 0; i < 900; ++i) {
             sim.update(Duration{1.0 / 60.0});

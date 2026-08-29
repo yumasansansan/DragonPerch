@@ -17,6 +17,7 @@ FetchContent_MakeAvailable(Catch2)
 add_executable(dragonperch_tests
     edge_builder_test.cpp
     settings_test.cpp
+    fall_recovery_test.cpp
     simulation_test.cpp
     sprite_pack_file_test.cpp
     sprites_test.cpp
