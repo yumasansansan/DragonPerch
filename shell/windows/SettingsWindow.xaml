@@ -8,10 +8,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid x:Name="Root" RowDefinitions="Auto,Auto,*,Auto" Background="Transparent" FontFamily="{ThemeResource ContentControlThemeFontFamily}">
-        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="32" Background="Transparent" VerticalAlignment="Top">
-            <TextBlock Text="DragonPerch" Margin="16,0,0,0" VerticalAlignment="Center" Style="{ThemeResource CaptionTextBlockStyle}"/>
-        </Grid>
+    <Grid x:Name="Root" RowDefinitions="Auto,Auto,*,Auto" Background="Transparent">
 
         <!--
             Every colour, radius and thickness below is a system theme resource rather than
@@ -42,6 +39,10 @@
                 <Setter Property="TextWrapping" Value="Wrap"/>
             </Style>
         </Grid.Resources>
+
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="32" Background="Transparent" VerticalAlignment="Top">
+            <TextBlock Text="DragonPerch" Margin="16,0,0,0" VerticalAlignment="Center" Style="{ThemeResource CaptionTextBlockStyle}"/>
+        </Grid>
 
         <TextBlock Grid.Row="1"
                    Text="DragonPerch"
