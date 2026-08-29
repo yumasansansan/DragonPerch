@@ -123,6 +123,23 @@ jobs:
       - name: Test
         run: ctest --test-dir build/windows-x64 --build-config ${{ matrix.configuration }} --output-on-failure
 
+      # Pinned rather than trusting whatever the image ships: the shell targets
+      # net10.0-windows10.0.26100.0, and a runner that quietly has only .NET 8 would fail
+      # with a restore error that says nothing about why.
+      - uses: actions/setup-dotnet@v6
+        if: matrix.configuration == 'Release'
+        with:
+          dotnet-version: '10.0.x'
+
+      # The Fluent tray menu, which is a separate program in a separate language built by
+      # a separate tool -- see docs/plan.md 13.3. Deliberately not wired into CMake: CMake
+      # cannot sensibly build a WinUI project, and the daemon has to keep building with no
+      # .NET anywhere near it. Release only; there is nothing here a Debug daemon helps
+      # with.
+      - name: Build the shell
+        if: matrix.configuration == 'Release'
+        run: dotnet publish shell/windows/DragonPerch.Shell.csproj -c Release -o dist/shell
+
       # No installer, just the pieces: the executable next to the artwork it looks for, in
       # the layout find_sprite_packs expects when they sit side by side. Zipped here rather
       # than in the release job, so the name can carry the version the way the .deb and the
@@ -136,6 +153,17 @@ jobs:
           Get-ChildItem -Recurse staging\assets -Directory -Filter source | Remove-Item -Recurse -Force
           $version = (Get-Content build\windows-x64/version.txt -Raw).Trim()
           Compress-Archive staging\* "dist\dragonperch_${version}_x64.zip"
+
+      # A zip of its own, because it is an order of magnitude larger than everything else
+      # put together and nobody who only wants the pets should have to download it. The
+      # daemon runs without it and falls back to a Win32 menu; unpacking this beside
+      # dragonperch.exe is what turns that menu into a Fluent one.
+      - name: Package the shell
+        if: matrix.configuration == 'Release'
+        run: |
+          $version = (Get-Content build/windows-x64/version.txt -Raw).Trim()
+          Compress-Archive dist/shell/* "dist/dragonperch-shell_${version}_x64.zip"
+          Remove-Item -Recurse -Force dist/shell
 
       - name: Upload the build
         if: matrix.configuration == 'Release'
@@ -171,4 +199,4 @@ jobs:
           # the packages were actually built from. The files themselves are versioned, so a
           # rolling tag costs nothing: what somebody downloaded is written on it.
           gh release delete nightly --cleanup-tag --yes || true
-          gh release create nightly $(find dist -type f) --prerelease --title "Nightly build" --notes "Built from ${{ github.sha }}. Every file carries the build time and the commit in its version, so apt upgrades one nightly to the next. Unsigned and untested beyond CI."
+          gh release create nightly $(find dist -type f) --prerelease --title "Nightly build" --notes "Built from ${{ github.sha }}. Every file carries the build time and the commit in its version, so apt upgrades one nightly to the next. Unsigned and untested beyond CI. The dragonperch-shell zip is optional and only for Windows: it is the Fluent tray menu, and unpacking it beside dragonperch.exe replaces the plain Win32 one. The pets do not need it."

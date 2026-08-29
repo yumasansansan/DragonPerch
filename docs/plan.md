@@ -832,6 +832,46 @@ actually opens it, is a real WinUI flyout rather than an imitation of one.
 None of this applies to Linux, where the menu costs nothing to begin with because Plasma
 draws it.
 
+#### What it took, once it was written
+
+Built as `shell/windows/`: .NET 10, Windows App SDK 2.4.0, unpackaged and self-contained,
+about six hundred lines including the Win32 interop. The shape is exactly the one above --
+`Shell_NotifyIcon` in the daemon, a `MenuFlyout` in the shell, WM_COPYDATA carrying text in
+both directions -- and the whole path was driven end to end before it was believed:
+right-click reaches the shell, the flyout appears, and clicking *Pause* puts
+`command: toggle-pause` in the daemon's log.
+
+Three things cost real time and none of them are in any tutorial.
+
+**A flyout cannot be shown from an element with no `XamlRoot`.** `Window.Activate()` does
+not finish putting the content into a tree before it returns, so the first `ShowAt` throws
+`This element does not have a XamlRoot` -- which, in a process with no console and no other
+window, looks exactly like the shell failing to start. The first showing waits for the
+anchor's `Loaded`; every one after it is immediate, which is another reason to keep the host
+window rather than rebuild it.
+
+**The daemon has to hand the foreground right over.** Windows will not let an arbitrary
+process take the foreground, and a menu that cannot take it is shown and dismissed in the
+same frame. The daemon holds the right at the moment of the click, so it calls
+`AllowSetForegroundWindow` with the shell's process id before asking for the menu. This is
+the real answer to "why does the daemon ask the shell, rather than the shell watching for
+clicks itself".
+
+**An old flyout's `Closed` handler will hide the host window out from under a new one.**
+Showing a second flyout closes the first, and if `Closed` unconditionally hides the host,
+the menu that just appeared is anchored to a window that has just been hidden. It looked
+like the menu working exactly once per process. The handler now ignores anything that is
+not the flyout currently on screen.
+
+**Size.** Self-contained is 222 MB, which the plan's "forty-odd megabytes" did not
+anticipate: App SDK 2.x brings the Windows AI stack, and `onnxruntime.dll` and
+`DirectML.dll` alone are 38 MB. Nothing here calls an AI API and those libraries are loaded
+on demand by the ones that do, so the project drops them from the published output --
+180 MB. The modular `Microsoft.WindowsAppSDK.*` packages would say this properly, and were
+checked first: as of 2.4.0 they exist only as `-experimental`. CI ships the shell as its own
+zip, because nobody who only wants the pets should download it.
+
+
 ### 13.4 Settings (milestone 10)
 
 §8 chose the shape and it holds: **a separate program per platform**, so each gets its

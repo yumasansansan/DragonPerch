@@ -12,3 +12,8 @@ vcpkg_installed/
 # Python bytecode from the asset tools
 __pycache__/
 *.pyc
+
+# The shell is built by dotnet, which puts its output beside the sources rather than in
+# the CMake build directory.
+shell/windows/bin/
+shell/windows/obj/

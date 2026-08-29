@@ -169,9 +169,35 @@ shipped build misbehaves. A Debug build has different timing and a different Dir
 layer, so it answers a different question.
 
 There is a tray icon on both platforms, and it is the ordinary way to stop DragonPerch:
-right-click it for Pause and Quit. On Windows it is `Shell_NotifyIcon` with a system menu;
-on Linux it is StatusNotifierItem, where the menu is *described* rather than drawn — Plasma
-builds it from the labels, in Breeze, following the user's theme with no code on our side.
+right-click it for Pause and Quit. On Windows it is `Shell_NotifyIcon`; on Linux it is
+StatusNotifierItem, where the menu is *described* rather than drawn — Plasma builds it from
+the labels, in Breeze, following the user's theme with no code on our side.
+
+The menu the two platforms draw is meant to be the native one, and on Windows that now
+means a real WinUI 3 `MenuFlyout` rather than something shaped like one. It lives in
+`DragonPerch.Shell.exe`, a separate program in `shell/windows/`, for a reason that was
+measured rather than assumed: initialising XAML costs a process about 50 MB of private
+bytes permanently, and closing it again returns none of it (docs/plan.md §13.3 has the
+numbers). So the toolkit goes somewhere it can be started on demand and killed without the
+pets noticing, and `dragonperch.exe` stays a 2 MB Win32 process with no App SDK anywhere
+near it.
+
+The daemon starts the shell when the pointer arrives over the tray icon, which buys the
+couple of hundred milliseconds a cold WinUI process needs before the button is pressed. If
+the shell is not installed, has not finished starting, or has been killed, the daemon shows
+its own `TrackPopupMenuEx` menu instead — it never waits for one, because a menu that
+arrives half a second after the click reads as a hang. **The shell is optional in the
+strongest sense: the daemon runs, and is fully usable, with no trace of it on the disk.**
+
+Building it needs the .NET 10 SDK and is not part of the CMake build, because CMake cannot
+sensibly build a WinUI project:
+
+```
+dotnet publish shell/windows/DragonPerch.Shell.csproj -c Release -o <somewhere>
+```
+
+Copy the result next to `dragonperch.exe`. It is self-contained and therefore large — about
+180 MB — which is why CI ships it as its own zip rather than in with the pets.
 
 `--stop`, `--pause`, `--resume` and `--reload` all go through one control interface — a
 message-only window answering `WM_COPYDATA` on Windows, `org.dragonperch.Control` on the

@@ -4,6 +4,7 @@
 #include "dragonperch/text.hpp"
 #include "log.hpp"
 #include "resource.h"
+#include "shell.hpp"
 #include "win_headers.hpp"
 
 #include <shellapi.h>
@@ -116,14 +117,32 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
         // which is the other way round from every older example.
         const POINT at{GET_X_LPARAM(wparam), GET_Y_LPARAM(wparam)};
 
+        const bool paused = state->paused && state->paused();
+
         switch (LOWORD(lparam)) {
+        case WM_MOUSEMOVE:
+            // The pointer has arrived over the icon but nothing has been clicked yet. This
+            // is the couple of hundred milliseconds a cold WinUI process needs, and
+            // spending them here is the difference between a menu that feels instant and
+            // one that feels broken. Cheap and idempotent when a shell is already up.
+            shell::start(at.x, at.y, paused);
+            return 0;
+
         case WM_CONTEXTMENU:
         case NIN_SELECT:
         case NIN_KEYSELECT:
             // Left and right both open the menu. A tray icon whose two buttons do different
             // things is a tray icon whose users find one of them by accident.
-            show_menu(hwnd, *state, at);
+            //
+            // The Fluent menu if a shell is listening, and this process's own Win32 one if
+            // not. Not waiting for a shell that is still starting: a menu that arrives half
+            // a second after the click reads as a hang, and the Win32 menu is right there.
+            if (!shell::show_menu(at.x, at.y, paused)) {
+                shell::start(at.x, at.y, paused);
+                show_menu(hwnd, *state, at);
+            }
             return 0;
+
         default:
             return 0;
         }

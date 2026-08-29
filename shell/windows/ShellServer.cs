@@ -1,0 +1,94 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+using System.Runtime.InteropServices;
+
+namespace DragonPerch.Shell;
+
+/// <summary>
+/// The receiving end of the daemon-to-shell direction: a message-only window answering
+/// WM_COPYDATA, the same mechanism and the same wire format the daemon's own control
+/// window uses.
+/// </summary>
+/// <remarks>
+/// Created on the UI thread, so its messages arrive on WinUI's own pump and the handler may
+/// touch XAML directly. That is the whole reason for a window rather than a pipe: this
+/// process already has a message loop, and a second thread would only have to marshal back
+/// onto the first one.
+///
+/// Requests are text, and there is one:
+/// <code>menu &lt;x&gt; &lt;y&gt; &lt;paused|running&gt;</code>
+/// </remarks>
+internal sealed class ShellServer
+{
+    /// <summary>Matched by src/win/tray.cpp, which looks this up to find a live shell.</summary>
+    public const string WindowClass = "DragonPerch.Shell";
+
+    private readonly Action<int, int, bool> _showMenu;
+
+    // Held so the delegate is not collected while Windows still has the pointer. A
+    // WndProc that has been garbage-collected is a crash at the next message, and one
+    // that only happens once a menu has been open long enough for a collection to run.
+    private readonly Native.WndProc _proc;
+
+    private IntPtr _window;
+
+    public ShellServer(Action<int, int, bool> showMenu)
+    {
+        _showMenu = showMenu;
+        _proc = WindowProc;
+    }
+
+    /// <summary>True when another shell is already listening in this session.</summary>
+    public static bool AlreadyRunning()
+        => Native.FindWindowEx(Native.HWND_MESSAGE, IntPtr.Zero, WindowClass, null) != IntPtr.Zero;
+
+    public bool Start()
+    {
+        IntPtr instance = Native.GetModuleHandle(IntPtr.Zero);
+        IntPtr className = Marshal.StringToHGlobalUni(WindowClass);
+
+        Native.WNDCLASSEXW description = new()
+        {
+            cbSize = Marshal.SizeOf<Native.WNDCLASSEXW>(),
+            lpfnWndProc = Marshal.GetFunctionPointerForDelegate(_proc),
+            hInstance = instance,
+            lpszClassName = className,
+        };
+
+        if (Native.RegisterClassEx(ref description) == 0
+            && Marshal.GetLastPInvokeError() != 1410 /* ERROR_CLASS_ALREADY_EXISTS */)
+        {
+            Marshal.FreeHGlobal(className);
+            return false;
+        }
+
+        _window = Native.CreateWindowEx(0, WindowClass, null, 0, 0, 0, 0, 0,
+                                        Native.HWND_MESSAGE, IntPtr.Zero, instance, IntPtr.Zero);
+
+        // Deliberately not freed: the class outlives this call and keeps the pointer. It is
+        // one string for the life of the process.
+        return _window != IntPtr.Zero;
+    }
+
+    private IntPtr WindowProc(IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam)
+    {
+        if (message != Native.WM_COPYDATA)
+        {
+            return Native.DefWindowProc(hwnd, message, wparam, lparam);
+        }
+
+        string text = Native.ReadCopyData(lparam);
+        string[] parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length == 4 && parts[0] == "menu"
+            && int.TryParse(parts[1], out int x) && int.TryParse(parts[2], out int y))
+        {
+            _showMenu(x, y, parts[3] == "paused");
+            return 1;
+        }
+
+        // An unknown request is ignored rather than guessed at, for the same reason the
+        // daemon ignores unknown commands: the two ends may be different builds.
+        return 0;
+    }
+}

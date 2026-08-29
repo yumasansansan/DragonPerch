@@ -1,0 +1,60 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Fluent half of the Windows tray, and later the settings window. Deliberately not
+    built by CMake: CMake cannot sensibly build a WinUI project, so this is a .csproj that
+    `dotnet build` handles and CI invokes separately. The C++ solution stays C++, and the
+    Windows App SDK never touches the daemon.
+
+    Self-contained on purpose. The daemon runs from an unpacked tarball with nothing
+    installed, and a menu that requires the user to go and find .NET 10 and the App SDK
+    first would not be a menu they ever see. The size is paid by this program alone, and
+    only by people who install it. dragonperch.exe neither knows nor cares whether it is
+    there.
+  -->
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <Platforms>x64</Platforms>
+    <AssemblyName>DragonPerch.Shell</AssemblyName>
+    <RootNamespace>DragonPerch.Shell</RootNamespace>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <ApplicationIcon>..\..\packaging\dragonperch.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
+  </ItemGroup>
+
+  <!--
+    The App SDK is one umbrella package, and it brings the Windows AI stack with it:
+    onnxruntime.dll and DirectML.dll alone are 38 MB of a 222 MB self-contained build.
+    Nothing here calls a single AI API, and those libraries are loaded on demand by the
+    ones that do, so dropping them costs nothing this program can reach.
+
+    The modular Microsoft.WindowsAppSDK.* packages would be the principled way to say this,
+    and were checked first: as of 2.4.0 they are published only as -experimental, which is
+    not something to build a shipped component on.
+  -->
+  <Target Name="DropTheAiRuntime" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish
+        Remove="@(ResolvedFileToPublish)"
+        Condition="'%(Filename)' == 'onnxruntime'
+                or '%(Filename)' == 'DirectML'
+                or $([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Windows.AI'))" />
+    </ItemGroup>
+  </Target>
+
+</Project>
