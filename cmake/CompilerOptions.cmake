@@ -5,6 +5,7 @@
 #
 # They divide into two scopes, and which scope a flag belongs in is a real decision:
 #
+#
 #   optimisation  -> add_compile_options / add_link_options, so it reaches every target
 #                    built in this tree, third-party dependencies included
 #   policy        -> the DragonPerch::options interface target, linked PRIVATE, so it
@@ -13,6 +14,30 @@
 # Warnings-as-errors and -fno-rtti are policy: imposing them on somebody else's source
 # fails builds that have nothing wrong with them. Optimisation is not -- there is no reason
 # for one target to be built slower than another because of where its source came from.
+#
+# ---------------------------------------------------------------------------------------
+# Sanitizers
+# ---------------------------------------------------------------------------------------
+option(DRAGONPERCH_SANITIZE "Enable sanitizers (ASan, UBSan, Fuzzer) for bug detection" OFF)
+
+if(DRAGONPERCH_SANITIZE)
+    if(MSVC)
+        add_compile_options(
+            /fsanitize=address
+            /fsanitize=fuzzer
+            /sdl
+        )
+    else()
+        add_compile_options(
+            -fsanitize=address,undefined,fuzzer-no-link,fuzzer
+            -fno-omit-frame-pointer
+            -fno-optimize-sibling-calls
+        )
+        add_link_options(
+            LINKER:-fsanitize=address,undefined,fuzzer-no-link,fuzzer
+        )
+    endif()
+endif()
 #
 # ---------------------------------------------------------------------------------------
 # How flags reach the tools
@@ -59,6 +84,7 @@ target_compile_features(dragonperch_options INTERFACE cxx_std_23)
 if(MSVC)
     target_compile_options(dragonperch_options INTERFACE
         /W4 /WX
+        /analyze
         /options:strict         # reject unknown compiler options instead of ignoring them
         /permissive-            # conformance mode; without it MSVC accepts non-standard code
         /utf-8                  # source and execution charset, or Japanese literals break
@@ -66,9 +92,41 @@ if(MSVC)
         /Zc:preprocessor        # conforming preprocessor
         /Zc:inline              # drop unreferenced COMDATs
         /EHsc)                  # exceptions from C++ only; extern "C" is assumed nothrow
+    target_link_options(dragonperch_options INTERFACE
+        LINKER:/WX)
 else()
     target_compile_options(dragonperch_options INTERFACE
-        -Wall -Wextra -Wpedantic -Werror)
+        -Wall -Wextra -Wpedantic -Wshadow -Wunused -Werror --analyze)
+endif()
+
+# ---------------------------------------------------------------------------------------
+# Security hardening
+# ---------------------------------------------------------------------------------------
+if(MSVC)
+    add_compile_options(
+        /guard:cf
+        /guard:ehcont
+    )
+    add_link_options(
+        LINKER:/CETCOMPAT
+        LINKER:/GUARD:CF
+        LINKER:/DYNAMICBASE
+        LINKER:/NXCOMPAT
+        LINKER:/HIGHENTROPYVA
+    )
+else()
+    add_compile_options(
+        -fcf-protection=full
+        -fstack-protector-strong
+        -fstack-clash-protection
+        -D_GLIBCXX_ASSERTIONS
+        $<$<NOT:$<CONFIG:Debug>>:-D_FORTIFY_SOURCE=3>
+    )
+    add_link_options(
+        LINKER:-z,relro
+        LINKER:-z,now
+        LINKER:-z,noexecstack
+    )
 endif()
 
 # ---------------------------------------------------------------------------------------
@@ -105,9 +163,9 @@ if(MSVC)
         $<$<CONFIG:Release>:/Gw>)   # each global into its own COMDAT, so /OPT:REF can drop unused data
 
     add_link_options(
-        $<$<CONFIG:Release>:/OPT:REF>         # discard unreferenced functions and data
-        $<$<CONFIG:Release>:/OPT:ICF>         # fold identical COMDATs
-        $<$<CONFIG:Release>:/INCREMENTAL:NO>) # incremental linking defeats both of the above
+        $<$<CONFIG:Release>:LINKER:/OPT:REF>         # discard unreferenced functions and data
+        $<$<CONFIG:Release>:LINKER:/OPT:ICF>         # fold identical COMDATs
+        $<$<CONFIG:Release>:LINKER:/INCREMENTAL:NO>) # incremental linking defeats both of the above
 
     # Ours only: removes a language feature rather than merely optimising, so it is not
     # something to impose on a dependency.
@@ -122,7 +180,7 @@ else()
         $<$<CONFIG:Release>:-fdata-sections>)
 
     add_link_options(
-        $<$<CONFIG:Release>:-Wl,--gc-sections>)
+        $<$<CONFIG:Release>:LINKER:--gc-sections>)
 
     # Ours only, for the same reason as /GR- above.
     target_compile_options(dragonperch_options INTERFACE

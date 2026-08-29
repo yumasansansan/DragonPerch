@@ -24,12 +24,16 @@ on:
 # Wayland head links against, not a compiler. The image has no reason to carry them.
 jobs:
   linux:
-    name: linux (Clang 22, ${{ matrix.configuration }})
+    name: linux (Clang 22, ${{ matrix.configuration }}${{ matrix.sanitize == 'ON' && ', Sanitized' || '' }})
     runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
         configuration: [Debug, Release]
+        sanitize: [OFF, ON]
+        exclude:
+          - configuration: Debug
+            sanitize: ON
     steps:
       # The Wayland protocol definitions are submodules -- see cmake/WaylandProtocol.cmake
       # for why they are not copied into the tree.
@@ -50,7 +54,7 @@ jobs:
       # The version carries the build time and the commit, so that apt can tell one
       # nightly from the next -- see cmake/Packaging.cmake for why the tilde matters.
       - name: Configure
-        run: cmake --preset linux-x64 -D DRAGONPERCH_VERSION_SUFFIX="~$(date -u +%Y%m%d.%H%M).g$(git rev-parse --short HEAD)"
+        run: cmake --preset linux-x64 -D DRAGONPERCH_VERSION_SUFFIX="~$(date -u +%Y%m%d.%H%M).g$(git rev-parse --short HEAD)${{ matrix.sanitize == 'ON' && '-sanitized' || '' }}" -D DRAGONPERCH_SANITIZE=${{ matrix.sanitize }}
 
       # The portability guard, built first and named so its failure is unambiguous. The core
       # must compile with no platform anything; if this step breaks, a backend has leaked
@@ -92,7 +96,7 @@ jobs:
         if: matrix.configuration == 'Release'
         uses: actions/upload-artifact@v7
         with:
-          name: dragonperch-linux-x86_64
+          name: dragonperch-linux-x86_64${{ matrix.sanitize == 'ON' && '-sanitized' || '' }}
           path: |
             build/linux-x64/*.deb
             build/linux-x64/*.tar.gz
@@ -100,12 +104,16 @@ jobs:
           retention-days: 14
 
   windows:
-    name: windows (MSVC, ${{ matrix.configuration }})
+    name: windows (MSVC, ${{ matrix.configuration }}${{ matrix.sanitize == 'ON' && ', Sanitized' || '' }})
     runs-on: windows-2025-vs2026
     strategy:
       fail-fast: false
       matrix:
         configuration: [Debug, Release]
+        sanitize: [OFF, ON]
+        exclude:
+          - configuration: Debug
+            sanitize: ON
     steps:
       - uses: actions/checkout@v7
 
@@ -115,7 +123,8 @@ jobs:
         run: |
           $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMdd.HHmm')
           $sha = git rev-parse --short HEAD
-          cmake --preset windows-x64 -D DRAGONPERCH_VERSION_SUFFIX="~$stamp.g$sha"
+          $suffix = if ('${{ matrix.sanitize }}' -eq 'ON') { '-sanitized' } else { '' }
+          cmake --preset windows-x64 -D DRAGONPERCH_VERSION_SUFFIX="~$stamp.g$sha$suffix" -D DRAGONPERCH_SANITIZE=${{ matrix.sanitize }}
 
       - name: Build
         run: cmake --build build/windows-x64 --config ${{ matrix.configuration }}
@@ -165,7 +174,7 @@ jobs:
           # NativeDebugSymbols=false nor filtering ResolvedFileToPublish stops them being
           # written, so they are dropped here, where the thing people download is made.
           Remove-Item dist/shell/*.pdb -Force -ErrorAction SilentlyContinue
-          $version = (Get-Content build/windows-x64/version.txt -Raw).Trim()
+          $version = (Get-Content build\windows-x64/version.txt -Raw).Trim()
           Compress-Archive dist/shell/* "dist/dragonperch-shell_${version}_x64.zip"
           Remove-Item -Recurse -Force dist/shell
 
@@ -173,7 +182,7 @@ jobs:
         if: matrix.configuration == 'Release'
         uses: actions/upload-artifact@v7
         with:
-          name: dragonperch-windows-x64
+          name: dragonperch-windows-x64${{ matrix.sanitize == 'ON' && '-sanitized' || '' }}
           path: dist/
           if-no-files-found: error
           retention-days: 14
