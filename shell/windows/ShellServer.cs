@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 using System.Runtime.InteropServices;
+using Microsoft.UI.Dispatching;
 
 namespace DragonPerch.Shell;
 
@@ -31,6 +32,7 @@ internal sealed class ShellServer
     private readonly Native.WndProc _proc;
 
     private IntPtr _window;
+    private DispatcherQueue? _ui;
 
     public ShellServer(Action<int, int, bool> showMenu)
     {
@@ -44,6 +46,8 @@ internal sealed class ShellServer
 
     public bool Start()
     {
+        _ui = DispatcherQueue.GetForCurrentThread();
+
         IntPtr instance = Native.GetModuleHandle(IntPtr.Zero);
         IntPtr className = Marshal.StringToHGlobalUni(WindowClass);
 
@@ -83,7 +87,16 @@ internal sealed class ShellServer
         if (parts.Length == 4 && parts[0] == "menu"
             && int.TryParse(parts[1], out int x) && int.TryParse(parts[2], out int y))
         {
-            _showMenu(x, y, parts[3] == "paused");
+            bool paused = parts[3] == "paused";
+
+            // Answered now, shown next time round the loop. The daemon reaches this
+            // through SendMessage from the thread that draws the pets, so everything done
+            // before returning is time that thread spends not drawing -- and building a
+            // menu is not a small thing to do inside somebody else's frame.
+            //
+            // Safe to defer because the text has already been copied out of the sender's
+            // memory above; nothing is held past the return.
+            _ = _ui?.TryEnqueue(() => _showMenu(x, y, paused));
             return 1;
         }
 

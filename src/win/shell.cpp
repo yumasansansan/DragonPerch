@@ -133,6 +133,18 @@ void launch()
 
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);
+
+    // No "application starting" cursor. CreateProcess gives one by default -- the arrow
+    // with the spinning ring -- and it stays up until the new process has a message queue
+    // Windows is satisfied with, or a couple of seconds pass. The visible cursor is only
+    // refreshed on the next mouse move, so a person who starts the pointer moving towards
+    // the tray icon and then stops watches it spin until they move again.
+    //
+    // That feedback is for a program somebody launched and is waiting for. Nobody asked
+    // for this one; it is started because the pointer passed over an icon, and it has no
+    // window to wait for.
+    startup.dwFlags |= STARTF_FORCEOFFFEEDBACK;
+
     PROCESS_INFORMATION process{};
 
     if (CreateProcessW(nullptr, command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW,
