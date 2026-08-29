@@ -17,3 +17,4 @@ __pycache__/
 # the CMake build directory.
 shell/windows/bin/
 shell/windows/obj/
+shell/windows/.vs/

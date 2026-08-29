@@ -161,6 +161,10 @@ jobs:
       - name: Package the shell
         if: matrix.configuration == 'Release'
         run: |
+          # The AOT linker's symbols are 21 MB of an 82 MB directory. Neither
+          # NativeDebugSymbols=false nor filtering ResolvedFileToPublish stops them being
+          # written, so they are dropped here, where the thing people download is made.
+          Remove-Item dist/shell/*.pdb -Force -ErrorAction SilentlyContinue
           $version = (Get-Content build/windows-x64/version.txt -Raw).Trim()
           Compress-Archive dist/shell/* "dist/dragonperch-shell_${version}_x64.zip"
           Remove-Item -Recurse -Force dist/shell

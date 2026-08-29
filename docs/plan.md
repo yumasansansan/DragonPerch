@@ -863,13 +863,52 @@ the menu that just appeared is anchored to a window that has just been hidden. I
 like the menu working exactly once per process. The handler now ignores anything that is
 not the flyout currently on screen.
 
-**Size.** Self-contained is 222 MB, which the plan's "forty-odd megabytes" did not
-anticipate: App SDK 2.x brings the Windows AI stack, and `onnxruntime.dll` and
-`DirectML.dll` alone are 38 MB. Nothing here calls an AI API and those libraries are loaded
-on demand by the ones that do, so the project drops them from the published output --
-180 MB. The modular `Microsoft.WindowsAppSDK.*` packages would say this properly, and were
-checked first: as of 2.4.0 they exist only as `-experimental`. CI ships the shell as its own
-zip, because nobody who only wants the pets should download it.
+**The app's own `.pri` is dropped by `dotnet publish` unless `EnableMsixTooling` is set** --
+even for an unpackaged app, and this is the worst failure of the four because nothing says
+so. `DragonPerch.Shell.pri` holds the compiled `App.xaml`, and with it the merged
+`XamlControlsResources`. Without it every control silently falls back to its built-in
+template: the menu still appears, still has the right items, the right icons and the right
+fonts, and is no longer Fluent -- square corners, no shadow, a full-width separator. There
+is no error, no warning, and no log line. `dotnet build` produces the `.pri` either way, so
+a locally built shell looks correct and only the shipped one is wrong.
+
+It was caught by looking at a screenshot, and it was nearly blamed on Native AOT, which had
+just been turned on. The two were separated by publishing both ways and comparing the
+images pixel for pixel: identical. Neither the toolchain nor the plausible culprit, but a
+missing 40 KB file.
+
+**Size, and Native AOT.** The first self-contained build was 222 MB, which the plan's
+"forty-odd megabytes" did not anticipate. Two changes took it to **62 MB**, and one wrong
+turn is worth recording with them.
+
+*Reference the modular packages, not the umbrella.* `Microsoft.WindowsAppSDK` is a
+metapackage over ten others, four of which -- AI, ML, Search, Widgets -- a tray menu has no
+use for; `onnxruntime.dll` and `DirectML.dll` alone were 38 MB. There is no property to
+switch any of them off. Naming `Microsoft.WindowsAppSDK.WinUI` and
+`Microsoft.WindowsAppSDK.Runtime` instead is the supported way, and it is safe because
+WinUI depends on Base, Foundation and InteractiveExperiences but on none of the four.
+
+An earlier draft of this section said the modular packages were `-experimental` and
+therefore unusable. **That was wrong**, and wrong in an avoidable way: it came from asking
+each package for its newest version, which is indeed an `-experimental` one, rather than
+reading which versions the 2.4.0 umbrella actually pins. Those are all stable releases, and
+they are what this project now names.
+
+*Native AOT works, and suits this program unusually well.* `PublishAot` turns the managed
+side -- a CLR, `System.Private.CoreLib`, and a 25 MB Windows SDK projection -- into one
+4.6 MB executable. More to the point, a cold start measured through the tray icon fell from
+seconds to **73 ms**, and resting memory from 84 MB private to 43 MB. For a process whose
+entire job is to put a menu on the screen between somebody deciding to right-click and
+finishing the click, that is the number that matters.
+
+The native linker's symbols are another 21 MB. `NativeDebugSymbols=false` does not stop
+them, removing them from `ResolvedFileToPublish` does not either -- AOT symbols are copied
+by the native-binary targets -- and a `Delete` after `Publish` is undone. CI drops them when
+it builds the zip, which is arguably where that belongs: worth having beside a local build,
+not worth 21 MB in a download.
+
+CI ships the shell as its own zip regardless, because nobody who only wants the pets should
+download it.
 
 
 ### 13.4 Settings (milestone 10)

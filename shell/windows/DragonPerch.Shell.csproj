@@ -24,6 +24,18 @@
     <RootNamespace>DragonPerch.Shell</RootNamespace>
     <UseWinUI>true</UseWinUI>
     <WindowsPackageType>None</WindowsPackageType>
+
+    <!--
+      Needed even though nothing here is packaged, and leaving it out is a silent bug
+      rather than a build failure. It is what carries DragonPerch.Shell.pri the app's
+      own resource index, holding the compiled App.xaml and with it the merged
+      XamlControlsResources. `dotnet build` produces the .pri
+      either way, so a locally built shell looks right; only `dotnet publish` drops it, and
+      the only symptom is that every control falls back to its built-in template. The menu
+      still works, still has the right items and icons, and is no longer Fluent: square
+      corners, no shadow, a full-width separator. Nothing says so anywhere.
+    -->
+    <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
     <Nullable>enable</Nullable>
@@ -31,30 +43,57 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ApplicationIcon>..\..\packaging\dragonperch.ico</ApplicationIcon>
+
+    <!--
+      Native AOT, which turns out to suit this program unusually well. The managed side
+      collapses from a CLR plus a 25 MB Windows SDK projection into one 4.6 MB executable,
+      and a cold start goes from seconds to roughly 120 ms measured through the tray icon.
+      That last number is the one that matters: this process exists to put a menu on the
+      screen between somebody deciding to right-click and finishing the click.
+
+      It also builds and runs, which is not a given for WinUI. What it does NOT do is
+      change how the menu looks; that was checked pixel for pixel against a JIT build
+      before the AOT was believed.
+    -->
+    <PublishAot>True</PublishAot>
+
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <!--
+    Not the Microsoft.WindowsAppSDK umbrella. That package is a metapackage over ten
+    others, and four of them are things a tray menu has no use for: AI, ML, Search and
+    Widgets. Together they are the Windows AI stack, and onnxruntime.dll plus DirectML.dll
+    alone came to 38 MB.
+
+    There is no property to switch them off; the umbrella offers none. Naming the two that
+    are actually wanted is the supported way to say it, and it is safe because
+    Microsoft.WindowsAppSDK.WinUI depends on Base, Foundation and InteractiveExperiences
+    but on none of the four.
+
+    These are the exact versions the 2.4.0 umbrella itself pins, read out of its nuspec, so
+    this is the same code that a 2.4.0 reference would have given. They are stable
+    releases: querying each package for its *newest* version returns an -experimental one
+    and gives the opposite impression.
+  -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.4.0" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="2.3.6" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="2.4.0" />
   </ItemGroup>
 
   <!--
-    The App SDK is one umbrella package, and it brings the Windows AI stack with it:
-    onnxruntime.dll and DirectML.dll alone are 38 MB of a 222 MB self-contained build.
-    Nothing here calls a single AI API, and those libraries are loaded on demand by the
-    ones that do, so dropping them costs nothing this program can reach.
+    Note on the native linker's symbols, because they are 21 MB of an 82 MB publish
+    directory and the obvious ways to stop that do not work: `NativeDebugSymbols=false` is
+    ignored, and removing the file from ResolvedFileToPublish is ignored too, because AOT
+    symbols are copied by the native-binary targets rather than through that list. A
+    Delete after the Publish target is also undone.
 
-    The modular Microsoft.WindowsAppSDK.* packages would be the principled way to say this,
-    and were checked first: as of 2.4.0 they are published only as -experimental, which is
-    not something to build a shipped component on.
+    Left in place here, and dropped by CI when it builds the zip -- which is arguably where
+    it belongs: symbols are worth having next to a locally published build and are not
+    worth 21 MB in something people download.
   -->
-  <Target Name="DropTheAiRuntime" AfterTargets="ComputeResolvedFilesToPublishList">
-    <ItemGroup>
-      <ResolvedFileToPublish
-        Remove="@(ResolvedFileToPublish)"
-        Condition="'%(Filename)' == 'onnxruntime'
-                or '%(Filename)' == 'DirectML'
-                or $([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Windows.AI'))" />
-    </ItemGroup>
-  </Target>
 
 </Project>
