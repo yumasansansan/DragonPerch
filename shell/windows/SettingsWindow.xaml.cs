@@ -29,6 +29,13 @@ internal sealed partial class SettingsWindow : Window
         Title = "DragonPerch";
         AppWindow.Resize(new SizeInt32(760, 720));
 
+        // Set Acrylic Backdrop
+        SystemBackdrop = new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop();
+
+        // Extend content into title bar
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
+
         SpeedSlider.ValueChanged += (_, e) => SpeedValue.Text = ((int)e.NewValue).ToString();
 
         Load();

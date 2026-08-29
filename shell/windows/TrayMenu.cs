@@ -209,6 +209,7 @@ internal sealed class TrayMenu
             // The menu is much larger than the one-pixel window it hangs off, so it has to
             // be allowed its own top-level window rather than being clipped to that one.
             ShouldConstrainToRootBounds = false,
+            SystemBackdrop = new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop(),
         };
         flyout.Items.Add(pause);
         flyout.Items.Add(settings);

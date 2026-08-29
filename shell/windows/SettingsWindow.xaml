@@ -8,7 +8,10 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid x:Name="Root" RowDefinitions="Auto,*,Auto">
+    <Grid x:Name="Root" RowDefinitions="Auto,Auto,*,Auto" Background="Transparent" FontFamily="{ThemeResource ContentControlThemeFontFamily}">
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Height="32" Background="Transparent" VerticalAlignment="Top">
+            <TextBlock Text="DragonPerch" Margin="16,0,0,0" VerticalAlignment="Center" Style="{ThemeResource CaptionTextBlockStyle}"/>
+        </Grid>
 
         <!--
             Every colour, radius and thickness below is a system theme resource rather than
@@ -40,12 +43,12 @@
             </Style>
         </Grid.Resources>
 
-        <TextBlock Grid.Row="0"
+        <TextBlock Grid.Row="1"
                    Text="DragonPerch"
                    Style="{ThemeResource TitleTextBlockStyle}"
                    Margin="28,24,28,12"/>
 
-        <ScrollViewer Grid.Row="1" Padding="28,0,28,0">
+        <ScrollViewer Grid.Row="2" Padding="28,0,28,0">
             <StackPanel Spacing="4">
 
                 <Border Style="{StaticResource Card}">
@@ -132,7 +135,7 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Border Grid.Row="2"
+        <Border Grid.Row="3"
                 Background="{ThemeResource LayerFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="0,1,0,0"
