@@ -6,7 +6,7 @@ namespace dp::win {
 /// DragonPerch.Shell.exe, seen from the daemon.
 ///
 /// The Fluent tray menu lives in a process of its own, for a reason §13.3 of docs/plan.md
-/// measured rather than assumed: initialising XAML costs a process about 50 MB of private
+/// measured rather than assumed: initialising XAML costs a process about 40 MB of private
 /// bytes permanently, and closing it again returns none of it. So the toolkit goes
 /// somewhere it can be started on demand and killed without the pets noticing.
 ///
@@ -22,14 +22,18 @@ namespace shell {
 /// False when there is nobody to ask, or the ask did not land.
 [[nodiscard]] bool show_menu(int x, int y, bool paused);
 
-/// Starts one, if it is installed and not already running.
+/// Starts one, quietly, if it is installed and not already running.
 ///
 /// Called when the pointer arrives over the tray icon, which buys the couple of hundred
 /// milliseconds a person spends moving the mouse and pressing the button -- about what a
 /// cold WinUI process needs to put a window on the screen. Cheap to call repeatedly: it
 /// does nothing when a shell is already there, and stops trying when there is no
 /// executable to start.
-void start(int menu_x, int menu_y, bool paused);
+///
+/// Deliberately does *not* show a menu. Hovering over a tray icon is not a request for
+/// one, and a menu that opens because the pointer passed over the icon is worse than one
+/// that takes an extra moment to appear.
+void prewarm();
 
 } // namespace shell
 } // namespace dp::win

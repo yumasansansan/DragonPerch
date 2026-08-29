@@ -73,6 +73,25 @@ internal static class Daemon
     }
 
     /// <summary>True when a DragonPerch is running in this session.</summary>
-    public static bool IsRunning()
-        => Native.FindWindowEx(Native.HWND_MESSAGE, IntPtr.Zero, ControlClass, null) != IntPtr.Zero;
+    public static bool IsRunning() => ProcessId() != 0;
+
+    /// <summary>
+    /// The running daemon's process id, or 0 if there is none.
+    /// </summary>
+    /// <remarks>
+    /// Found through the control window rather than by name, because a process called
+    /// dragonperch.exe that is not answering on that window is not a daemon this program
+    /// can talk to, and one that is answering is -- whatever it happens to be called.
+    /// </remarks>
+    public static int ProcessId()
+    {
+        IntPtr window = Native.FindWindowEx(Native.HWND_MESSAGE, IntPtr.Zero, ControlClass, null);
+        if (window == IntPtr.Zero)
+        {
+            return 0;
+        }
+
+        _ = Native.GetWindowThreadProcessId(window, out uint pid);
+        return (int)pid;
+    }
 }

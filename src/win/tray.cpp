@@ -125,7 +125,7 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
             // is the couple of hundred milliseconds a cold WinUI process needs, and
             // spending them here is the difference between a menu that feels instant and
             // one that feels broken. Cheap and idempotent when a shell is already up.
-            shell::start(at.x, at.y, paused);
+            shell::prewarm();
             return 0;
 
         case WM_CONTEXTMENU:
@@ -138,7 +138,10 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
             // not. Not waiting for a shell that is still starting: a menu that arrives half
             // a second after the click reads as a hang, and the Win32 menu is right there.
             if (!shell::show_menu(at.x, at.y, paused)) {
-                shell::start(at.x, at.y, paused);
+                // Warm one for next time, without asking it for anything: a shell that
+                // showed a menu on startup would put a second one on the screen beside the
+                // Win32 one below, which is still the right thing to show for this click.
+                shell::prewarm();
                 show_menu(hwnd, *state, at);
             }
             return 0;

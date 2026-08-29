@@ -863,6 +863,33 @@ the menu that just appeared is anchored to a window that has just been hidden. I
 like the menu working exactly once per process. The handler now ignores anything that is
 not the flyout currently on screen.
 
+Three more, all found by somebody looking at the thing rather than at a log, and all of
+them the sort that a test would have had to be written in advance to catch.
+
+**The host window was visible.** `AppWindow.MoveAndResize` before the first `Activate()` is
+thrown away -- activation applies a default size -- so the "one pixel at the cursor" was in
+fact a small empty window sitting next to the menu. Resizing again after `Activate()` fixes
+it; the window settles at 2x2, which is WinUI's floor and is covered by the flyout. The
+presenter is also told `SetBorderAndTitleBar(false, false)`, and the flyout is given
+`ShouldConstrainToRootBounds = false` so it is allowed its own top-level window rather than
+being clipped to a 2-pixel one.
+
+**Hovering opened the menu.** The pre-warm started the shell with `--menu x y` on its
+command line, so a shell started by the pointer merely passing over the icon put a menu on
+the screen. Pre-warming and asking for a menu are now separate things, and the daemon only
+ever does the first: `shell::prewarm()` starts a silent shell, and the menu is always asked
+for over WM_COPYDATA afterwards. The right-click path pre-warms too, and still shows the
+Win32 menu for *that* click -- asking the new shell for one as well would put two menus on
+the screen at once, which is what the first attempt at this fix did.
+
+**The shell outlived the daemon.** It is started by the daemon but is not its child in any
+sense Windows enforces, so quitting the pets left 40 MB of WinUI in the process list for
+ever. The shell now finds the daemon's process id through its control window and waits on
+the process handle -- not on a goodbye message, because a daemon that is killed, crashes,
+or has its console closed never gets to send one. Verified three ways: `--stop`, an outright
+kill, and starting the shell with no daemon at all, which exits immediately because there
+is nothing for it to do.
+
 **The app's own `.pri` is dropped by `dotnet publish` unless `EnableMsixTooling` is set** --
 even for an unpackaged app, and this is the worst failure of the four because nothing says
 so. `DragonPerch.Shell.pri` holds the compiled `App.xaml`, and with it the merged

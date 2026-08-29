@@ -87,7 +87,15 @@ bool show_menu(int x, int y, bool paused)
     return sent != 0 && result != 0;
 }
 
-void start(int menu_x, int menu_y, bool paused)
+namespace {
+
+/// Starts the shell, and nothing else.
+///
+/// It is deliberately not handed a menu request. The shell does accept one on its command
+/// line, but nothing here uses it: a shell that opened a menu as it started would put a
+/// second one on the screen next to the Win32 menu the daemon shows for that same click,
+/// and on a hover it would open a menu nobody asked for. Both happened.
+void launch()
 {
     // Two states worth remembering between calls, because this is called on every mouse
     // move over the icon: there is no shell to start, and one has just been started and
@@ -99,10 +107,10 @@ void start(int menu_x, int menu_y, bool paused)
         return;
     }
 
-    // A cold WinUI process takes a moment to create its window. Without this the next few
-    // mouse moves each start another one, and all but the first exit again on finding a
-    // shell already listening -- harmless, but a handful of processes started and thrown
-    // away for one hover.
+    // A cold shell takes a moment to create its window. Without this the next few mouse
+    // moves each start another one, and all but the first exit again on finding a shell
+    // already listening -- harmless, but a handful of processes started and thrown away
+    // for one hover.
     const ULONGLONG now = GetTickCount64();
     if (last_attempt != 0 && now - last_attempt < 5000) {
         return;
@@ -117,18 +125,11 @@ void start(int menu_x, int menu_y, bool paused)
         return;
     }
 
-    // Given the menu request on the command line as well as being sent one later, so that
-    // the very first right-click shows a menu rather than starting a shell that then has
-    // nothing to do.
-    const std::string tail = cat(" --menu ", menu_x, " ", menu_y,
-                                 paused ? " paused" : " running");
-
-    // The path has to stay wide -- somebody's user name is not necessarily representable
-    // in the active code page -- but the tail is digits and ASCII words, so widening it a
+    // The path has to stay wide -- somebody's user name is not necessarily representable in
+    // the active code page -- but the tail is digits and ASCII words, so widening it a
     // character at a time is exact. `cat` is narrow-only on purpose; see
     // dragonperch/text.hpp for why there is no <format> anywhere near this.
     std::wstring command = L"\"" + path.wstring() + L"\"";
-    command.append(tail.begin(), tail.end());
 
     STARTUPINFOW startup{};
     startup.cb = sizeof(startup);
@@ -143,9 +144,17 @@ void start(int menu_x, int menu_y, bool paused)
     }
 
     // Neither handle is wanted. The shell is not a child to be waited for: it outlives
-    // individual menus, and the daemon must not care when it goes.
+    // individual menus, and the daemon must not care when it goes. The shell watches the
+    // daemon rather than the other way round, and exits when this process does.
     CloseHandle(process.hThread);
     CloseHandle(process.hProcess);
+}
+
+} // namespace
+
+void prewarm()
+{
+    launch();
 }
 
 } // namespace dp::win::shell

@@ -44,8 +44,16 @@ internal sealed class TrayMenu
         // One pixel at the cursor. The flyout is positioned relative to this, and Windows
         // does the work of keeping it on screen and flipping it near an edge -- which is
         // most of what makes a menu opened next to the taskbar feel right.
+        //
+        // Resized after Activate() as well as before it. The first activation of a WinUI
+        // window applies a default size, so sizing it beforehand is thrown away and what
+        // appears is a small empty window sitting next to the menu -- which is exactly what
+        // it looked like.
         _host!.AppWindow.MoveAndResize(new RectInt32 { X = x, Y = y, Width = 1, Height = 1 });
         _host.Activate();
+        _host.AppWindow.MoveAndResize(new RectInt32 { X = x, Y = y, Width = 1, Height = 1 });
+        Log.Line($"host: {_host.AppWindow.Size.Width}x{_host.AppWindow.Size.Height} "
+                 + $"at {_host.AppWindow.Position.X},{_host.AppWindow.Position.Y}");
 
         // Without this the flyout appears behind whatever was focused and does not dismiss
         // when clicked away from -- the same reason a Win32 tray menu needs
@@ -111,6 +119,7 @@ internal sealed class TrayMenu
         // style bits.
         OverlappedPresenter presenter = OverlappedPresenter.CreateForContextMenu();
         presenter.IsAlwaysOnTop = true;
+        presenter.SetBorderAndTitleBar(false, false);
         _host.AppWindow.SetPresenter(presenter);
         _host.AppWindow.IsShownInSwitchers = false;
 
@@ -160,7 +169,12 @@ internal sealed class TrayMenu
         };
         quit.Click += (_, _) => _ = Daemon.Send("quit");
 
-        MenuFlyout flyout = new();
+        MenuFlyout flyout = new()
+        {
+            // The menu is much larger than the one-pixel window it hangs off, so it has to
+            // be allowed its own top-level window rather than being clipped to that one.
+            ShouldConstrainToRootBounds = false,
+        };
         flyout.Items.Add(pause);
         flyout.Items.Add(settings);
         flyout.Items.Add(new MenuFlyoutSeparator());

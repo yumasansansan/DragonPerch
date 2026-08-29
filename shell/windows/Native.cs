@@ -72,6 +72,9 @@ internal static partial class Native
     [LibraryImport("kernel32.dll", EntryPoint = "GetModuleHandleW")]
     public static partial IntPtr GetModuleHandle(IntPtr name);
 
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowThreadProcessId")]
+    public static partial uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
+
     /// <summary>
     /// Reads the text out of a WM_COPYDATA. The daemon sends UTF-8 with no terminator, the
     /// same as it sends to its own control window; `cbData` is the length.
