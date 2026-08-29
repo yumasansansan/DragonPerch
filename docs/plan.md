@@ -987,20 +987,55 @@ a total shared out between the mascots round-robin, which made `--pets 2` with t
 mascots a puzzle. With one of each as the default, the no-argument case is three dragons
 either way.
 
-#### Windows: the same shell process, WinUI 3, in C#
+#### Windows: the same shell process, WinUI 3, in C# -- **done**
 
 The settings window is a page in `DragonPerch.Shell.exe`, the program §13.3 gives the tray
 icon to. One WinUI application rather than two, and the tray's Settings item opens a window
-it already owns instead of starting a process.
+it already owns instead of starting a process. It costs 0.6 MB on top of the menu.
 
-`SettingsCard` and `SettingsExpander` from the Windows Community Toolkit are Fluent by
-construction, which is the stated goal, and C# is much the shortest route to them --
-C++/WinRT for XAML is a great deal of boilerplate for no gain here.
+Nothing is applied until Apply is pressed; then the file is written and the daemon is sent
+`reload` on the same control interface `--reload` uses. Verified end to end by unticking a
+mascot and moving the speed slider: the file came back
+`mascots = konqi, kori` / `walk-speed = 117.00`, and the daemon's log went
+`command: reload` -> `2 pet(s) after reload`, down from three.
 
-The cost is real and worth naming: **a second build system.** CMake cannot sensibly build a
-WinUI project, so `shell/windows/` is a `.csproj` built by `dotnet build` and invoked
-separately by CI. The C++ solution stays C++, and the Windows App SDK never touches the
-daemon.
+Two lists behave the same way and the cards say so: all ticked saves as the *empty* list,
+because empty means "all of them" to the daemon and a list written today should not exclude
+a mascot installed tomorrow. The mascots themselves are read from `assets/` beside the
+executable rather than hard-coded, for the same reason.
+
+**Not the Windows Community Toolkit.** `SettingsCard` was the plan and was tried: it pins
+Microsoft.WindowsAppSDK 1.6, which collides with the 2.x packages the shell uses -- duplicate
+imports and a hard error out of the MSIX build tools. Going back to the 1.6 umbrella to get
+it would undo the 38 MB the shell just saved. The page is built from WinUI's own controls
+and the system's own theme resources (`CardBackgroundFillColorDefaultBrush`,
+`CardStrokeColorDefaultBrush`, `ControlCornerRadius`), which is where SettingsCard gets its
+appearance from anyway -- so it still follows the user's theme, accent colour and contrast
+settings with no code.
+
+Two failures worth writing down, because both build cleanly and neither says anything:
+
+- **A `Style` cannot contain a `Setter` for the `Style` property.** It throws
+  `InvalidCastException` when the window is constructed. Use `BasedOn`.
+- **`foreach` over a WinRT-projected `IReadOnlyList` throws under Native AOT.**
+  `DisplayArea.FindAll()` returns one, and asking it for an enumerator dies inside CsWinRT's
+  `Make_IEnumerableObjRef` -- the generic instantiation was never generated. Indexing works.
+  This is the first thing in this program that AOT actually broke, and it was found by
+  logging `e.ToString()` rather than by reading the markup: the message alone says
+  "Specified cast is not valid" and nothing else.
+
+The cost of all this is real and worth naming: **a second build system.** CMake cannot
+sensibly build a WinUI project, so `shell/windows/` is a `.csproj` built by `dotnet publish`
+and invoked separately by CI. The C++ solution stays C++, and the Windows App SDK never
+touches the daemon.
+
+And a second implementation of the settings file. `Settings.cs` reads and writes the same
+INI as `dragonperch/settings.cpp`, with the same defaults, the same clamping and the same
+refusal to throw. That duplication is inherent rather than accidental -- the Linux settings
+program is a KCM and will use KConfig -- so **the file is the contract and the code cannot
+be shared**. It is currently checked by running both against one file, which is how the
+numbers above were obtained; a C# test project asserting the round trip is worth adding and
+is not there yet.
 
 #### Linux: Kirigami, as a KCM
 

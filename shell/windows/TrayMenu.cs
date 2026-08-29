@@ -34,6 +34,7 @@ internal sealed class TrayMenu
     private Grid? _anchor;
     private MenuFlyout? _flyout;
     private bool _pending;
+    private SettingsWindow? _settings;
 
     /// <summary>Shows the menu at a point in physical screen pixels.</summary>
     /// <param name="paused">Which way round the pause item should read.</param>
@@ -75,6 +76,43 @@ internal sealed class TrayMenu
         }
 
         Show(paused);
+    }
+
+    /// <summary>
+    /// Opens the settings window, or brings the open one forward.
+    /// </summary>
+    /// <remarks>
+    /// One window, kept rather than recreated: a second copy of a settings window is two
+    /// views of one file that can disagree, and whichever is applied last wins silently.
+    /// </remarks>
+    private void ShowSettings()
+    {
+        // Caught rather than allowed to escape: this runs from a XAML event handler, where
+        // an exception takes the whole process with it -- and the process is the tray menu.
+        // A settings window that fails to open should leave the menu working.
+        try
+        {
+            if (_settings is null)
+            {
+                Log.Line("settings: opening");
+                _settings = new SettingsWindow();
+                _settings.Closed += (_, _) =>
+                {
+                    Log.Line("settings: closed");
+                    _settings = null;
+                };
+            }
+
+            _settings.Activate();
+            _ = Native.SetForegroundWindow(
+                Microsoft.UI.Win32Interop.GetWindowFromWindowId(_settings.AppWindow.Id));
+            Log.Line("settings: shown");
+        }
+        catch (Exception e)
+        {
+            Log.Failure("opening the settings window", e);
+            _settings = null;
+        }
     }
 
     private void OnAnchorLoaded(object sender, RoutedEventArgs e)
@@ -156,11 +194,8 @@ internal sealed class TrayMenu
         {
             Text = "Settings…",
             Icon = new FontIcon { Glyph = GlyphSettings },
-
-            // Milestone 10's second half. The item is here rather than absent because the
-            // shape of the menu should not change under somebody when the page arrives.
-            IsEnabled = false,
         };
+        settings.Click += (_, _) => ShowSettings();
 
         MenuFlyoutItem quit = new()
         {

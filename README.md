@@ -208,8 +208,10 @@ the overlay windows, and Linux already processes the bus the KWin reports arrive
 tray icon and the settings program will be two more callers of the same four commands.
 
 `--reload` re-reads the settings file, which is INI and lives at
-`~/.config/dragonperch/dragonperchrc` or `%APPDATA%\DragonPerch\dragonperchrc`. There is
-no settings program yet, so for now it is a file to edit by hand; a line that cannot be
+`~/.config/dragonperch/dragonperchrc` or `%APPDATA%\DragonPerch\dragonperchrc`.
+On Windows the tray menu's **Settings** opens a page that writes it and then sends that
+same `reload`, so a change takes effect while the window is still open; on Linux it is a
+file to edit by hand until the KCM is written. A line that cannot be
 read is ignored and keeps its default, rather than the whole file being refused. Changing a
 speed is applied to the pets where they stand, while changing which mascots there are
 spawns them again -- there is no other way to do that one.

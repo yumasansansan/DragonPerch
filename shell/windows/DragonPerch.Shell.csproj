@@ -79,6 +79,15 @@
     releases: querying each package for its *newest* version returns an -experimental one
     and gives the opposite impression.
   -->
+  <!--
+    The Windows Community Toolkit's SettingsCard would be the obvious way to lay the
+    settings window out, and was tried: it pins Microsoft.WindowsAppSDK 1.6, which collides
+    with the 2.x packages above: duplicate imports and a hard error out of the MSIX build
+    tools. Going back to the 1.6 umbrella to get it would cost the 38 MB of AI stack this
+    project just finished removing. The settings page is built from WinUI's own controls
+    and the system's own theme resources instead, which is where SettingsCard gets its look
+    from anyway.
+  -->
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="2.3.6" />
     <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="2.4.0" />

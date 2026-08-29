@@ -33,5 +33,11 @@ internal static class Log
     }
 
     public static void Failure(string what, Exception e)
-        => Line($"{what}: {e.GetType().Name}: {e.Message.ReplaceLineEndings(" ")}");
+    {
+        // With the stack, because the message alone is often the least useful part. XAML
+        // in particular throws InvalidCastException with no hint of which element it was
+        // building, and guessing at that from the markup is exactly the wrong way round.
+        Line($"{what}: {e.GetType().Name}: {e.Message.ReplaceLineEndings(" ")}");
+        Line(e.ToString());
+    }
 }
