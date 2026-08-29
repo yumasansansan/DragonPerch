@@ -126,6 +126,7 @@ else()
         $<$<NOT:$<CONFIG:Debug>>:-D_FORTIFY_SOURCE=3>
     )
     add_link_options(
+        -fuse-ld=lld-22
         LINKER:-z,relro
         LINKER:-z,now
         LINKER:-z,noexecstack
