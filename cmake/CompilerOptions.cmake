@@ -37,7 +37,7 @@ if(DRAGONPERCH_SANITIZE)
             -fno-optimize-sibling-calls
         )
         add_link_options(
-            LINKER:-fsanitize=address,undefined,fuzzer-no-link
+            -fsanitize=address,undefined,fuzzer-no-link
         )
     endif()
 endif()

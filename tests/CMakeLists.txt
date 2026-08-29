@@ -39,3 +39,14 @@ target_compile_features(dragonperch_tests PRIVATE cxx_std_23)
 
 include(Catch)
 catch_discover_tests(dragonperch_tests)
+
+# MSVC Address Sanitizer uses a dynamic library that must sit next to the executable
+# or in the PATH. Copying it here means tests can run from anywhere without hanging
+# on a missing DLL dialog.
+if(DRAGONPERCH_SANITIZE AND MSVC)
+    get_filename_component(MSVC_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    add_custom_command(TARGET dragonperch_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${MSVC_BIN_DIR}/clang_rt.asan_dynamic-x86_64.dll"
+        "$<TARGET_FILE_DIR:dragonperch_tests>")
+endif()

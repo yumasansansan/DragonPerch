@@ -54,6 +54,14 @@ target_compile_definitions(dragonperch
 target_sources(dragonperch
     PRIVATE $<${DRAGONPERCH_DIAGNOSTICS_CONDITION}:${CMAKE_CURRENT_SOURCE_DIR}/self_test.cpp>)
 
+if(DRAGONPERCH_SANITIZE AND MSVC)
+    get_filename_component(MSVC_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
+    add_custom_command(TARGET dragonperch POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${MSVC_BIN_DIR}/clang_rt.asan_dynamic-x86_64.dll"
+        "$<TARGET_FILE_DIR:dragonperch>")
+endif()
+
 # The manifest arrives through dragonperch.rc, so stop the linker generating one of its
 # own and invoking mt.exe over it.
 target_link_options(dragonperch PRIVATE /MANIFEST:NO)

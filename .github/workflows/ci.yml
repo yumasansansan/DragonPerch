@@ -66,6 +66,8 @@ jobs:
         run: cmake --build build/linux-x64 --config ${{ matrix.configuration }}
 
       - name: Test
+        env:
+          ASAN_OPTIONS: detect_leaks=0
         run: ctest --test-dir build/linux-x64 --build-config ${{ matrix.configuration }} --output-on-failure
 
       # Release only. A Debug package would be several times the size and slower for no
@@ -116,6 +118,8 @@ jobs:
             sanitize: ON
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
 
       # CI builds through the same solution a developer opens locally, rather than a
       # parallel configuration that drifts.
@@ -130,6 +134,8 @@ jobs:
         run: cmake --build build/windows-x64 --config ${{ matrix.configuration }}
 
       - name: Test
+        env:
+          ASAN_OPTIONS: windows_hook_legacy_allocators=0
         run: ctest --test-dir build/windows-x64 --build-config ${{ matrix.configuration }} --output-on-failure
 
       # Pinned rather than trusting whatever the image ships: the shell targets

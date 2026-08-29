@@ -123,6 +123,11 @@ int run()
 
     const PixelRect target_rect{200, 200, 400, 300};
     const HANDLE ready = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    check_last_error(ready != nullptr, "CreateEventW");
+    if (!ready) {
+        throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), "CreateEventW");
+    }
+
     std::thread target(run_target, target_rect, ready);
     WaitForSingleObject(ready, 5000);
     CloseHandle(ready);
