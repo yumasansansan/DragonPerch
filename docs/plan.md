@@ -756,16 +756,42 @@ actually asked for costs nothing and is worth doing whatever else is decided -- 
 appears at login before the shell has finished thinking about XAML is strictly better than
 one that does not.
 
-**Unloading is the doubtful half.** `WindowsXamlManager` can be closed and
-`MddBootstrapShutdown` exists, but *shutting XAML down and starting it again in the same
-process* is not a supported path in WinUI 3, and was reliably broken in the UWP islands it
-grew out of. I am not certain enough of that to design on it, and it is a thirty-line
-experiment to settle: initialise, close, initialise again, and see whether the second one
-survives. **That experiment comes before anything is built on either answer.** If it works,
-in-process load-and-unload is the tidiest possible shape. The plan below assumes it does
-not, because that is the way to be wrong safely.
+**Unloading is the doubtful half** -- and the experiment has now been run, on .NET 10 with
+Windows App SDK 2.4.0, unpackaged and self-contained. It asked two questions and the second
+one turned out to be the one that mattered.
 
-**Process exit is the only unload that certainly works**, which decides the shape:
+*Can XAML be shut down and started again in the same process?* **Yes**, repeatably. Eight
+rounds of `DispatcherQueueController.CreateOnCurrentThread` ->
+`WindowsXamlManager.InitializeForCurrentThread` -> `Close` -> `ShutdownQueueAsync` all
+succeeded. This contradicts what this section previously assumed, and the assumption was
+worth checking rather than designing around.
+
+One trap, because it produced a confident wrong answer first: `ShutdownQueueAsync` does its
+work *on the thread's own dispatcher queue*, so a version of the experiment that sleeps
+instead of pumping messages never actually tears the queue down. Round two then fails with
+`DispatcherQueueController is already created on this thread`, which reads exactly like the
+unsupported-path answer it was looking for. Run a real `GetMessage`/`DispatchMessage` loop
+until `ShutdownCompleted` posts `WM_QUIT`, or the experiment measures nothing.
+
+*Does unloading give the memory back?* **No**, and that settles the design:
+
+| | working set | private | modules |
+|---|---|---|---|
+| before any XAML | 36 MB | 12 MB | 58 |
+| after round 1, XAML closed | 85 MB | 49 MB | 105 |
+| after round 2, XAML closed | 96 MB | 62 MB | 105 |
+| after round 8, XAML closed | 99 MB | 62 MB | 105 |
+
+It is not a leak -- it plateaus after the second round and stays flat. But the module count
+never falls back from 105: the XAML DLLs stay loaded, and roughly 50 MB of private bytes is
+paid permanently by any process that has initialised XAML once, whether or not XAML is
+currently "up". Closing `WindowsXamlManager` makes re-initialisation possible; it does not
+return anything.
+
+So in-process load-and-unload is possible and pointless. Giving the memory back was the
+entire reason to want it, and it does not. **Process exit is the only unload that returns
+anything**, which decides the shape after all -- now for a measured reason rather than an
+assumed one:
 
 ```
 dragonperch.exe     owns the tray icon, in plain Win32. Always running, ~2 MB,
@@ -790,8 +816,14 @@ Two details make it feel instant rather than clever:
 - **Keep it alive afterwards.** The second right-click should be immediate. An idle timeout
   that exits the shell after some minutes would return the memory, and is deliberately
   *not* in the first version: it adds a state machine whose interesting case is the shell
-  exiting at the exact moment somebody clicks. Measure the resting cost first, and add the
-  timeout only if the number justifies the race.
+  exiting at the exact moment somebody clicks.
+
+  The resting cost is now measured rather than guessed: **about 62 MB private, 99 MB
+  working set** for a process that has shown XAML once, and it does not come down when the
+  menu closes (see the table above). That is a real number to weigh against the race, but
+  it is only paid by people who have actually opened the menu, and it is paid by a process
+  that can be killed at any moment without the pets noticing. The timeout stays out of the
+  first version; the number is here for whoever decides to add it.
 
 This keeps the property that matters. The daemon is small, has no App SDK, survives the
 shell dying, and still runs on its own from a terminal -- while the menu, when somebody
