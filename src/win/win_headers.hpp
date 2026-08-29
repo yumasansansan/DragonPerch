@@ -37,6 +37,9 @@ inline void check_last_error(bool ok, const char* what)
     if (!ok) {
         throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), what);
     }
+#if defined(_MSC_VER) && !defined(__clang__)
+    __assume(ok);
+#endif
 }
 
 } // namespace dp::win

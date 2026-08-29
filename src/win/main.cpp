@@ -530,7 +530,7 @@ int run(std::span<const std::wstring_view> args)
 } // namespace
 } // namespace dp::win
 
-int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
+int WINAPI wWinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ PWSTR, _In_ int)
 {
     int argc = 0;
     LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);

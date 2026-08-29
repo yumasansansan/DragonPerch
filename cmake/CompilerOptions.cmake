@@ -24,17 +24,20 @@ if(DRAGONPERCH_SANITIZE)
     if(MSVC)
         add_compile_options(
             /fsanitize=address
-            /fsanitize=fuzzer
+            /Zi
             /sdl
+        )
+        add_link_options(
+            LINKER:/DEBUG
         )
     else()
         add_compile_options(
-            -fsanitize=address,undefined,fuzzer-no-link,fuzzer
+            -fsanitize=address,undefined,fuzzer-no-link
             -fno-omit-frame-pointer
             -fno-optimize-sibling-calls
         )
         add_link_options(
-            LINKER:-fsanitize=address,undefined,fuzzer-no-link,fuzzer
+            LINKER:-fsanitize=address,undefined,fuzzer-no-link
         )
     endif()
 endif()
@@ -96,7 +99,7 @@ if(MSVC)
         LINKER:/WX)
 else()
     target_compile_options(dragonperch_options INTERFACE
-        -Wall -Wextra -Wpedantic -Wshadow -Werror --analyze)
+        -Wall -Wextra -Wpedantic -Wshadow -Wunused -Werror --analyze)
 endif()
 
 # ---------------------------------------------------------------------------------------
@@ -221,7 +224,9 @@ endif()
 include(CheckIPOSupported)
 check_ipo_supported(RESULT DRAGONPERCH_IPO_SUPPORTED OUTPUT DRAGONPERCH_IPO_ERROR)
 
-if(DRAGONPERCH_IPO_SUPPORTED)
+if(DRAGONPERCH_SANITIZE)
+    message(STATUS "Link-time optimisation: disabled (incompatible with sanitizers)")
+elseif(DRAGONPERCH_IPO_SUPPORTED)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     message(STATUS "Link-time optimisation: enabled for Release")
 else()
