@@ -5,6 +5,11 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.kcmutils as KCM
 
+// Every string goes through kcm.text, which reads the catalogue the daemon and the
+// Windows settings window read: one table, so the same setting cannot end up called
+// two different things on two platforms. The second argument is the English, and is
+// what appears when nobody has translated that id. See docs/translating.md.
+
 KCM.SimpleKCM {
     id: root
 
@@ -15,7 +20,7 @@ KCM.SimpleKCM {
         anchors.fill: parent
 
         QQC2.SpinBox {
-            Kirigami.FormData.label: i18n("Dragons per mascot:")
+            Kirigami.FormData.label: kcm.text("settings.pets", "Dragons per mascot:")
             from: 0
             to: 64
             value: kcm.petsPerMascot
@@ -24,7 +29,7 @@ KCM.SimpleKCM {
 
         QQC2.Label {
             Kirigami.FormData.label: ""
-            text: i18n("Three mascots at two each is six dragons.")
+            text: kcm.text("settings.pets.note", "Three mascots at two each is six dragons.")
             font: Kirigami.Theme.smallFont
             opacity: 0.7
         }
@@ -32,7 +37,7 @@ KCM.SimpleKCM {
         Item { Kirigami.FormData.isSection: true }
 
         ColumnLayout {
-            Kirigami.FormData.label: i18n("Mascots:")
+            Kirigami.FormData.label: kcm.text("settings.mascots", "Mascots:")
             spacing: Kirigami.Units.smallSpacing
 
             Repeater {
@@ -51,14 +56,14 @@ KCM.SimpleKCM {
 
             QQC2.Label {
                 visible: kcm.installedMascots.length === 0
-                text: i18n("No sprite packs found beside the daemon.")
+                text: kcm.text("settings.mascots.none", "No sprite packs found beside the daemon.")
                 font: Kirigami.Theme.smallFont
                 opacity: 0.7
             }
 
             QQC2.Label {
                 visible: kcm.installedMascots.length > 0
-                text: i18n("Turning all of them off is the same as turning all of them on.")
+                text: kcm.text("settings.mascots.note.short", "Turning all of them off is the same as turning all of them on.")
                 font: Kirigami.Theme.smallFont
                 opacity: 0.7
             }
@@ -67,7 +72,7 @@ KCM.SimpleKCM {
         Item { Kirigami.FormData.isSection: true }
 
         RowLayout {
-            Kirigami.FormData.label: i18n("Walking speed:")
+            Kirigami.FormData.label: kcm.text("settings.speed", "Walking speed:")
             spacing: Kirigami.Units.largeSpacing
 
             QQC2.Slider {
@@ -88,7 +93,7 @@ KCM.SimpleKCM {
 
         QQC2.Label {
             Kirigami.FormData.label: ""
-            text: i18n("Pixels per second. The walk cycle was drawn against 42: much faster and the feet slide, much slower and it moonwalks.")
+            text: kcm.text("settings.speed.note", "Pixels per second. The walk cycle was drawn against 42: much faster and the feet slide, much slower and it moonwalks.")
             font: Kirigami.Theme.smallFont
             opacity: 0.7
             wrapMode: Text.Wrap
@@ -96,7 +101,7 @@ KCM.SimpleKCM {
         }
 
         QQC2.SpinBox {
-            Kirigami.FormData.label: i18n("Pause now and then:")
+            Kirigami.FormData.label: kcm.text("settings.idle", "Pause now and then:")
             from: 0
             to: 3600
             value: Math.round(kcm.idleInterval)
@@ -105,7 +110,7 @@ KCM.SimpleKCM {
 
         QQC2.Label {
             Kirigami.FormData.label: ""
-            text: i18n("Mean seconds between spontaneous pauses. Zero stops them happening at all.")
+            text: kcm.text("settings.idle.note", "Mean seconds between spontaneous pauses. Zero stops them happening at all.")
             font: Kirigami.Theme.smallFont
             opacity: 0.7
         }
@@ -113,7 +118,7 @@ KCM.SimpleKCM {
         Item { Kirigami.FormData.isSection: true }
 
         ColumnLayout {
-            Kirigami.FormData.label: i18n("Monitors:")
+            Kirigami.FormData.label: kcm.text("settings.monitors", "Monitors:")
             spacing: Kirigami.Units.smallSpacing
 
             Repeater {
@@ -127,7 +132,7 @@ KCM.SimpleKCM {
             }
 
             QQC2.Label {
-                text: i18n("Where the dragons are allowed. Turning all of them off is the same as turning all of them on.")
+                text: kcm.text("settings.monitors.note", "Where the dragons are allowed. Turning all of them off is the same as turning all of them on.")
                 font: Kirigami.Theme.smallFont
                 opacity: 0.7
             }
@@ -136,14 +141,14 @@ KCM.SimpleKCM {
         Item { Kirigami.FormData.isSection: true }
 
         QQC2.Switch {
-            Kirigami.FormData.label: i18n("Get out of the way of full-screen apps:")
+            Kirigami.FormData.label: kcm.text("settings.fullscreen", "Get out of the way of full-screen apps:")
             checked: kcm.pauseForFullscreen
             onToggled: kcm.pauseForFullscreen = checked
         }
 
         QQC2.Label {
             Kirigami.FormData.label: ""
-            text: i18n("Hide the dragons on a monitor showing something full screen.")
+            text: kcm.text("settings.fullscreen.note", "Hide the dragons on a monitor showing something full screen.")
             font: Kirigami.Theme.smallFont
             opacity: 0.7
         }
@@ -155,6 +160,6 @@ KCM.SimpleKCM {
         visible: !kcm.daemonRunning()
         position: Kirigami.InlineMessage.Position.Footer
         type: Kirigami.MessageType.Information
-        text: i18n("DragonPerch is not running. What is saved here will be read the next time it starts.")
+        text: kcm.text("settings.not-running", "DragonPerch is not running. What is saved here will be read the next time it starts.")
     }
 }

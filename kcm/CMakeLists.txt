@@ -23,7 +23,7 @@ include(KDEInstallDirs)
 include(KDECMakeSettings)
 
 find_package(Qt6 REQUIRED COMPONENTS Core DBus Gui Quick)
-find_package(KF6 REQUIRED COMPONENTS CoreAddons I18n KCMUtils)
+find_package(KF6 REQUIRED COMPONENTS CoreAddons KCMUtils)
 
 # The core is a static library, and a plugin is a shared object: without this the link
 # fails on relocations against the core's objects rather than on anything to do with the
@@ -49,6 +49,5 @@ target_link_libraries(kcm_dragonperch PRIVATE
     Qt6::Gui
     Qt6::Quick
     KF6::CoreAddons
-    KF6::I18n
     KF6::KCMUtilsQuick
 )

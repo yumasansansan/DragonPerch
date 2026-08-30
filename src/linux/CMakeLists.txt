@@ -47,6 +47,7 @@ add_executable(dragonperch-wl
     tray.cpp
     sprite_pack_loader.cpp
     png.cpp
+    paths.cpp
     log.cpp)
 
 target_link_libraries(dragonperch-wl PRIVATE

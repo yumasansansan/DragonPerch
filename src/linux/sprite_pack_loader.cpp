@@ -3,6 +3,7 @@
 
 #include "dragonperch/text.hpp"
 #include "log.hpp"
+#include "paths.hpp"
 #include "png.hpp"
 
 #include <string>
@@ -10,16 +11,6 @@
 
 namespace dp::wl {
 namespace {
-
-std::filesystem::path executable_directory()
-{
-    std::error_code failed;
-    const std::filesystem::path self = std::filesystem::read_symlink("/proc/self/exe", failed);
-    if (failed) {
-        return std::filesystem::current_path();
-    }
-    return self.parent_path();
-}
 
 } // namespace
 

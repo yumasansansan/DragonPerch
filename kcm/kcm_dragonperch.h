@@ -78,6 +78,17 @@ public:
     /// what was saved has been picked up or is waiting for the next start.
     Q_INVOKABLE [[nodiscard]] bool daemonRunning() const;
 
+    /// One string, in the language somebody reads.
+    ///
+    /// Named `text` rather than `tr` because QObject already has a `tr` and it means
+    /// something else. It goes through the same catalogue as the daemon and the Windows
+    /// shell -- see docs/translating.md -- rather than through ki18n, so that the settings
+    /// here and the settings window on Windows cannot end up saying different things.
+    ///
+    /// The English is the second argument and is the fallback, so a build with no
+    /// catalogue reads exactly as it did before there was one.
+    Q_INVOKABLE [[nodiscard]] QString text(const QString& id, const QString& english) const;
+
 Q_SIGNALS:
     void settingsChanged();
 

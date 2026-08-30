@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "dragonperch/host.hpp"
+#include "dragonperch/language.hpp"
 #include "dragonperch/simulation.hpp"
 #include "frame_clock.hpp"
 #include "gles_renderer.hpp"
@@ -9,6 +10,7 @@
 #include "layer_surface.hpp"
 #include "dragonperch/text.hpp"
 #include "log.hpp"
+#include "paths.hpp"
 #include "session_bus.hpp"
 #include "settings_file.hpp"
 #include "sprite_pack_loader.hpp"
@@ -421,11 +423,46 @@ int dump_world(int seconds)
 
 #endif // DRAGONPERCH_DIAGNOSTICS
 
+/// Loads the translations for whatever language this session reads in.
+///
+/// LC_ALL, then LC_MESSAGES, then LANG, which is the order POSIX gives them: LC_ALL
+/// overrides everything, and LANG is the default for whatever the others leave unset. The
+/// first one that is set is the answer, including when that answer is `C` -- somebody who
+/// has asked for no language has asked, and falling through to LANG would overrule them.
+///
+/// Silent when there is nothing to load. A missing catalogue is not a fault: the English at
+/// every call site is the fallback, and most installations will have no lang directory.
+void install_translations()
+{
+    for (const char* name : {"LC_ALL", "LC_MESSAGES", "LANG"}) {
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        const char* value = std::getenv(name);
+        if (value == nullptr || *value == 0) {
+            continue;
+        }
+
+        const std::vector<std::string> tags = language_tags(value);
+        if (tags.empty()) {
+            return;
+        }
+
+        Catalogue catalogue = Catalogue::load(executable_directory(), tags);
+        if (!catalogue.empty()) {
+            log_line(cat("language: ", catalogue.language(), " (", catalogue.size(),
+                         " strings)"));
+            install_catalogue(std::move(catalogue));
+        }
+        return;
+    }
+}
+
 int run(std::span<const std::string_view> args)
 {
     const auto has = [&](std::string_view flag) {
         return std::ranges::find(args, flag) != args.end();
     };
+
+    install_translations();
 
     if (has("--version")) {
         log_line(DRAGONPERCH_VERSION);

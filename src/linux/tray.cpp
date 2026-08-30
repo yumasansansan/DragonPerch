@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "tray.hpp"
 
+#include "dragonperch/language.hpp"
 #include "dragonperch/text.hpp"
 #include "errno_text.hpp"
 #include "log.hpp"
+#include "paths.hpp"
 #include "png.hpp"
 #include "session_bus.hpp"
 
@@ -185,7 +187,10 @@ int append_item_properties(sd_bus_message* m, int id, bool paused)
         break;
 
     case menu_pause:
-        failed = append_string_entry(m, "label", "Pause");
+        // Through the catalogue, with the English here as the fallback; the same words
+        // the Windows menus use, from the same file. See docs/translating.md.
+        failed = append_string_entry(m, "label",
+                                     std::string{tr("menu.pause", "Pause")}.c_str());
         if (failed >= 0) {
             failed = append_string_entry(m, "toggle-type", "checkmark");
         }
@@ -200,7 +205,8 @@ int append_item_properties(sd_bus_message* m, int id, bool paused)
         break;
 
     case menu_settings:
-        failed = append_string_entry(m, "label", "Settings...");
+        failed = append_string_entry(m, "label",
+                                     std::string{tr("menu.settings", "Settings...")}.c_str());
         // Greyed when there is no kcmshell6 to open the module with. Present either way,
         // because leaving it out and adding it later moves everything else, and people
         // learn where an item is by where it sits.
@@ -210,7 +216,8 @@ int append_item_properties(sd_bus_message* m, int id, bool paused)
         break;
 
     case menu_quit:
-        failed = append_string_entry(m, "label", "Quit DragonPerch");
+        failed = append_string_entry(m, "label",
+                                     std::string{tr("menu.quit", "Quit DragonPerch")}.c_str());
         break;
 
     default:
@@ -262,13 +269,6 @@ int append_item(sd_bus_message* m, int id, bool paused, bool with_children)
         failed = sd_bus_message_close_container(m); // struct
     }
     return failed;
-}
-
-std::filesystem::path executable_directory()
-{
-    std::error_code failed;
-    const std::filesystem::path self = std::filesystem::read_symlink("/proc/self/exe", failed);
-    return failed ? std::filesystem::current_path() : self.parent_path();
 }
 
 /// The icon file, looked for the way the artwork and the KWin script are: beside the

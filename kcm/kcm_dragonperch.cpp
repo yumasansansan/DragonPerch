@@ -1,21 +1,25 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "kcm_dragonperch.h"
 
+#include "dragonperch/language.hpp"
 #include "dragonperch/pack_library.hpp"
 #include "settings_file.hpp"
 
-#include <KLocalizedString>
 #include <KPluginFactory>
 
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
 #include <QDBusMessage>
 #include <QGuiApplication>
+#include <QLocale>
 #include <QScreen>
 #include <QStandardPaths>
 
 #include <algorithm>
 #include <filesystem>
+#include <string>
+#include <utility>
+#include <vector>
 
 K_PLUGIN_CLASS_WITH_JSON(DragonPerchKcm, "kcm_dragonperch.json")
 
@@ -24,6 +28,38 @@ namespace {
 constexpr const char* bus_name = "org.dragonperch";
 constexpr const char* object_path = "/org/dragonperch/Control";
 constexpr const char* interface_name = "org.dragonperch.Control1";
+
+/// Where the daemon is, which is where everything it ships is found relative to.
+///
+/// Empty when it is not on the path -- somebody running from an unpacked tarball -- and the
+/// callers below each say what they do about that.
+std::filesystem::path daemonDirectory()
+{
+    const QString daemon = QStandardPaths::findExecutable(QStringLiteral("dragonperch-wl"));
+    if (daemon.isEmpty()) {
+        return {};
+    }
+    return std::filesystem::path{daemon.toStdString()}.parent_path();
+}
+
+/// The tags to look for, from what Qt says this account reads in.
+///
+/// QLocale::uiLanguages is the list in preference order and already in BCP 47, which is one
+/// of the two shapes language_tags understands; the other is the POSIX one the daemon gets
+/// from the environment. Both come out the same.
+std::vector<std::string> uiLanguages()
+{
+    std::vector<std::string> tags;
+    const QStringList reported = QLocale::system().uiLanguages();
+    for (const QString& language : reported) {
+        for (std::string& tag : dp::language_tags(language.toStdString())) {
+            if (std::find(tags.begin(), tags.end(), tag) == tags.end()) {
+                tags.push_back(std::move(tag));
+            }
+        }
+    }
+    return tags;
+}
 
 /// The pack ids beside the daemon, not a list written out here.
 ///
@@ -38,13 +74,10 @@ constexpr const char* interface_name = "org.dragonperch.Control1";
 /// so rather than inventing three names.
 QStringList findInstalledMascots()
 {
-    const QString daemon = QStandardPaths::findExecutable(QStringLiteral("dragonperch-wl"));
-    if (daemon.isEmpty()) {
+    const std::filesystem::path beside = daemonDirectory();
+    if (beside.empty()) {
         return {};
     }
-
-    const std::filesystem::path beside =
-        std::filesystem::path{daemon.toStdString()}.parent_path();
 
     QStringList ids;
     for (const std::filesystem::path& definition : dp::find_sprite_packs(beside)) {
@@ -135,6 +168,11 @@ DragonPerchKcm::DragonPerchKcm(QObject* parent, const KPluginMetaData& data)
     , installedMascots_(findInstalledMascots())
     , knownOutputs_(findOutputs())
 {
+    // This is a separate process from the daemon, so it loads the catalogue itself. Beside
+    // the daemon, because that is where it is installed and where the artwork is too.
+    if (const std::filesystem::path beside = daemonDirectory(); !beside.empty()) {
+        dp::install_catalogue(dp::Catalogue::load(beside, uiLanguages()));
+    }
 }
 
 void DragonPerchKcm::load()
@@ -178,6 +216,13 @@ bool DragonPerchKcm::daemonRunning() const
 {
     QDBusConnectionInterface* bus = QDBusConnection::sessionBus().interface();
     return bus != nullptr && bus->isServiceRegistered(QString::fromLatin1(bus_name)).value();
+}
+
+QString DragonPerchKcm::text(const QString& id, const QString& english) const
+{
+    const std::string key = id.toStdString();
+    const std::string fallback = english.toStdString();
+    return QString::fromStdString(std::string{dp::tr(key, fallback)});
 }
 
 void DragonPerchKcm::noteChange()

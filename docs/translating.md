@@ -59,7 +59,7 @@ which is also what makes the fallback work without an English catalogue to insta
 | `src/win/tray.cpp`, `src/linux/tray.cpp` | The tray menus |
 | `shell/windows/Strings.cs` | The same catalogue, read by the Windows shell |
 | `shell/windows/TrayMenu.cs`, `SettingsWindow.xaml.cs` | The Fluent menu and settings window |
-| `kcm/` | The KDE settings module — not yet translated |
+| `kcm/` | The KDE settings module, through `kcm.text(id, english)` in its QML |
 
 The Windows settings window translates the sentence already in its markup rather than
 carrying a second copy of the English in the code: `Strings.Get("settings.pets",
@@ -68,5 +68,10 @@ leaves the element exactly as the markup wrote it.
 
 Which language is chosen is asked of the operating system by each program, because the core
 is not allowed to: `GetUserPreferredUILanguages` on Windows, `LC_ALL` / `LC_MESSAGES` /
-`LANG` on Linux, in that order of preference. `dragonperch.log` says which catalogue was
+`LANG` on Linux in that order of preference, `CultureInfo.CurrentUICulture` in the Windows
+shell and `QLocale::system().uiLanguages()` in the settings module.
+
+Not the locale, on either platform: the locale is what a number looks like and the UI
+language is what the words are, and both systems let them differ. `LC_ALL=C` with
+`LANG=ja_JP.UTF-8` correctly means English, and was checked. `dragonperch.log` says which catalogue was
 loaded and how many strings it had.

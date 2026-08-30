@@ -4,6 +4,7 @@
 #include "dragonperch/text.hpp"
 #include "errno_text.hpp"
 #include "log.hpp"
+#include "paths.hpp"
 
 #include <cstdlib>
 #include <string>
@@ -37,13 +38,6 @@ std::filesystem::path data_home()
         return {};
     }();
     return cached;
-}
-
-std::filesystem::path executable_directory()
-{
-    std::error_code failed;
-    const std::filesystem::path self = std::filesystem::read_symlink("/proc/self/exe", failed);
-    return failed ? std::filesystem::current_path() : self.parent_path();
 }
 
 /// One call on KWin's scripting interface. Everything is a fire-and-forget request whose
