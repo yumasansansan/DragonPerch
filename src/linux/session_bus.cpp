@@ -2,9 +2,9 @@
 #include "session_bus.hpp"
 
 #include "dragonperch/text.hpp"
+#include "errno_text.hpp"
 #include "log.hpp"
 
-#include <cstring>
 #include <stdexcept>
 
 #include <systemd/sd-bus.h>
@@ -19,7 +19,7 @@ SessionBus::~SessionBus()
 void SessionBus::open()
 {
     if (const int failed = sd_bus_open_user(&bus_); failed < 0) {
-        throw std::runtime_error(cat("cannot reach the session bus: ", std::strerror(-failed)));
+        throw std::runtime_error(cat("cannot reach the session bus: ", errno_text(-failed)));
     }
 }
 
@@ -28,7 +28,7 @@ void SessionBus::request_name(const char* name)
     if (const int failed = sd_bus_request_name(bus_, name, 0); failed < 0) {
         throw std::runtime_error(cat("cannot claim ", name,
                                      " -- another DragonPerch is probably already running: ",
-                                     std::strerror(-failed)));
+                                     errno_text(-failed)));
     }
 }
 
@@ -38,7 +38,7 @@ void SessionBus::add_object(const char* path, const char* interface, const sd_bu
     sd_bus_slot* slot = nullptr;
     if (const int failed = sd_bus_add_object_vtable(bus_, &slot, path, interface, vtable, userdata);
         failed < 0) {
-        throw std::runtime_error(cat("cannot publish ", path, ": ", std::strerror(-failed)));
+        throw std::runtime_error(cat("cannot publish ", path, ": ", errno_text(-failed)));
     }
     slots_.push_back(slot);
 }
@@ -48,7 +48,7 @@ void SessionBus::add_match(const char* rule,
 {
     sd_bus_slot* slot = nullptr;
     if (const int failed = sd_bus_add_match(bus_, &slot, rule, handler, userdata); failed < 0) {
-        throw std::runtime_error(cat("cannot watch for ", rule, ": ", std::strerror(-failed)));
+        throw std::runtime_error(cat("cannot watch for ", rule, ": ", errno_text(-failed)));
     }
     slots_.push_back(slot);
 }
@@ -67,7 +67,7 @@ void SessionBus::run()
     while (!stopping_.load(std::memory_order_relaxed)) {
         const int processed = sd_bus_process(bus_, nullptr);
         if (processed < 0) {
-            log_line(cat("session bus error: ", std::strerror(-processed)));
+            log_line(cat("session bus error: ", errno_text(-processed)));
             return;
         }
         if (processed > 0) {
@@ -78,7 +78,7 @@ void SessionBus::run()
         // A timeout rather than an indefinite wait, so that stopping does not depend on
         // somebody sending one last message to wake this thread up.
         if (const int failed = sd_bus_wait(bus_, 200000); failed < 0) {
-            log_line(cat("session bus wait failed: ", std::strerror(-failed)));
+            log_line(cat("session bus wait failed: ", errno_text(-failed)));
             return;
         }
     }

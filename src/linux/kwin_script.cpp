@@ -2,10 +2,10 @@
 #include "kwin_script.hpp"
 
 #include "dragonperch/text.hpp"
+#include "errno_text.hpp"
 #include "log.hpp"
 
 #include <cstdlib>
-#include <cstring>
 #include <string>
 #include <system_error>
 
@@ -19,13 +19,24 @@ constexpr const char* relative = "kwin/scripts/dragonperch-geometry/contents/cod
 
 std::filesystem::path data_home()
 {
-    if (const char* set = std::getenv("XDG_DATA_HOME"); set != nullptr && *set != '\0') {
-        return set;
-    }
-    if (const char* home = std::getenv("HOME"); home != nullptr && *home != '\0') {
-        return std::filesystem::path{home} / ".local/share";
-    }
-    return {};
+    // Read once, behind an initialiser the standard already guarantees is thread safe,
+    // rather than on every call. There is no thread-safe getenv -- the check is right and has
+    // no replacement to offer, so the honest answer is to narrow the window instead of
+    // pretending it is not there. Nothing in this process writes the environment, and this
+    // does run with the session bus worker alive: ask_kwin_for_a_report() runs from the
+    // line just after SessionBus::start().
+    static const std::filesystem::path cached = []() -> std::filesystem::path {
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        if (const char* set = std::getenv("XDG_DATA_HOME"); set != nullptr && *set != '\0') {
+            return set;
+        }
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        if (const char* dir = std::getenv("HOME"); dir != nullptr && *dir != '\0') {
+            return std::filesystem::path{dir} / ".local/share";
+        }
+        return {};
+    }();
+    return cached;
 }
 
 std::filesystem::path executable_directory()
@@ -60,7 +71,7 @@ bool call(sd_bus* bus, const char* method, const char* signature, const char* fi
 
     if (failed < 0) {
         log_line(cat("kwin: ", method, " failed: ",
-                     error.message != nullptr ? error.message : std::strerror(-failed)));
+                     error.message != nullptr ? error.message : errno_text(-failed)));
     }
 
     sd_bus_error_free(&error);

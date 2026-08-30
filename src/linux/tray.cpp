@@ -2,12 +2,12 @@
 #include "tray.hpp"
 
 #include "dragonperch/text.hpp"
+#include "errno_text.hpp"
 #include "log.hpp"
 #include "png.hpp"
 #include "session_bus.hpp"
 
 #include <cstddef>
-#include <cstring>
 #include <filesystem>
 #include <string_view>
 #include <system_error>
@@ -623,7 +623,7 @@ bool TrayIcon::register_with_watcher()
 
     if (failed < 0) {
         log_line(cat("tray: no status notifier watcher (",
-                     error.message != nullptr ? error.message : std::strerror(-failed),
+                     error.message != nullptr ? error.message : errno_text(-failed),
                      "). No icon; use the control interface or Ctrl+C."));
     }
 

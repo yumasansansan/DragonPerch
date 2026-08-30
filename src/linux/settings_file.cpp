@@ -14,13 +14,24 @@ namespace {
 
 std::filesystem::path config_home()
 {
-    if (const char* set = std::getenv("XDG_CONFIG_HOME"); set != nullptr && *set != 0) {
-        return set;
-    }
-    if (const char* home = std::getenv("HOME"); home != nullptr && *home != 0) {
-        return std::filesystem::path{home} / ".config";
-    }
-    return {};
+    // Read once, behind an initialiser the standard already guarantees is thread safe,
+    // rather than on every call. There is no thread-safe getenv -- the check is right and has
+    // no replacement to offer, so the honest answer is to narrow the window instead of
+    // pretending it is not there. Nothing in this process writes the environment, and this
+    // does run with the session bus worker alive: the settings are re-read on the fly
+    // whenever the file changes.
+    static const std::filesystem::path cached = []() -> std::filesystem::path {
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        if (const char* set = std::getenv("XDG_CONFIG_HOME"); set != nullptr && *set != 0) {
+            return set;
+        }
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        if (const char* dir = std::getenv("HOME"); dir != nullptr && *dir != 0) {
+            return std::filesystem::path{dir} / ".config";
+        }
+        return {};
+    }();
+    return cached;
 }
 
 } // namespace

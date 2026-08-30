@@ -17,7 +17,10 @@ struct FileCloser {
     void operator()(std::FILE* file) const noexcept
     {
         if (file != nullptr) {
-            std::fclose(file);
+            // Discarded deliberately, and cast to say so. The file was opened for reading, so
+            // there are no buffered writes left to fail on the way out, and this runs in a
+            // noexcept destructor with nowhere to report a failure to in any case.
+            static_cast<void>(std::fclose(file));
         }
     }
 };
