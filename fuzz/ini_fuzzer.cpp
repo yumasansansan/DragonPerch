@@ -29,6 +29,9 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
                 (void)section.find(entry.key);
             }
         }
+    // Swallowing it is the point: a refusal is the documented behaviour, and what this
+    // target watches for is everything else.
+    // NOLINTNEXTLINE(bugprone-empty-catch)
     } catch (const std::exception&) {
         // A refusal, which is the documented behaviour.
     }

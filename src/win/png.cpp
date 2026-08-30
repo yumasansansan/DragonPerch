@@ -48,7 +48,7 @@ dp::DecodedImage decode_image(const std::filesystem::path& file)
     const UINT stride = width * 4;
     dp::DecodedImage image;
     image.size = PixelSize{static_cast<int>(width), static_cast<int>(height)};
-    image.pixels.resize(static_cast<std::size_t>(stride) * height);
+    image.pixels.resize(static_cast<std::size_t>(stride) * static_cast<std::size_t>(height));
 
     check(converter->CopyPixels(nullptr, stride, static_cast<UINT>(image.pixels.size()),
                                 reinterpret_cast<BYTE*>(image.pixels.data())),

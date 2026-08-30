@@ -191,7 +191,8 @@ void GlesRenderer::build_program()
 int GlesRenderer::register_atlas(std::span<const std::byte> premultiplied_bgra, PixelSize size)
 {
     if (size.width <= 0 || size.height <= 0
-        || premultiplied_bgra.size() < static_cast<std::size_t>(size.width) * size.height * 4) {
+        || premultiplied_bgra.size()
+               < static_cast<std::size_t>(size.width) * static_cast<std::size_t>(size.height) * 4) {
         throw std::runtime_error("atlas is smaller than the size it claims");
     }
     if (overlays_.empty()) {

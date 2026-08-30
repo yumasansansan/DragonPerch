@@ -33,6 +33,9 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
 
     try {
         (void)dp::parse_atlas_filename(text);
+    // Swallowing it is the point: a refusal is the documented behaviour, and what this
+    // target watches for is everything else.
+    // NOLINTNEXTLINE(bugprone-empty-catch)
     } catch (const std::exception&) {
     }
 
@@ -66,6 +69,9 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
                 }
             }
         }
+    // Swallowing it is the point: a refusal is the documented behaviour, and what this
+    // target watches for is everything else.
+    // NOLINTNEXTLINE(bugprone-empty-catch)
     } catch (const std::exception&) {
         // A refusal, which is the documented behaviour for anything malformed.
     }

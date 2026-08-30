@@ -22,8 +22,8 @@
 # work with a separate discussion.
 #
 # The seven that first line found: one real bug (two_places rounded with the
-# (x + 0.5)-truncated idiom, which lands a unit high just below a .5 boundary), one
-# platform artefact excluded below, and five from a check that is famously noisy.
+# (x + 0.5)-truncated idiom, which lands a unit high just below a .5 boundary), and six
+# excluded below with reasons.
 
 Checks: >
   -*,
@@ -34,23 +34,42 @@ Checks: >
   performance-*,
   portability-*,
   -bugprone-easily-swappable-parameters,
-  -bugprone-exception-escape
+  -bugprone-exception-escape,
+  -performance-enum-size,
+  -portability-avoid-pragma-once
 
+# Four exclusions, each for its own reason. The families they are in stay on, because the
+# other checks in them are worth having.
+#
 # bugprone-easily-swappable-parameters is an API-shape opinion, not a bug finder: it fires
 # on any function taking two adjacent parameters of the same type, of which a geometry
 # library has rather a lot.
 #
-# bugprone-exception-escape is excluded for a narrower reason and it is worth writing down,
-# because the check is otherwise a good one. It fires on SpritePack's implicit move
-# constructor, through std::map's -- but only with MSVC's standard library, whose map move
-# allocates a sentinel node and can therefore throw bad_array_new_length. libstdc++'s does
-# not. So the finding is a property of one implementation of the standard library rather
-# than of this code, and there is nothing to change in response to it.
+# bugprone-exception-escape fires on SpritePack's implicit move constructor, through
+# std::map's -- but only with MSVC's standard library, whose map move allocates a sentinel
+# node and can therefore throw bad_array_new_length. libstdc++'s does not. The finding is a
+# property of one implementation of the standard library, not of this code.
+#
+# performance-enum-size wants EdgeKind and PetState to be std::uint8_t. Measured before
+# deciding, and the answer is that it changes nothing: the enums do shrink from 4 bytes to
+# 1, and sizeof(WalkableEdge) stays 32 and sizeof(Pet) stays 80, because padding absorbs
+# all of it. A change with no effect is worse than no change; it looks like it did
+# something.
+#
+# portability-avoid-pragma-once wants include guards. #pragma once is supported by every
+# compiler this project targets and by every one it plausibly could; the check exists for
+# toolchains that are not among them. Twenty-five headers would grow three lines each to
+# satisfy a portability concern this project does not have.
 
 WarningsAsErrors: '*'
 
-# Ours only. Everything under _deps/ is Catch2, and the Windows SDK headers turn up
-# through win_headers.hpp; neither is this project's to fix.
-HeaderFilterRegex: '.*/(src|fuzz)/.*'
+# Ours only. Everything under _deps/ is Catch2, and the Windows SDK headers arrive through
+# win_headers.hpp; neither is this project's to fix.
+#
+# Both separators in the class, because clang-tidy prints the path the compiler was given.
+# On Windows that is `src/core\dragonperch\geometry.hpp`, mixed, and a pattern with only
+# `/` in it silently matches nothing -- which is how a local run of this file reported no
+# findings at all while CI reported eleven.
+HeaderFilterRegex: '.*(src|fuzz)[/\\].*'
 
 FormatStyle: none

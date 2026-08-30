@@ -61,6 +61,9 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
         if (image.pixels.size() != expected) {
             std::abort();
         }
+    // Swallowing it is the point: a refusal is the documented behaviour, and what this
+    // target watches for is everything else.
+    // NOLINTNEXTLINE(bugprone-empty-catch)
     } catch (const std::exception&) {
         // A refusal, which is what the header promises for anything it cannot read.
     }

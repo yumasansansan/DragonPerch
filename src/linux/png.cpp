@@ -107,12 +107,13 @@ dp::DecodedImage decode_image(const std::filesystem::path& file)
     }
 
     image.size = PixelSize{width, height};
-    image.pixels.resize(static_cast<std::size_t>(width) * height * 4);
+    image.pixels.resize(static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4);
 
     rows.resize(static_cast<std::size_t>(height));
     for (int y = 0; y < height; ++y) {
-        rows[static_cast<std::size_t>(y)] =
-            reinterpret_cast<png_bytep>(image.pixels.data()) + static_cast<std::size_t>(y) * width * 4;
+        rows[static_cast<std::size_t>(y)] = reinterpret_cast<png_bytep>(image.pixels.data())
+                                            + static_cast<std::size_t>(y)
+                                                  * static_cast<std::size_t>(width) * 4;
     }
 
     png_read_image(reader.png, rows.data());
