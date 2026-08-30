@@ -41,7 +41,10 @@ KCM.SimpleKCM {
                 QQC2.CheckBox {
                     // Capitalised for the eye only; what is saved is the pack id.
                     text: modelData.charAt(0).toUpperCase() + modelData.slice(1)
-                    checked: kcm.wantsMascot(modelData)
+                    // kcm.revision is read so the binding has something to depend on;
+                    // see the property's own comment. Without it, Defaults moved the
+                    // setting and left the tick behind.
+                    checked: kcm.revision, kcm.wantsMascot(modelData)
                     onToggled: kcm.setMascotWanted(modelData, checked)
                 }
             }
@@ -118,7 +121,7 @@ KCM.SimpleKCM {
 
                 QQC2.CheckBox {
                     text: modelData
-                    checked: kcm.wantsOutput(modelData)
+                    checked: kcm.revision, kcm.wantsOutput(modelData)
                     onToggled: kcm.setOutputWanted(modelData, checked)
                 }
             }

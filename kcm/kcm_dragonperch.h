@@ -31,6 +31,14 @@ class DragonPerchKcm : public KQuickConfigModule
     Q_PROPERTY(bool pauseForFullscreen READ pauseForFullscreen WRITE setPauseForFullscreen
                    NOTIFY settingsChanged)
 
+    /// Bumped whenever anything below changes, and read by the tick boxes.
+    ///
+    /// They ask wantsMascot and wantsOutput, and a method call is not something QML can
+    /// watch: a binding that only calls one is evaluated once and never again. Pressing
+    /// Defaults changed the answer and left every tick exactly where it was. Reading this
+    /// property in the same binding gives it something to depend on.
+    Q_PROPERTY(int revision READ revision NOTIFY settingsChanged)
+
     /// What is installed, and what is on the screen. Neither is a setting; both are what
     /// the settings are about.
     Q_PROPERTY(QStringList installedMascots READ installedMascots CONSTANT)
@@ -52,6 +60,8 @@ public:
     void setWalkSpeed(double value);
     void setIdleInterval(double value);
     void setPauseForFullscreen(bool value);
+
+    [[nodiscard]] int revision() const { return revision_; }
 
     [[nodiscard]] QStringList installedMascots() const { return installedMascots_; }
     [[nodiscard]] QStringList knownOutputs() const { return knownOutputs_; }
@@ -76,6 +86,7 @@ private:
 
     dp::Settings settings_;
     dp::Settings saved_;
+    int revision_ = 0;
     QStringList installedMascots_;
     QStringList knownOutputs_;
 };

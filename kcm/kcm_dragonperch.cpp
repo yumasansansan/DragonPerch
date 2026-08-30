@@ -141,6 +141,7 @@ void DragonPerchKcm::load()
 {
     settings_ = dp::wl::load_settings();
     saved_ = settings_;
+    ++revision_;
     setNeedsSave(false);
     setRepresentsDefaults(settings_ == dp::Settings{});
     Q_EMIT settingsChanged();
@@ -181,6 +182,7 @@ bool DragonPerchKcm::daemonRunning() const
 
 void DragonPerchKcm::noteChange()
 {
+    ++revision_;
     setNeedsSave(!(settings_ == saved_));
     setRepresentsDefaults(settings_ == dp::Settings{});
     Q_EMIT settingsChanged();

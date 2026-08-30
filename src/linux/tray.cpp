@@ -61,9 +61,9 @@ bool settings_available()
                 continue;
             }
 
-            std::error_code ignored;
-            if (std::filesystem::exists(std::filesystem::path{directory} / "kcmshell6",
-                                        ignored)) {
+            // Executable, not merely present. A directory called kcmshell6 exists too.
+            const std::filesystem::path candidate = std::filesystem::path{directory} / "kcmshell6";
+            if (::access(candidate.c_str(), X_OK) == 0) {
                 return true;
             }
         }
@@ -91,7 +91,11 @@ void open_settings()
 
     if (middle == 0) {
         if (fork() == 0) {
-            execlp("kcmshell6", "kcmshell6", "kcm_dragonperch", nullptr);
+            // The cast is not decoration. execlp reads its arguments as a variadic list
+            // terminated by a null *pointer*, and a bare nullptr is a std::nullptr_t --
+            // which happens to be passed the same way on the platforms this builds for and
+            // is not required to be.
+            execlp("kcmshell6", "kcmshell6", "kcm_dragonperch", static_cast<char*>(nullptr));
             _exit(127);
         }
         _exit(0);

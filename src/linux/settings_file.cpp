@@ -86,14 +86,35 @@ bool save_settings(const Settings& settings)
         return false;
     }
 
-    std::ofstream stream(path, std::ios::binary | std::ios::trunc);
-    if (!stream) {
-        return false;
+    // Written beside the real file and moved onto it, rather than opened for truncation.
+    // rename is atomic within a directory, so a reader either sees the old settings or the
+    // new ones; opening the real file and failing part way through -- a full disk is the
+    // ordinary way -- would leave half of one, and the daemon re-reads this file whenever
+    // it is told to.
+    const std::filesystem::path temporary = path.string() + ".new";
+
+    {
+        std::ofstream stream(temporary, std::ios::binary | std::ios::trunc);
+        if (!stream) {
+            return false;
+        }
+
+        const std::string text = write_settings(settings);
+        stream.write(text.data(), static_cast<std::streamsize>(text.size()));
+        stream.close();
+
+        if (!stream) {
+            std::filesystem::remove(temporary, failed);
+            return false;
+        }
     }
 
-    const std::string text = write_settings(settings);
-    stream.write(text.data(), static_cast<std::streamsize>(text.size()));
-    return stream.good();
+    std::filesystem::rename(temporary, path, failed);
+    if (failed) {
+        std::filesystem::remove(temporary, failed);
+        return false;
+    }
+    return true;
 }
 
 } // namespace dp::wl

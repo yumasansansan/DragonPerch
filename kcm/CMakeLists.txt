@@ -7,6 +7,18 @@
 find_package(ECM ${DRAGONPERCH_ECM_MINIMUM} NO_MODULE REQUIRED)
 list(APPEND CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 
+# KDE's install directories, told not to take their values from the CMAKE_INSTALL_* ones.
+#
+# ECM warns once per directory -- thirteen times -- when those are already set, because
+# inheriting them is usually a mistake. They are set here: the project's own top level and
+# src/linux both include GNUInstallDirs long before this directory is reached, and so does
+# find_package(Qt6). The documented way to say "that is not what I meant" is this variable,
+# which makes ECM ignore them rather than copy them.
+#
+# Nothing is lost by it. The two sets are for different things: CMAKE_INSTALL_* is where the
+# daemon and the artwork go, KDE_INSTALL_* is where a plugin and a .desktop file go, and only
+# kcmutils reads the second.
+set(KDE_INSTALL_DIRS_NO_CMAKE_VARIABLES TRUE)
 include(KDEInstallDirs)
 include(KDECMakeSettings)
 

@@ -9,329 +9,58 @@ drag the window out from under them. C++23, GPU rendering, as close to the platf
 practical.
 
 > Status: **Windows works.** Konqi, Katie and Kori walk on your title bars and taskbar,
-> drawn on the GPU from KDE's own artwork; clicks pass through them, and they get out of the
-> way of full-screen apps.
+> drawn on the GPU from KDE's own artwork; clicks pass through them, they get out of the way
+> of full-screen apps, and there is a Fluent tray menu and settings window.
 >
 > **Linux works too.** The Wayland head draws through EGL on a layer-shell overlay, and a
-> KWin script tells it where the windows are — verified on Plasma 6 under llvmpipe. A tray
-> icon is done and the settings programs are next; see [docs/plan.md](docs/plan.md).
+> KWin script tells it where the windows are — verified on Plasma 6. There is a tray icon
+> and a KDE settings module. What is next is in [the plan](docs/plan.md).
 
----
+## Getting it
 
-## The one thing that shapes the design
+Every build of `main` publishes a rolling **`nightly`** pre-release.
 
-Drawing sprites is easy everywhere. **Finding out where other applications' windows are is
-not**, and on Wayland it is deliberately impossible for a normal client. So the simulation
-never learns what an `HWND` or a `wl_surface` is: every backend flattens whatever it can
-discover into a list of horizontal line segments, and the physics walks those.
+| You have | Do |
+|---|---|
+| Debian or Ubuntu | `sudo apt install ./dragonperch_*.deb` |
+| Any other Linux | unpack the `.tar.gz` anywhere and run `usr/bin/dragonperch-wl` |
+| Windows | unpack the `.zip` and run `dragonperch.exe` |
 
-| | Overlay surface | Other windows' geometry |
-|---|---|---|
-| Windows | DirectComposition on a layered host window | `EnumWindows` + DWM |
-| Wayland / KWin (Plasma) | `zwlr_layer_shell_v1` | a **KWin script** over D-Bus |
-| Wayland / wlroots | `zwlr_layer_shell_v1` | `swaymsg` / `hyprctl` |
-| Wayland / GNOME | ✘ no layer shell | ✘ — would need a Shell extension |
-
-X11 is deliberately not a target: it would need a second world provider, a worse frame
-clock, and a third platform to carry through every feature from here on, for a session type
-Plasma is retiring. See [docs/plan.md](docs/plan.md) §13.1.
-
-## Building
-
-CMake is the single source of truth. The Visual Studio solution is generated from it.
-
-```bash
-cmake --preset windows-x64
-```
-
-That writes `build/windows-x64/DragonPerch.slnx`, which opens and debugs in Visual Studio
-2026 as usual. Project properties changed inside VS do not persist — CMake regenerates
-them — so build settings belong in `CMakeLists.txt`.
-
-```bash
-cmake --build --preset windows-x64-debug
-```
-
-On Linux, the protocol definitions are submodules and the head has dependencies:
-
-```bash
-git submodule update --init --depth 1
-```
-
-```bash
-sudo apt install clang-22 lld-22 cmake ninja-build libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev pkg-config
-```
-
-```bash
-cmake --preset linux-x64 && cmake --build --preset linux-x64-debug
-```
-
-Use the preset rather than a hand-written `cmake -G Ninja`, and note the environment
-variable for the C compiler is `CC`, not `C` — set the wrong one and CMake silently picks
-whatever `cc` happens to be while using Clang for C++.
-
-**Clang and LLD are build dependencies, and the newest ones installed are the ones used.**
-The Linux preset points at [cmake/ClangLatest.cmake](cmake/ClangLatest.cmake), which walks
-`clang++-19` … `clang++-40` and takes the highest that is present, then also asks an
-unsuffixed `clang++` its version in case that is newer still. `clang-22` in the line above
-is a version that is known to work, not a requirement: install 23 instead and the build
-picks it up with no edit anywhere. Ubuntu itself has no `clang-23`, so the newest ones come
-from [apt.llvm.org](https://apt.llvm.org/) — CI adds that archive and takes the highest
-numbered `llvm-toolchain-<codename>-NN` suite it offers, which is one way to get them.
-
-Plain `clang` is deliberately not what gets used. On Ubuntu 26.04 the unsuffixed name is
-21 while 22 is installed beside it, so asking for it would silently build with the older
-compiler — which is the thing this is here to prevent, not a portability nicety to fall
-back on.
-
-The linker is `lld` **of the compiler's own version**, derived rather than written down,
-and a hard error if it is missing. Release builds are ThinLTO, and the bitcode a compiler
-emits is only guaranteed readable by its own version's linker; pairing Clang 22 with an
-LLD from 21 is a link failure at best and a silently non-LTO Release at worst. There is no
-fall back to GNU ld.
-
-`external/` holds `wayland-protocols` and `wlr-protocols` as submodules rather than copies
-of the two XML files, so that where each came from is recorded and updating is one command.
-`wayland-scanner` turns them into C at build time — a Wayland protocol is a data file, not
-a library, so there is nothing to link against.
-
-Ninja is the generator on Linux because there is no solution to open there -- it is a build
-executor, the counterpart to MSBuild, and CMake writes its input. On Windows the Visual
-Studio generator does that job, so there is deliberately no Ninja preset for Windows.
-
-### Compiler and linker flags
-
-All of them live in [cmake/CompilerOptions.cmake](cmake/CompilerOptions.cmake), on one
-interface target that every real target links. Nothing else in the tree sets a flag.
-
-Release-only flags go inside `$<$<CONFIG:Release>:...>`. That is not stylistic: the Visual
-Studio and Ninja Multi-Config generators pick the configuration at *build* time, so testing
-`CMAKE_BUILD_TYPE` at configure time silently does nothing.
-
-MSVC splits its flags across two tools, and a linker flag handed to the compiler is ignored
-rather than rejected:
-
-| | tool | set with |
-|---|---|---|
-| `/O2 /Oi /Ot /Gy /Ob3 /Gw /GL` | `cl.exe` | `target_compile_options` |
-| `/LTCG /OPT:REF /OPT:ICF` | `link.exe` | `target_link_options` |
-
-`/GL` and `/LTCG` are a pair — one without the other loses the optimisation — so link-time
-optimisation is expressed as `CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE` instead of raw
-flags, which keeps the two halves together and gives `-flto` on Clang for free.
-
-## Tests
-
-```bash
-ctest --test-dir build/windows-x64 --build-config Debug --output-on-failure
-```
-
-The simulation takes a world snapshot and a delta time and produces sprite positions, and a
-fake world is just a list of line segments — so the physics is tested with no compositor,
-no windows and no platform involved at all. Occlusion clipping is tested the same way: it
-is rectangles and a stacking order, and it is shared by both backends.
-
-## Trying it
-
-```bash
-./build/windows-x64/src/win/Debug/dragonperch.exe --probe-composition --hold
-```
-
-```bash
-./build/windows-x64/src/win/Debug/dragonperch.exe --dump-world --hold
-```
-
-```bash
-./build/windows-x64/src/win/Debug/dragonperch.exe --pets 6
-```
-
-```bash
-./build/windows-x64/src/win/Debug/dragonperch.exe --pause
-./build/windows-x64/src/win/Debug/dragonperch.exe --stop
-```
-
-On Linux the geometry has to come from the compositor, so install the KWin script first:
+On Linux, install the KWin script once so the dragons can find your windows:
 
 ```bash
 ./kwin/install.sh
 ```
 
-```bash
-./build/linux-x64/src/linux/Debug/dragonperch-wl --dump-world --hold
-```
+Then enable it in **System Settings → Window Management → KWin Scripts**. Installing the
+package deliberately does not enable it and does not start anything at login.
+
+Windows Defender may flag the download. It is a false positive and
+[there is a page about why](docs/packages.md#windows-defender-flags-the-download).
+
+## Using it
+
+Right-click the tray icon: **Pause**, **Settings**, **Quit**. That is the whole interface.
 
 ```bash
-./build/linux-x64/src/linux/Debug/dragonperch-wl --pets 6
+dragonperch --pets 6      # six of each mascot
+dragonperch --stop
 ```
 
-The first draws an opaque quad, a half-transparent one overlapping it, and an outline,
-through DirectComposition on a click-through window. The second prints the walkable edges
-and reprints them whenever the desktop changes — drag a window and watch the numbers follow
-its title bar. The third is the app: it loads every mascot in `assets/` and shares the pets
-out between them, so that is six dragons, two of each.
+[Running it](docs/running.md) has the rest of the command line and the diagnostic modes.
+[Settings](docs/settings.md) has the configuration file and the two settings programs.
 
-**The diagnostic modes are Debug-only.** `--probe-composition`, `--dump-world`,
-`--self-test` and `--export-placeholder` are compiled out of a release build, which is what
-the packages and the nightlies are. They are not dead weight — every hard bug in this
-project was found by one of them — so the switch is separate from the configuration:
+## Reading about it
 
-```bash
-cmake --preset windows-x64 -D DRAGONPERCH_DIAGNOSTICS=ON
-```
-
-That gives a *release* binary with the diagnostics in, which is what to build when a
-shipped build misbehaves. A Debug build has different timing and a different Direct2D
-layer, so it answers a different question.
-
-There is a tray icon on both platforms, and it is the ordinary way to stop DragonPerch:
-right-click it for Pause and Quit. On Windows it is `Shell_NotifyIcon`; on Linux it is
-StatusNotifierItem, where the menu is *described* rather than drawn — Plasma builds it from
-the labels, in Breeze, following the user's theme with no code on our side.
-
-The menu the two platforms draw is meant to be the native one, and on Windows that now
-means a real WinUI 3 `MenuFlyout` rather than something shaped like one. It lives in
-`DragonPerch.Shell.exe`, a separate program in `shell/windows/`, for a reason that was
-measured rather than assumed: initialising XAML costs a process about 50 MB of private
-bytes permanently, and closing it again returns none of it (docs/plan.md §13.3 has the
-numbers). So the toolkit goes somewhere it can be started on demand and killed without the
-pets noticing, and `dragonperch.exe` stays a 2 MB Win32 process with no App SDK anywhere
-near it.
-
-The daemon starts the shell when the pointer arrives over the tray icon, which buys the
-couple of hundred milliseconds a cold WinUI process needs before the button is pressed. If
-the shell is not installed, has not finished starting, or has been killed, the daemon shows
-its own `TrackPopupMenuEx` menu instead — it never waits for one, because a menu that
-arrives half a second after the click reads as a hang. **The shell is optional in the
-strongest sense: the daemon runs, and is fully usable, with no trace of it on the disk.**
-
-Building it needs the .NET 10 SDK and is not part of the CMake build, because CMake cannot
-sensibly build a WinUI project:
-
-```
-dotnet publish shell/windows/DragonPerch.Shell.csproj -c Release -o <somewhere>
-```
-
-Copy the result next to `dragonperch.exe`. It is self-contained and compiled with Native
-AOT: about 62 MB once the linker's symbols are dropped, and a cold start of roughly 70 ms
-measured through the tray icon. Still large enough that CI ships it as its own zip rather
-than in with the pets.
-
-`--stop`, `--pause`, `--resume` and `--reload` all go through one control interface — a
-message-only window answering `WM_COPYDATA` on Windows, `org.dragonperch.Control` on the
-session bus on Linux. Neither needs a thread of its own: Windows already pumps messages for
-the overlay windows, and Linux already processes the bus the KWin reports arrive on. The
-tray icon and the settings program will be two more callers of the same four commands.
-
-`--reload` re-reads the settings file, which is INI and lives at
-`~/.config/dragonperch/dragonperchrc` or `%APPDATA%\DragonPerch\dragonperchrc`.
-On Windows the tray menu's **Settings** opens a page that writes it and then sends that
-same `reload`, so a change takes effect while the window is still open; on Linux it is a
-file to edit by hand until the KCM is written. A line that cannot be
-read is ignored and keeps its default, rather than the whole file being refused. Changing a
-speed is applied to the pets where they stand, while changing which mascots there are
-spawns them again -- there is no other way to do that one.
-
-`--pets N` means how many of *each* mascot and overrides `pets-per-mascot` in the file. The
-default is one each, so with the three mascots that ship it is three dragons.
-
-Pausing stops the simulation and stops drawing; the overlays stay exactly as they are,
-showing the last frame. Rebuilding them on resume would be a second path through the window
-and surface code, which is the part of this program that has been wrong most often.
-
-`--stop` in particular is there because Ctrl+C on Windows nearly works and cannot be relied
-on. This is a
-GUI-subsystem binary, so the shell does not wait for it and the prompt comes straight back;
-whether the Ctrl+C typed at that prompt becomes a console event is then up to the shell.
-`cmd` sends one, PowerShell 7 does not — PSReadLine handles the key itself. Closing the
-console works too. On Linux, Ctrl+C works.
-
-`--dump-world` on Linux is the same idea and the thing to run first on a new machine: it
-prints what KWin says and starts no renderer at all, so if the numbers follow a dragged
-window then the hard half works and anything still wrong on screen belongs to the renderer.
-
-Diagnostics go to stdout **and** to `dragonperch.log` beside the executable, because a
-GUI-subsystem binary cannot rely on having a console.
-
-## Packages
-
-Every build of `main` publishes a rolling **`nightly`** pre-release, and every CI run
-attaches the same files as artifacts for fourteen days. Both come from the one set of
-`install()` rules, so what is tested is what is shipped.
-
-| File | What to do with it |
+| | |
 |---|---|
-| `dragonperch_0.1.0~20260828.1830.g462431a_amd64.deb` | `sudo apt install ./dragonperch_*.deb` |
-| `dragonperch_0.1.0~…_x86_64.tar.gz` | unpack anywhere and run `usr/bin/dragonperch-wl` |
-| `dragonperch_0.1.0~…_x64.zip` | unpack and run `dragonperch.exe` |
-
-Every nightly carries its build time and commit in the version, so `apt` upgrades one to
-the next rather than refusing the newer file as a downgrade. The **tilde is what makes that
-work**: Debian sorts `~` before everything, including nothing at all, so
-
-```
-0.1.0~20260828.1830.g462431a  <  0.1.0~20260829.0300.gdeadbee  <  0.1.0
-```
-
-— nightlies ascend, and a real `0.1.0` supersedes every nightly of it. `dragonperch
---version` prints exactly what is installed.
-
-**The downloaded file's name will have a `.` where that `~` should be.** GitHub rewrites
-anything outside `[A-Za-z0-9._-]` in a release asset's name, so `0.1.0~2026…` arrives as
-`0.1.0.2026…`. It makes no difference: `dpkg` and `apt` read the version from the
-package's control field, and the file name is a convention, not data. Check for yourself —
-
-```bash
-dpkg-deb -f dragonperch_*.deb Version
-```
-
-— and CI prints the same field on every run, alongside a `dpkg --compare-versions` that
-fails the build if it ever stops sorting before the release version.
-
-The artwork is found relative to the executable, so an unpacked tarball works without being
-installed and without an environment variable. Installing the package does **not** enable
-the KWin script and does **not** start anything at login — a program that puts dragons on
-somebody's screen because a dependency pulled it in is a program that gets uninstalled.
-
-### Windows Defender flags the download
-
-`Trojan:Win32/Wacatac.B!ml` — the `!ml` is the tell: a machine-learning guess, not a
-signature match. It is a false positive, and a predictable one. The binary is unsigned,
-freshly built, downloaded by nobody yet, and what it does for a living is enumerate other
-applications' windows, install a system-wide event hook, and keep a transparent
-always-on-top window over the whole screen. That is also roughly what a screen-scraper does.
-
-There is no trick that makes this go away honestly, and anything that did would be a trick
-worth being suspicious of. The two real answers are:
-
-- **report it** at <https://www.microsoft.com/en-us/wdsi/filesubmission> as a false
-  positive. This works, and it is worth doing — it is how the file stops being flagged for
-  everybody rather than just for you.
-- **sign it.** A code-signing certificate is what gives a binary an identity and lets
-  reputation accumulate against it. Until then every new build starts from zero, and
-  SmartScreen will warn about it whether or not Defender does.
-
-Build it yourself and the problem does not arise: a locally compiled binary is not a
-download.
-
-To build them yourself:
-
-```bash
-cmake --build --preset linux-x64-release && cd build/linux-x64 && cpack -C Release
-```
-
-## Layout
-
-```
-src/core/     portable. No OS headers — CI builds this alone to keep it that way.
-src/win/      Windows head: DirectComposition + Direct2D + Win32.
-src/linux/    Linux head: layer-shell + EGL/GL.            (milestone 6)
-kwin/         KWin script. Runs inside the compositor, pushes geometry over D-Bus.
-external/     upstream Wayland protocol XML, as submodules.
-tools/        the sprite-pack generators. Inkscape and Pillow, run by hand, not by CMake.
-packaging/    the .desktop file. Everything else about packaging is cmake/Packaging.cmake.
-assets/       one directory per mascot. CC BY-SA 4.0, not GPL — see assets/README.md.
-docs/plan.md  the plan of record, including findings that cost real time to establish.
-```
+| [How it is put together](docs/design.md) | The one constraint that decided the design, and the source layout |
+| [Running it](docs/running.md) | Command line, tray icon, diagnostics, logs |
+| [Settings](docs/settings.md) | The configuration file and the settings programs |
+| [Packages](docs/packages.md) | What the downloads are, how versions sort, Defender |
+| [Building from source](docs/building.md) | Presets, dependencies, compiler flags, tests |
+| [The fuzz targets](fuzz/README.md) | What is fuzzed and what each target asserts |
+| [The plan of record](docs/plan.md) | What is built, what is next, and findings that cost real time |
 
 ## Licensing
 
@@ -345,5 +74,5 @@ in its `AUTHORS.md`.
 
 [KDE's mascot material](https://community.kde.org/Promo/Material/Mascots) publishes Konqi as
 an SVG and the other two as flat PNGs, which is why there are two generators in `tools/`.
-Neither ships a walk cycle: the animation is made here out of a single pose. `assets/README.md`
-says how.
+Neither ships a walk cycle: the animation is made here out of a single pose.
+[assets/README.md](assets/README.md) says how.
