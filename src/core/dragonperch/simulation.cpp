@@ -257,6 +257,16 @@ void Simulation::update_walking(Pet& pet, double seconds)
     }
 }
 
+namespace {
+
+/// Further down than any desktop goes, and nowhere near far enough to overflow an int.
+///
+/// The same order as the bound the KWin report parser accepts, and for the same reason: a
+/// number that cannot describe a screen has no business being added to.
+constexpr int out_of_the_world = 1'000'000;
+
+} // namespace
+
 void Simulation::update_falling(Pet& pet, double seconds)
 {
     pet.velocity_y_ =
@@ -281,12 +291,22 @@ void Simulation::update_falling(Pet& pet, double seconds)
 
     pet.position_ = target;
 
-    // Fell past the bottom of every output: reappear at the top of a random one.
     const std::span<const OutputInfo> outputs = world_.outputs();
     if (outputs.empty()) {
+        // No output to be recycled onto, so this used to add to y for as long as it was
+        // asked to and stop only at signed overflow. Held at a distance no desktop reaches
+        // instead: the pet is far out of sight either way, and an integer that cannot run
+        // away is one less thing to reason about.
+        //
+        // Falling is not skipped, only bounded. A world with edges and no outputs is an
+        // ordinary thing -- it is how every simulation test builds one, and skipping the
+        // fall broke ten of them -- and it is what the Wayland head looks like for a moment
+        // when every monitor goes away at once.
+        pet.position_.y = std::min(pet.position_.y, out_of_the_world);
         return;
     }
 
+    // Fell past the bottom of every output: reappear at the top of a random one.
     int floor = std::numeric_limits<int>::min();
     for (const OutputInfo& output : outputs) {
         floor = std::max(floor, output.bounds.bottom());

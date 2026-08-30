@@ -53,6 +53,12 @@ endfunction()
 dragonperch_add_fuzzer(ini)
 dragonperch_add_fuzzer(settings)
 dragonperch_add_fuzzer(sprite_pack)
+dragonperch_add_fuzzer(language)
+
+# And the core's own behaviour, which is a different kind of target: the input has already
+# been through a boundary, so what these look for is a wrong answer rather than a crash.
+dragonperch_add_fuzzer(world)
+dragonperch_add_fuzzer(simulation)
 
 # The KWin report, which is Linux-only because the parsing lives in the Wayland head.
 #

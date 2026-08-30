@@ -59,6 +59,34 @@ public:
 
 } // namespace
 
+TEST_CASE("a pet in a world with no outputs does not fall for ever", "[simulation]")
+{
+    // There is no floor to be recycled at when there are no outputs, so falling used to add
+    // to y for as long as it was asked to and stop only at signed overflow. Nothing is drawn
+    // on a desktop with no outputs; standing still is the only bounded answer.
+    //
+    // Reachable for a moment whenever every monitor goes away at once. Found by reading the
+    // fall path while writing the simulation fuzzer, which could not reach it: it needs
+    // every world in a run to have no outputs at all, and libFuzzer never guessed one.
+    const SpritePack pack = placeholder_pack::create(0);
+
+    Simulation simulation;
+    simulation.set_world(WorldSnapshot{1, {}, {}});
+    simulation.spawn(pack, PixelPoint{100, 100});
+
+    for (int i = 0; i < 2000; ++i) {
+        simulation.update(Duration{1.0});
+    }
+
+    REQUIRE(simulation.pets().size() == 1);
+
+    // Still falling, and still somewhere an int can hold. Two thousand seconds at terminal
+    // velocity is 1.8 million pixels; without the bound this would be most of the way to
+    // signed overflow, and a longer run would be all of it.
+    CHECK(simulation.pets()[0].position().y <= 1'000'000);
+    CHECK(simulation.pets()[0].position().x == 100);
+}
+
 TEST_CASE("a falling pet lands on the edge, not near it", "[simulation]")
 {
     const SpritePack pack = placeholder_pack::create(0);

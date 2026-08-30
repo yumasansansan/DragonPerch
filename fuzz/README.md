@@ -79,6 +79,32 @@ So most of this target's value was collected while writing it. What it does from
 keep those two true, and watch the premultiply loop that walks a buffer sized by one number
 and filled by another.
 
+## The three that assert rather than watch
+
+`ini`, `settings`, `sprite_pack`, `kwin_report` and `png` all sit on an input boundary: the
+bytes come from outside and what the target watches for is a crash. Three of them do not.
+
+`language` is a boundary -- anybody may drop a file into `lang/` -- but the interesting part
+is what happens after parsing, so it states the fallback as a property: asked for one id
+with two different English strings, a catalogue either answers with each of them, or answers
+with the same translation twice. There is no third possibility, and stating it that way was
+the second attempt. The first asserted that one particular id was absent from the file, and
+libFuzzer reads the string literals out of the binary and puts them into the input; it found
+`no.such.id.anywhere = ...` in under a minute, and the catalogue had done the right thing
+with it.
+
+`world` and `simulation` are not boundaries at all. Every number in them has already been
+through one, so a crash is not what they are looking for: a wrong answer from `edge_below`
+crashes nothing and puts a dragon on the window behind the one it was standing over, which
+somebody has to notice by eye. They assert the invariants the rest of the core is written
+against -- the sort order the lookups assume, that the edge found is really the highest one
+below the point, that a pet claiming a perch has one that exists, that nothing becomes a NaN
+and nothing runs away.
+
+`simulation` is also the answer to a limit of the unit tests beside it: each of those sets up
+one situation somebody thought of, and every hard bug this simulation has had was a situation
+nobody did.
+
 ## The corpus
 
 Real files, not invented ones: the pack definitions and atlases as shipped, a settings file

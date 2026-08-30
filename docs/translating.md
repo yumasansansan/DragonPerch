@@ -23,8 +23,12 @@ The file goes in `lang/` beside the executable, or `share/dragonperch/lang` when
 the same rule the artwork follows, so an unpacked archive works without being installed.
 
 `ja.ini` is matched for `ja`, `ja-JP`, and anything else that begins `ja-`. Name it
-`pt-BR.ini` when a region needs its own words and `pt.ini` when it does not; the more
+`pt-br.ini` when a region needs its own words and `pt.ini` when it does not; the more
 specific file wins.
+
+**Lower case, and a hyphen.** What the system reports is normalised before the file is
+looked for -- `ja_JP.UTF-8` and `ja-JP` both become `ja-jp` -- so a file called `pt-BR.ini`
+is found on Windows and not on Linux, which is the worse of the two ways to be wrong.
 
 A key nobody has translated falls back to its English on its own. **A partial translation is
 a useful translation** — there is no need to finish the file before it is worth having.
