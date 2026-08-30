@@ -140,13 +140,30 @@ jobs:
         if: matrix.configuration == 'Release'
         working-directory: build/linux-x64
         run: |
-          deb=$(ls *.deb)
-          version=$(dpkg-deb -f "$deb" Version)
-          echo "file name:     $deb"
-          echo "control field: $version"
-          release=${version%%\~*}
-          dpkg --compare-versions "$version" lt "$release"
-          echo "$version sorts before $release, as a nightly of it must"
+          # One package per component now -- dragonperch and dragonperch-kde -- so this
+          # checks each rather than the only one there used to be.
+          for deb in *.deb; do
+            version=$(dpkg-deb -f "$deb" Version)
+            package=$(dpkg-deb -f "$deb" Package)
+            depends=$(dpkg-deb -f "$deb" Depends)
+            echo "$deb"
+            echo "  package:       $package"
+            echo "  control field: $version"
+            echo "  depends:       ${depends:-(none beyond the libraries)}"
+
+            release=${version%%\~*}
+            dpkg --compare-versions "$version" lt "$release"
+            echo "  $version sorts before $release, as a nightly of it must"
+          done
+
+          # And the split itself, because a component that quietly stops being installed
+          # produces a package that is simply empty rather than one that fails.
+          test -f dragonperch_*.deb
+          test -f dragonperch-kde_*.deb
+          dpkg-deb -c dragonperch-kde_*.deb | grep -q kwin/scripts/dragonperch-geometry
+          dpkg-deb -c dragonperch-kde_*.deb | grep -q kcm_dragonperch
+          dpkg-deb -c dragonperch_*.deb | grep -q bin/dragonperch-wl
+          echo "the two packages hold what they should"
 
       - name: Upload the packages
         if: matrix.configuration == 'Release'
@@ -225,6 +242,28 @@ jobs:
           Get-ChildItem -Recurse staging\assets -Directory -Filter source | Remove-Item -Recurse -Force
           $version = (Get-Content build\windows-x64/version.txt -Raw).Trim()
           Compress-Archive staging\* "dist\dragonperch_${version}_x64.zip"
+
+      # The one boundary the Windows daemon exposes, given deliberately hostile input.
+      #
+      # On the sanitized leg, because that is what makes it worth running: an ASan build
+      # turns a read past the end of a WM_COPYDATA payload into a report instead of into
+      # nothing visible. There is no libFuzzer here to do it -- that is a Clang runtime and
+      # this head is built with MSVC, which ships AddressSanitizer and nothing else -- so
+      # this is what answers for the Windows head's own parsing. See fuzz/README.md.
+      #
+      # The shell is started too, so both message windows are hammered rather than one.
+      - name: Throw hostile input at the control interface
+        if: matrix.configuration == 'Release' && matrix.sanitize == 'ON'
+        run: |
+          $rel = 'build\windows-x64\src\win\Release'
+          $daemon = Start-Process ".\$rel\dragonperch.exe" -PassThru -WindowStyle Hidden
+          Start-Sleep -Seconds 6
+
+          try {
+              pwsh -File tools\hostile_ipc.ps1 -Daemon $rel
+          } finally {
+              Stop-Process -Id $daemon.Id -Force -ErrorAction SilentlyContinue
+          }
 
       # The published shell, started once and asked to put a window on the screen.
       #

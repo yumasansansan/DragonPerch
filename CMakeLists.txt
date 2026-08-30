@@ -95,6 +95,7 @@ if(UNIX AND NOT APPLE)
     # unpacked into a home directory still finds it -- see find_sprite_packs.
     install(DIRECTORY assets/
         DESTINATION ${CMAKE_INSTALL_DATADIR}/dragonperch/assets
+        COMPONENT core
         FILES_MATCHING PATTERN "*.ini" PATTERN "*.png"
         PATTERN "source" EXCLUDE)
 
@@ -103,6 +104,7 @@ if(UNIX AND NOT APPLE)
     # nobody has translated is simply absent, and every call site carries its English.
     install(DIRECTORY lang/
         DESTINATION ${CMAKE_INSTALL_DATADIR}/dragonperch/lang
+        COMPONENT core
         FILES_MATCHING PATTERN "*.ini")
 
     # Into KWin's own script directory, so it appears in System Settings -> Window
@@ -110,20 +112,24 @@ if(UNIX AND NOT APPLE)
     # installing it: a package that starts running code inside somebody's compositor
     # without being asked would deserve everything it got.
     install(DIRECTORY kwin/dragonperch-geometry
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/kwin/scripts)
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/kwin/scripts
+        COMPONENT kde)
 
     install(FILES packaging/dragonperch.desktop
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+        COMPONENT core)
 
     # Beside the artwork, because that is where the program looks: the tray sends the icon
     # over D-Bus as pixels, so it has to be found whether or not anything was installed.
     install(FILES packaging/dragonperch.png
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/dragonperch)
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/dragonperch
+        COMPONENT core)
 
     # And into the icon theme as well, so the .desktop entry's Icon=dragonperch resolves
     # and a desktop that would rather use a themed name than our pixels can.
     install(FILES packaging/dragonperch.png
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/64x64/apps)
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/64x64/apps
+        COMPONENT core)
 
     if(DRAGONPERCH_BUILD_KCM)
         add_subdirectory(kcm)

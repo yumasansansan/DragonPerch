@@ -16,6 +16,8 @@ practical.
 > KWin script tells it where the windows are — verified on Plasma 6. There is a tray icon
 > and a KDE settings module. What is next is in [the plan](docs/plan.md).
 
+*[日本語版はこちら](docs/ja/README.md)*
+
 ## Getting it
 
 Every build of `main` publishes a rolling **`nightly`** pre-release.
@@ -23,6 +25,7 @@ Every build of `main` publishes a rolling **`nightly`** pre-release.
 | You have | Do |
 |---|---|
 | Debian or Ubuntu | `sudo apt install ./dragonperch_*.deb` |
+| Plasma, as well | `sudo apt install ./dragonperch-kde_*.deb` |
 | Any other Linux | unpack the `.tar.gz` anywhere and run `usr/bin/dragonperch-wl` |
 | Windows | unpack the `.zip` and run `dragonperch.exe` |
 
@@ -62,6 +65,8 @@ dragonperch --stop
 | [Translating it](docs/translating.md) | One string table, and how to add a language |
 | [The fuzz targets](fuzz/README.md) | What is fuzzed and what each target asserts |
 | [The plan of record](docs/plan.md) | What is built, what is next, and findings that cost real time |
+
+The pages people use rather than change are also in Japanese: [日本語](docs/ja/README.md).
 
 ## Licensing
 

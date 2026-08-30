@@ -89,16 +89,43 @@ function Hammer([string]$class, [string]$label) {
 $log = Join-Path $Daemon "dragonperch.log"
 $before = if (Test-Path $log) { (Get-Item $log).Length } else { 0 }
 
-Write-Host "before:  daemon=$(Alive 'dragonperch')  shell=$(Alive 'DragonPerch.Shell')"
+$daemonBefore = Alive 'dragonperch'
+$shellBefore = Alive 'DragonPerch.Shell'
+Write-Host "before:  daemon=$daemonBefore  shell=$shellBefore"
+
 Write-Host "--- DragonPerch.Control"; Hammer "DragonPerch.Control" "daemon"
 Write-Host "--- DragonPerch.Shell";   Hammer "DragonPerch.Shell" "shell"
 Start-Sleep -Seconds 2
-Write-Host "after:   daemon=$(Alive 'dragonperch')  shell=$(Alive 'DragonPerch.Shell')"
+
+$daemonAfter = Alive 'dragonperch'
+$shellAfter = Alive 'DragonPerch.Shell'
+Write-Host "after:   daemon=$daemonAfter  shell=$shellAfter"
 
 # The number that matters as much as the survival: about 17 MB went in, and the log is
 # capped at sixty printable characters per rejected command. Anything close to the payload
 # size here means a stranger can fill somebody's disk by talking to the tray.
+$grew = 0
 if (Test-Path $log) {
     $grew = (Get-Item $log).Length - $before
     Write-Host ("log grew by {0:N0} bytes against roughly 17 MB sent" -f $grew)
 }
+
+# Judged rather than reported, so this can be a step in CI. A tool that prints numbers and
+# always succeeds is a tool nobody notices has stopped being true -- which is the same thing
+# this project says about a fuzzer nobody runs.
+#
+# Compared against what was running beforehand: the shell is optional, and its absence is
+# not a failure. Its death is.
+$problems = @()
+if ($daemonBefore -and -not $daemonAfter) { $problems += "the daemon did not survive" }
+if ($shellBefore -and -not $shellAfter) { $problems += "the shell did not survive" }
+if (-not $daemonBefore) { $problems += "no daemon was running, so nothing was tested" }
+
+# Generous, and still three orders of magnitude below what was sent. Each rejected command
+# costs one line of at most sixty printable characters.
+if ($grew -gt 65536) { $problems += "the log grew by $grew bytes" }
+
+if ($problems) {
+    throw ($problems -join "; ")
+}
+Write-Host "everything survived, and the log stayed small"

@@ -18,6 +18,12 @@ list(APPEND CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 # Nothing is lost by it. The two sets are for different things: CMAKE_INSTALL_* is where the
 # daemon and the artwork go, KDE_INSTALL_* is where a plugin and a .desktop file go, and only
 # kcmutils reads the second.
+# Everything installed from this directory belongs to the KDE package. kcmutils writes its
+# own install() rules -- the plugin and the generated .desktop file -- and there is no way
+# to pass a component through them, so the default is set instead. Directory scoped, so
+# nothing outside here is affected.
+set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME kde)
+
 set(KDE_INSTALL_DIRS_NO_CMAKE_VARIABLES TRUE)
 include(KDEInstallDirs)
 include(KDECMakeSettings)

@@ -77,4 +77,4 @@ set_target_properties(dragonperch-wl PROPERTIES
     INSTALL_RPATH "")
 
 include(GNUInstallDirs)
-install(TARGETS dragonperch-wl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS dragonperch-wl RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT core)

@@ -37,20 +37,54 @@ set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
 # start.
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 
-# Recommends, not Depends. The KWin script is how DragonPerch finds out where the windows
-# are, and without it the pets have nothing to stand on but the floor -- but the package
-# still installs and runs, and a hard dependency on the whole of Plasma for a program that
-# also has a Windows head would be wrong.
-set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "kwin-wayland | kwin-x11")
+# ---------------------------------------------------------------------------------------
+# Two packages, because two of the things installed here belong to one desktop and the rest
+# belong to none.
+#
+# `dragonperch` is the daemon, the artwork, the translations and the desktop entry: nothing
+# in it knows what a KWin is. `dragonperch-kde` is the KWin script and the settings module,
+# which are Plasma's and only Plasma's.
+#
+# Split now rather than when it hurts. The Wayland head already has to learn a second way of
+# finding out where the windows are for anything that is not KWin -- GNOME would need a
+# Shell extension, wlroots has swaymsg and hyprctl -- and each of those brings its own
+# desktop-shaped baggage. A single package that grows a Recommends for every desktop in
+# existence is the shape this is avoiding.
+#
+# DEB only. The tarball stays one file: "unpack anywhere and run" is the whole point of it,
+# and handing somebody two archives to unpack in the right order is not that.
+set(CPACK_DEB_COMPONENT_INSTALL ON)
+set(CPACK_COMPONENTS_ALL core kde)
 
-# What the settings module needs when it is in the package, and for the same reason. Its
-# Qt and KDE libraries are picked up by dpkg-shlibdeps because it links them; these two are
-# not, and could not be. `org.kde.kirigami` is a QML module loaded by name at run time --
-# nothing links it -- and kcmshell6 is the program the tray's Settings item runs, which the
-# daemon only ever names as a string.
+set(CPACK_DEBIAN_CORE_PACKAGE_NAME dragonperch)
+set(CPACK_DEBIAN_KDE_PACKAGE_NAME dragonperch-kde)
+
+set(CPACK_COMPONENT_CORE_DESCRIPTION "${PROJECT_DESCRIPTION}")
+set(CPACK_COMPONENT_KDE_DESCRIPTION
+    "Plasma integration for DragonPerch: the KWin script that tells it where the windows "
+    "are, and the settings module in System Settings.")
+
+# The KDE half needs the daemon it configures, and exactly the build of it: the two speak a
+# settings file and a D-Bus interface that are versioned together.
+set(CPACK_DEBIAN_KDE_PACKAGE_DEPENDS "dragonperch (= ${DRAGONPERCH_FULL_VERSION})")
+
+# Recommends, not Depends, and now on the package that is actually about Plasma. Without
+# the KWin script the pets have nothing to stand on but the floor -- but a person who
+# installs this package on a machine that has no KWin yet should get a package, not an
+# error.
+set(CPACK_DEBIAN_KDE_PACKAGE_RECOMMENDS "kwin-wayland | kwin-x11")
+
+# What the settings module needs beyond what it links. Its Qt and KDE libraries are picked
+# up by dpkg-shlibdeps; these two are not, and could not be. `org.kde.kirigami` is a QML
+# module loaded by name at run time -- nothing links it -- and kcmshell6 is the program the
+# tray's Settings item runs, which the daemon only ever names as a string.
 if(DRAGONPERCH_BUILD_KCM)
-    string(APPEND CPACK_DEBIAN_PACKAGE_RECOMMENDS
+    string(APPEND CPACK_DEBIAN_KDE_PACKAGE_RECOMMENDS
         ", qml6-module-org-kde-kirigami, libkf6kcmutils-bin")
 endif()
+
+# And the daemon suggests it, so that `apt install dragonperch` on a Plasma desktop offers
+# the half that makes it work rather than leaving somebody to find out.
+set(CPACK_DEBIAN_CORE_PACKAGE_SUGGESTS "dragonperch-kde")
 
 include(CPack)
