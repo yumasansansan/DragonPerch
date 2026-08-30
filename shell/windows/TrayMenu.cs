@@ -24,12 +24,27 @@ namespace DragonPerch.Shell;
 /// </remarks>
 internal sealed class TrayMenu
 {
-    // Segoe Fluent Icons, by code point rather than by pasting the glyphs. They live in the
-    // private use area, where a stray editor or a diff viewer is free to mangle them.
-    private const string GlyphPlay = "";
-    private const string GlyphPause = "";
-    private const string GlyphSettings = "";
-    private const string GlyphQuit = "";
+    // Segoe Fluent Icons, written as escapes rather than pasted in. They live in the private
+    // use area, where a stray editor or a diff viewer is free to mangle them -- which is what
+    // the line above this used to claim while the glyphs themselves sat in the file.
+    //
+    // E7E8 PowerButton for Quit, which began as a question about a cross that looked a little
+    // up and to the left of where it should be. It was: E711 ChromeClose is the title bar's
+    // close button, drawn small and light to suit one, and it measured 11 pixels of ink beside
+    // its neighbours' 14 and 16. An odd width cannot be centred on a half pixel boundary, so
+    // it sat half a pixel up and half a pixel left of the other two.
+    //
+    // E8BB Cancel fixes the centring at 16 by 16, the same as the gear and with less ink than
+    // either neighbour -- but a cross fills its box corner to corner and reads larger than a
+    // gear of the same size, which is exactly what it looked like. There is no cross in
+    // between: every one in this font measures either 11 or 16.
+    //
+    // A power symbol is 14 by 14, the same as the pause bars, and lighter than both of them.
+    // It also says the right thing: a cross closes a window, and this ends the program.
+    private const string GlyphPlay = "\uE768";
+    private const string GlyphPause = "\uE769";
+    private const string GlyphSettings = "\uE713";
+    private const string GlyphQuit = "\uE7E8";
 
     private Window? _host;
     private Grid? _anchor;
@@ -204,28 +219,32 @@ internal sealed class TrayMenu
     /// </remarks>
     private static readonly FontFamily MenuFont = new("Segoe UI Variable Text");
 
-    /// <summary>
-    /// One pixel up, so the glyph lines up with the label rather than with the row.
-    /// </summary>
+    /// <summary>An icon for a menu item, raised by <paramref name="up"/> pixels.</summary>
     /// <remarks>
-    /// Centring a line of text centres its line box, and a line box has the descender space
-    /// underneath it whether or not the word has a descender -- so the part anybody actually
-    /// sees, cap height down to baseline, ends up sitting slightly above the middle. An icon
-    /// glyph does not have that asymmetry and lands on the middle exactly. Measured on the
-    /// Pause item, whose label has neither an ascender nor a descender to confuse it: the
-    /// text was a pixel above the icon.
+    /// Every one of them needs raising by at least one. Centring a line of text centres its
+    /// line box, and a line box carries the descender space underneath it whether or not the
+    /// word has a descender -- so the part anybody actually sees, cap height down to
+    /// baseline, sits slightly above the middle. An icon glyph has no such asymmetry and
+    /// lands on the middle exactly. Measured on the Pause item, whose label has neither an
+    /// ascender nor a descender to confuse the reading: the text was a pixel above the icon.
     ///
-    /// The icon is moved rather than the label, because the label is the thing being read
-    /// and because moving it would mean restyling the item's template.
+    /// The icon moves rather than the label, because the label is the thing being read and
+    /// because moving it would mean restyling the item's template.
+    ///
+    /// The amount is per icon because the glyphs do not agree with each other either. The
+    /// distance from the label's cap height to the centre of the glyph beside it came out at
+    /// 4.5 pixels for the pause bars and the gear and 5.5 for the power symbol, whose ink
+    /// sits a pixel lower inside its own box.
     /// </remarks>
-    private static readonly Thickness IconNudge = new(0, -1, 0, 0);
+    private static FontIcon MenuIcon(string glyph, int up)
+        => new() { Glyph = glyph, Margin = new Thickness(0, -up, 0, 0) };
 
     private MenuFlyout BuildFlyout(bool paused)
     {
         MenuFlyoutItem pause = new()
         {
             Text = paused ? "Resume" : "Pause",
-            Icon = new FontIcon { Glyph = paused ? GlyphPlay : GlyphPause, Margin = IconNudge },
+            Icon = MenuIcon(paused ? GlyphPlay : GlyphPause, 1),
             FontFamily = MenuFont,
         };
         pause.Click += (_, _) => _ = Daemon.Send("toggle-pause");
@@ -233,7 +252,7 @@ internal sealed class TrayMenu
         MenuFlyoutItem settings = new()
         {
             Text = "Settings…",
-            Icon = new FontIcon { Glyph = GlyphSettings, Margin = IconNudge },
+            Icon = MenuIcon(GlyphSettings, 1),
             FontFamily = MenuFont,
         };
         settings.Click += (_, _) => ShowSettings();
@@ -241,7 +260,7 @@ internal sealed class TrayMenu
         MenuFlyoutItem quit = new()
         {
             Text = "Quit DragonPerch",
-            Icon = new FontIcon { Glyph = GlyphQuit, Margin = IconNudge },
+            Icon = MenuIcon(GlyphQuit, 2),
             FontFamily = MenuFont,
         };
         quit.Click += (_, _) => _ = Daemon.Send("quit");
