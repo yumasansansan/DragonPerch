@@ -177,9 +177,17 @@ void GlesRenderer::build_program()
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_);
 
     const auto stride = static_cast<GLsizei>(sizeof(Vertex));
+
+    // The last argument of glVertexAttribPointer is declared const void* and is not a
+    // pointer: with a buffer bound it is a byte offset into that buffer, and the cast is
+    // how every GL program in existence passes one. performance-no-int-to-ptr is right in
+    // general and has no alternative to offer here -- the API has no overload that takes
+    // an integer.
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, nullptr);
+    // NOLINTNEXTLINE(performance-no-int-to-ptr)
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride,
                           reinterpret_cast<const void*>(offsetof(Vertex, u)));
+    // NOLINTNEXTLINE(performance-no-int-to-ptr)
     glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, stride,
                           reinterpret_cast<const void*>(offsetof(Vertex, opacity)));
     glEnableVertexAttribArray(0);

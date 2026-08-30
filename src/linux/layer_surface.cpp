@@ -6,6 +6,7 @@
 #include "wayland_display.hpp"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
+#include <cstdint>
 #include <stdexcept>
 #include <utility>
 
@@ -100,11 +101,17 @@ void LayerSurface::create(WaylandDisplay& display, EglContext& egl, const Output
     // Anchored to all four edges with a size of 0x0, which is how layer shell spells "the
     // whole output" -- the compositor fills the size in on the configure event, and it
     // stays right when the monitor's mode changes underneath us.
-    zwlr_layer_surface_v1_set_anchor(layer_,
-                                     ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP
-                                         | ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM
-                                         | ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT
-                                         | ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT);
+    //
+    // The casts are for the analyser rather than the compiler. wayland-scanner emits the
+    // anchor constants as a plain C enum, whose underlying type is int, and combining flags
+    // out of a signed enum is what bugprone-signed-bitwise objects to. The parameter is a
+    // uint32_t, so saying so is both honest and what the protocol meant.
+    zwlr_layer_surface_v1_set_anchor(
+        layer_,
+        static_cast<std::uint32_t>(ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP)
+            | static_cast<std::uint32_t>(ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM)
+            | static_cast<std::uint32_t>(ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT)
+            | static_cast<std::uint32_t>(ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT));
     zwlr_layer_surface_v1_set_size(layer_, 0, 0);
 
     // -1, not 0. Zero means "the compositor may push panels aside for me"; -1 means this

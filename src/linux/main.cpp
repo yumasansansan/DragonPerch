@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <charconv>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -30,6 +31,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -249,6 +251,11 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
     }
 
     Simulation simulation;
+
+    // A fixed seed on purpose: two runs on the same desktop put the pets in the same
+    // places, which is what makes "it fell through the title bar" reproducible rather than
+    // a story. clang-tidy is right that this is not random; being random is not wanted.
+    // NOLINTNEXTLINE(bugprone-random-generator-seed,cert-msc32-c,cert-msc51-cpp)
     std::mt19937 spawn{1};
 
     // Spawning is something that has to be doable twice, because reloading settings that
@@ -476,9 +483,24 @@ int run(std::span<const std::string_view> args)
     // arguments has to mean now that there is a settings file.
     int count = 0;
     for (std::size_t i = 0; i + 1 < args.size(); ++i) {
-        if (args[i] == "--pets") {
-            count = std::clamp(std::atoi(std::string{args[i + 1]}.c_str()), 1, 64);
+        if (args[i] != "--pets") {
+            continue;
         }
+
+        // from_chars rather than atoi, which cannot report a failure and is undefined on
+        // overflow. The clamp below would have turned both into 1, so `--pets abc` ran one
+        // pet and said nothing -- which is not what anybody typing that meant.
+        const std::string_view text = args[i + 1];
+        int wanted = 0;
+        const auto [end, failed] =
+            std::from_chars(text.data(), text.data() + text.size(), wanted);
+
+        if (failed != std::errc{} || end != text.data() + text.size()) {
+            log_line(cat("--pets: '", text, "' is not a number; using the settings instead"));
+            continue;
+        }
+
+        count = std::clamp(wanted, 1, 64);
     }
 
     // --pack may be given more than once; the pets are shared out between whatever is

@@ -70,6 +70,10 @@ WarningsAsErrors: '*'
 # On Windows that is `src/core\dragonperch\geometry.hpp`, mixed, and a pattern with only
 # `/` in it silently matches nothing -- which is how a local run of this file reported no
 # findings at all while CI reported eleven.
-HeaderFilterRegex: '.*(src|fuzz)[/\\].*'
+# And the directory below src named, because `src` on its own also matches Catch2:
+# its sources live at `_deps/catch2-src/src/catch2/`, which has `src/` in the middle.
+# The _deps exclusion below says the same thing a second way, deliberately.
+HeaderFilterRegex: '.*(src[/\\](core|win|linux)|fuzz)[/\\].*'
+ExcludeHeaderFilterRegex: '.*[/\\]_deps[/\\].*'
 
 FormatStyle: none

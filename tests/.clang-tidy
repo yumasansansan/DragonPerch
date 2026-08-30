@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# The root configuration, minus one thing that is Catch2's rather than ours.
+#
+# Every TEST_CASE expands to a static registrar object whose constructor registers the test
+# with the framework, and that constructor can throw. bugprone-throwing-static-initialization
+# is right about it and there is nothing to do: it is how Catch2 finds tests, and it fires
+# once per test case -- eighty-one times across this directory as it stands.
+#
+# Scoped to tests/ rather than turned off at the root, because the check is a good one
+# everywhere else: a global initialised from something that can throw really is a program
+# that dies before main with no way to say why.
+
+InheritParentConfig: true
+
+Checks: >
+  -bugprone-throwing-static-initialization,
+  -cert-err58-cpp,
+  -clang-analyzer-optin.core.EnumCastOutOfRange
+
+# The third one is also Catch2's, and it needs naming here rather than filtering out by
+# path: the static analyser's diagnostics do not go through HeaderFilterRegex or
+# ExcludeHeaderFilterRegex, so a finding inside catch_result_type.hpp arrives whatever
+# those say. Checked by passing --exclude-header-filter explicitly, which changed nothing.

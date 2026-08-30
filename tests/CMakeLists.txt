@@ -12,7 +12,16 @@ FetchContent_Declare(Catch2
     GIT_SHALLOW TRUE
     EXCLUDE_FROM_ALL)
 
+# clang-tidy off for the duration, because CMAKE_CXX_CLANG_TIDY reaches every target
+# created from here down -- Catch2's included. Catch2 ships its own .clang-tidy, so it was
+# being analysed against somebody else's check list and printing a hundred lines about
+# trailing commas and #ifdef in the middle of our build. Its code is not ours to fix.
+set(DRAGONPERCH_TIDY_HERE "${CMAKE_CXX_CLANG_TIDY}")
+unset(CMAKE_CXX_CLANG_TIDY)
+
 FetchContent_MakeAvailable(Catch2)
+
+set(CMAKE_CXX_CLANG_TIDY "${DRAGONPERCH_TIDY_HERE}")
 
 add_executable(dragonperch_tests
     edge_builder_test.cpp

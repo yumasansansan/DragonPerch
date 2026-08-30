@@ -30,7 +30,9 @@
 #include <stdexcept>
 #include <utility>
 #include <atomic>
+#include <cerrno>
 #include <cstdint>
+#include <cwchar>
 #include <filesystem>
 #include <fstream>
 #include <optional>
@@ -480,9 +482,27 @@ int run(std::span<const std::wstring_view> args)
         // arguments has to mean now that there is a settings file.
         int count = 0;
         for (std::size_t i = 0; i + 1 < args.size(); ++i) {
-            if (args[i] == L"--pets") {
-                count = std::clamp(_wtoi(std::wstring{args[i + 1]}.c_str()), 1, 64);
+            if (args[i] != L"--pets") {
+                continue;
             }
+
+            // wcstol rather than _wtoi, which cannot report a failure. The clamp below
+            // would have turned a failure into 1, so `--pets abc` ran one pet and said
+            // nothing. The Wayland head uses from_chars for the same reason; there is no
+            // from_chars for wide characters, and widening a number to compare is worse
+            // than reading it where it is.
+            const std::wstring text{args[i + 1]};
+            wchar_t* end = nullptr;
+            errno = 0;
+            const long wanted = std::wcstol(text.c_str(), &end, 10);
+
+            if (end == nullptr || *end != L'\0' || text.empty() || errno == ERANGE) {
+                log_line(cat("--pets: '", to_utf8(text),
+                             "' is not a number; using the settings instead"));
+                continue;
+            }
+
+            count = std::clamp(static_cast<int>(wanted), 1, 64);
         }
         log_line(cat("log: ", log_path()));
 
