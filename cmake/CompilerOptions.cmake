@@ -31,14 +31,43 @@ if(DRAGONPERCH_SANITIZE)
             LINKER:/DEBUG
         )
     else()
+        set(DRAGONPERCH_SANITIZERS -fsanitize=address,undefined,fuzzer-no-link)
+
         add_compile_options(
-            -fsanitize=address,undefined,fuzzer-no-link
+            ${DRAGONPERCH_SANITIZERS}
             -fno-omit-frame-pointer
             -fno-optimize-sibling-calls
         )
-        add_link_options(
-            -fsanitize=address,undefined,fuzzer-no-link
-        )
+        add_link_options(${DRAGONPERCH_SANITIZERS})
+
+        # Checked here rather than discovered at the last link.
+        #
+        # The sanitizer runtimes are a separate package on Debian and Ubuntu --
+        # libclang-rt-NN-dev -- and clang-NN does not depend on it. A machine with only
+        # clang and lld compiles every file happily and then fails linking the one
+        # executable with three lines of
+        #
+        #     ld.lld: error: cannot open .../libclang_rt.asan.a: No such file or directory
+        #
+        # which names a path nobody has and no package at all. Doing the same thing at
+        # configure time costs one try_compile and turns that into a sentence.
+        include(CheckCXXSourceCompiles)
+
+        set(CMAKE_REQUIRED_FLAGS ${DRAGONPERCH_SANITIZERS})
+        set(CMAKE_REQUIRED_LINK_OPTIONS ${DRAGONPERCH_SANITIZERS})
+        check_cxx_source_compiles("int main() { return 0; }" DRAGONPERCH_SANITIZERS_LINK)
+        unset(CMAKE_REQUIRED_FLAGS)
+        unset(CMAKE_REQUIRED_LINK_OPTIONS)
+
+        if(NOT DRAGONPERCH_SANITIZERS_LINK)
+            string(REGEX MATCH "^[0-9]+" DRAGONPERCH_SAN_MAJOR "${CMAKE_CXX_COMPILER_VERSION}")
+            message(FATAL_ERROR
+                "DRAGONPERCH_SANITIZE is on, but a program built with "
+                "${DRAGONPERCH_SANITIZERS} does not link.\n\nThe usual cause is that the "
+                "sanitizer runtimes are not installed: on Debian and Ubuntu they are in "
+                "libclang-rt-${DRAGONPERCH_SAN_MAJOR}-dev, which clang-${DRAGONPERCH_SAN_MAJOR} "
+                "does not depend on. Install it and configure again.")
+        endif()
     endif()
 endif()
 #

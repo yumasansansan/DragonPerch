@@ -45,9 +45,10 @@ jobs:
       # against. libsystemd is there for sd-bus, which is how the KWin script reaches us.
       - name: Install the Wayland head's dependencies
         run: |
-          sudo apt update
-          sudo apt full-upgrade
-          sudo apt install --no-install-recommends -y libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev
+          sudo apt-get update
+          sudo apt-get purge -y snap snapd
+          sudo apt-get full-upgrade -y
+          sudo apt-get install --no-install-recommends -y libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev
 
       # The newest LLVM release branch apt.llvm.org publishes for this distribution.
       #
@@ -67,12 +68,20 @@ jobs:
       # publishes a clean release version, so the `~++<date>+<hash>` on 23 does not make it
       # less finished than 22. Ubuntu's own archive has no clang-23 at all.
       #
-      # llvm-NN is not an extra: it is where llvm-ar and llvm-ranlib live, and CMake looks
-      # for those at the compiler's own version to build static libraries under ThinLTO.
-      # clang-NN does not depend on it -- it pulls llvm-NN-linker-tools and stops -- so
-      # installing only clang and lld leaves CMAKE_CXX_COMPILER_AR as NOTFOUND and LTO
-      # quietly unavailable. That happened, and is why cmake/CompilerOptions.cmake now
-      # treats a missing LTO as fatal instead of a status line.
+      # Neither llvm-NN nor libclang-rt-NN-dev is an extra, and clang-NN depends on
+      # neither: it pulls llvm-NN-linker-tools and stops there. Both were found out the
+      # hard way, one after the other.
+      #
+      #   llvm-NN             holds llvm-ar and llvm-ranlib, which CMake wants at the
+      #                       compiler's own version to build static libraries under
+      #                       ThinLTO. Without it CMAKE_CXX_COMPILER_AR is NOTFOUND, the
+      #                       LTO check fails, and Release quietly stops being LTO.
+      #   libclang-rt-NN-dev  holds libclang_rt.asan.a and its friends. Without it every
+      #                       file compiles and the first link fails naming a path that
+      #                       does not exist and no package at all.
+      #
+      # Both now stop the configure with a message naming the package to install, instead
+      # of where they used to stop: silently, and at the last link.
       #
       # No version is named anywhere below. A -24 suite appearing is used the day it does.
       - name: Install the newest Clang and LLD from apt.llvm.org
@@ -99,8 +108,9 @@ jobs:
           echo "deb https://apt.llvm.org/$codename/ llvm-toolchain-$codename-$newest main" \
             | sudo tee /etc/apt/sources.list.d/apt.llvm.org.list > /dev/null
 
-          sudo apt update
-          sudo apt install --no-install-recommends -y "clang-$newest" "lld-$newest" "llvm-$newest"
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            "clang-$newest" "lld-$newest" "llvm-$newest" "libclang-rt-$newest-dev"
           clang++-$newest --version | head -1
 
       # The archive is not the only place a Clang can come from -- the runner image ships
@@ -118,7 +128,8 @@ jobs:
 
           echo "newest clang++ installed: ${major:-none}"
           test -n "$major"
-          sudo apt install --no-install-recommends -y "lld-$major" "llvm-$major"
+          sudo apt-get install --no-install-recommends -y \
+            "lld-$major" "llvm-$major" "libclang-rt-$major-dev"
 
       # The preset points at cmake/ClangLatest.cmake, which picks the newest clang++ on
       # the machine -- whichever of the ones installed above that turns out to be. Plain
