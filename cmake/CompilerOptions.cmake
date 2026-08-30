@@ -281,5 +281,32 @@ elseif(DRAGONPERCH_IPO_SUPPORTED)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     message(STATUS "Link-time optimisation: enabled for Release")
 else()
-    message(STATUS "Link-time optimisation: unavailable (${DRAGONPERCH_IPO_ERROR})")
+    # Fatal, and it used to be a STATUS line. That was wrong in the way this project keeps
+    # finding things wrong: a Release build that quietly stopped being LTO is a different
+    # binary from the one meant to ship, and nothing downstream notices. CI carried on,
+    # built the packages, uploaded them and would have published them, only slower and
+    # larger, with the reason a hundred lines up the configure log.
+    #
+    # If a machine genuinely cannot do LTO, that is worth saying out loud once rather than
+    # discovering from a size regression later.
+    set(DRAGONPERCH_IPO_HINT "")
+    if(NOT MSVC AND (NOT CMAKE_CXX_COMPILER_AR OR CMAKE_CXX_COMPILER_AR MATCHES "NOTFOUND"))
+        # The failure that prompted all this, and it is not obvious from the log: the test
+        # dies building a static library, because CMake looks for llvm-ar of the compiler's
+        # own version and does not find it. On Debian and Ubuntu that lives in llvm-NN,
+        # which clang-NN does not depend on -- clang pulls llvm-NN-linker-tools and stops
+        # there -- so installing only clang and lld leaves LTO unavailable.
+        string(REGEX MATCH "^[0-9]+" DRAGONPERCH_IPO_MAJOR "${CMAKE_CXX_COMPILER_VERSION}")
+        set(DRAGONPERCH_IPO_HINT
+            "\n\nCMAKE_CXX_COMPILER_AR is ${CMAKE_CXX_COMPILER_AR}, which is almost "
+            "certainly the whole of it: ThinLTO needs llvm-ar and llvm-ranlib of the "
+            "compiler's own version. On Debian and Ubuntu those are in the "
+            "llvm-${DRAGONPERCH_IPO_MAJOR} package, which clang-${DRAGONPERCH_IPO_MAJOR} "
+            "does not depend on. Install it and configure again.")
+    endif()
+
+    message(FATAL_ERROR
+        "Link-time optimisation is not available, and Release builds require it."
+        ${DRAGONPERCH_IPO_HINT}
+        "\n\nWhat the check reported:\n${DRAGONPERCH_IPO_ERROR}")
 endif()

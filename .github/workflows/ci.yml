@@ -67,6 +67,13 @@ jobs:
       # publishes a clean release version, so the `~++<date>+<hash>` on 23 does not make it
       # less finished than 22. Ubuntu's own archive has no clang-23 at all.
       #
+      # llvm-NN is not an extra: it is where llvm-ar and llvm-ranlib live, and CMake looks
+      # for those at the compiler's own version to build static libraries under ThinLTO.
+      # clang-NN does not depend on it -- it pulls llvm-NN-linker-tools and stops -- so
+      # installing only clang and lld leaves CMAKE_CXX_COMPILER_AR as NOTFOUND and LTO
+      # quietly unavailable. That happened, and is why cmake/CompilerOptions.cmake now
+      # treats a missing LTO as fatal instead of a status line.
+      #
       # No version is named anywhere below. A -24 suite appearing is used the day it does.
       - name: Install the newest Clang and LLD from apt.llvm.org
         run: |
@@ -93,7 +100,7 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/apt.llvm.org.list > /dev/null
 
           sudo apt update
-          sudo apt install --no-install-recommends -y "clang-$newest" "lld-$newest"
+          sudo apt install --no-install-recommends -y "clang-$newest" "lld-$newest" "llvm-$newest"
           clang++-$newest --version | head -1
 
       # The archive is not the only place a Clang can come from -- the runner image ships
@@ -111,7 +118,7 @@ jobs:
 
           echo "newest clang++ installed: ${major:-none}"
           test -n "$major"
-          sudo apt install --no-install-recommends -y "lld-$major"
+          sudo apt install --no-install-recommends -y "lld-$major" "llvm-$major"
 
       # The preset points at cmake/ClangLatest.cmake, which picks the newest clang++ on
       # the machine -- whichever of the ones installed above that turns out to be. Plain
