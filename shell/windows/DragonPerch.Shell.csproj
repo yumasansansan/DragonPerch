@@ -17,7 +17,14 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
-    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <!--
+      Windows 11, not Windows 10. This program is the optional half: the daemon runs
+      without it and falls back to a Win32 menu, so the floor here costs nobody their pets.
+      What it buys is that everything Fluent 2 asks for can be assumed rather than guarded.
+      Segoe UI Variable is the immediate one, since it is the type ramp and it arrived in
+      22000; rounded corners, Mica and the WinUI 3 look generally are the same story.
+    -->
+    <TargetPlatformMinVersion>10.0.22000.0</TargetPlatformMinVersion>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <Platforms>x64</Platforms>
     <AssemblyName>DragonPerch.Shell</AssemblyName>

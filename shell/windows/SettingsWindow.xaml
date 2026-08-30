@@ -32,21 +32,27 @@
                 whole process with it.
             -->
             <Style x:Key="CardTitle" TargetType="TextBlock"
-                   BasedOn="{StaticResource BodyTextBlockStyle}"/>
+                   BasedOn="{StaticResource BodyTextBlockStyle}">
+                <Setter Property="FontFamily" Value="{StaticResource ContentControlThemeFontFamily}"/>
+            </Style>
             <Style x:Key="CardNote" TargetType="TextBlock"
                    BasedOn="{StaticResource CaptionTextBlockStyle}">
+                <Setter Property="FontFamily" Value="{StaticResource SmallTextFontFamily}"/>
                 <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
                 <Setter Property="TextWrapping" Value="Wrap"/>
             </Style>
         </Grid.Resources>
 
         <Grid x:Name="AppTitleBar" Grid.Row="0" Height="32" Background="Transparent" VerticalAlignment="Top">
-            <TextBlock Text="DragonPerch" Margin="16,0,0,0" VerticalAlignment="Center" Style="{ThemeResource CaptionTextBlockStyle}"/>
+            <TextBlock Text="DragonPerch" Margin="16,0,0,0" VerticalAlignment="Center"
+                       Style="{ThemeResource CaptionTextBlockStyle}"
+                       FontFamily="{StaticResource SmallTextFontFamily}"/>
         </Grid>
 
-        <TextBlock Grid.Row="1"
+        <TextBlock x:Name="PageTitle" Grid.Row="1"
                    Text="DragonPerch"
                    Style="{ThemeResource TitleTextBlockStyle}"
+                   FontFamily="{StaticResource DisplayTextFontFamily}"
                    Margin="28,24,28,12"/>
 
         <ScrollViewer Grid.Row="2" Padding="28,0,28,0">
@@ -91,7 +97,7 @@
                                     VerticalAlignment="Center"/>
                             <TextBlock x:Name="SpeedValue" Width="40"
                                        VerticalAlignment="Center"
-                                       Style="{ThemeResource BodyTextBlockStyle}"/>
+                                       Style="{StaticResource CardTitle}"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -128,8 +134,26 @@
                             <TextBlock Style="{StaticResource CardNote}"
                                        Text="Hide the dragons on a monitor showing something full screen."/>
                         </StackPanel>
-                        <ToggleSwitch x:Name="FullscreenToggle" Grid.Column="1"
-                                      VerticalAlignment="Center" OnContent="" OffContent=""/>
+                        <!--
+                            The state as a label of its own, to the left, and the switch
+                            hard against the right edge of the card. ToggleSwitch carries
+                            ToggleSwitchThemeMinWidth, which is 154 pixels, so that On and
+                            Off can sit beside the knob without the knob moving as the word
+                            changes length. With no content that width is simply empty, and
+                            right-aligning the control right-aligned the empty part: the
+                            knob stayed some 120 pixels short of where every other control
+                            in this window ends. MinWidth of nothing gives the alignment
+                            back, and the label moves to the side Windows itself puts it on.
+                        -->
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12"
+                                    HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBlock x:Name="FullscreenState"
+                                       Style="{StaticResource CardTitle}"
+                                       VerticalAlignment="Center"/>
+                            <ToggleSwitch x:Name="FullscreenToggle"
+                                          MinWidth="0" OnContent="" OffContent=""
+                                          VerticalAlignment="Center"/>
+                        </StackPanel>
                     </Grid>
                 </Border>
 

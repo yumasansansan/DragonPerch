@@ -3,6 +3,8 @@
 
 #include "dragonperch/geometry.hpp"
 
+#include <string>
+
 namespace dp::win::fullscreen {
 
 /// True when a full-screen application is covering the monitor whose bounds these are.
@@ -22,5 +24,13 @@ namespace dp::win::fullscreen {
 /// The shell state is global rather than per-monitor, so it is only applied to the monitor
 /// the foreground window is actually on.
 [[nodiscard]] bool covers(const PixelRect& output_bounds);
+
+/// What covers() is looking at, for the log line that reports a monitor going dark.
+///
+/// Hiding the pets is the one thing this program does that a person notices and cannot
+/// explain, and "hiding for a full-screen app" on its own does not say which app -- which is
+/// no use at all when the app turns out to be a shell flyout that is not full screen and not
+/// an app. Called only when the answer changes, so its cost does not matter.
+[[nodiscard]] std::string describe_cover(const PixelRect& output_bounds);
 
 } // namespace dp::win::fullscreen

@@ -60,7 +60,10 @@ void OutputSurface::draw(const PixelRect& dirty, const std::function<void(ID2D1D
     // partial update -- E_INVALIDARG, "the parameter is incorrect" -- while any of the
     // surface is still undefined, and the rectangle it rejects looks perfectly valid, so
     // the error says nothing about the real cause.
-    if (!initialised_) {
+    //
+    // A surface that has been hidden asks for the same thing for a different reason; see
+    // invalidate().
+    if (needs_full_draw_) {
         local = PixelRect{0, 0, bounds().width, bounds().height};
     }
 
@@ -128,7 +131,7 @@ void OutputSurface::draw(const PixelRect& dirty, const std::function<void(ID2D1D
     check(end, "ID2D1DeviceContext::EndDraw");
 
     check(surface_->EndDraw(), "IDCompositionSurface::EndDraw");
-    initialised_ = true;
+    needs_full_draw_ = false;
 }
 
 } // namespace dp::win

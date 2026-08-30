@@ -85,7 +85,7 @@ internal sealed class TrayMenu
     /// One window, kept rather than recreated: a second copy of a settings window is two
     /// views of one file that can disagree, and whichever is applied last wins silently.
     /// </remarks>
-    private void ShowSettings()
+    public void ShowSettings()
     {
         // Caught rather than allowed to escape: this runs from a XAML event handler, where
         // an exception takes the whole process with it -- and the process is the tray menu.

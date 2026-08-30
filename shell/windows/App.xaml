@@ -14,6 +14,48 @@
                 -->
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
             </ResourceDictionary.MergedDictionaries>
+
+            <!--
+                Fluent 2's type ramp is Segoe UI Variable, and WinUI does not ask for it.
+                The default is XamlAutoFontFamily, which resolves to whatever the system
+                calls its UI font for the current language: Segoe UI on an English install,
+                and Meiryo UI on a Japanese one. That was measured here rather than guessed,
+                by logging the resolved family, and Meiryo UI is what came back.
+
+                The sizes and weights WinUI ships are already the Fluent 2 ramp, so only the
+                family was ever wrong. It is set here rather than in one window so that the
+                tray menu matches.
+
+                Three families rather than one, because Segoe UI Variable is a variable font
+                with an optical size axis and the three names are the sizes Fluent 2 names:
+                Small below 14px, Text at 14 to 18, Display at 20 and above. Using Text
+                everywhere would be most of the way there and would still be wrong at the
+                two ends.
+
+                Named outright rather than guarded, because the project file asks for
+                Windows 11: Segoe UI Variable arrived in 22000 and this program does not run
+                below it. The daemon does, and falls back to its own Win32 menu there.
+            -->
+            <FontFamily x:Key="ContentControlThemeFontFamily">Segoe UI Variable Text</FontFamily>
+            <FontFamily x:Key="DisplayTextFontFamily">Segoe UI Variable Display</FontFamily>
+            <FontFamily x:Key="SmallTextFontFamily">Segoe UI Variable Small</FontFamily>
+
+            <!--
+                And an implicit style, because ContentControlThemeFontFamily does not reach
+                a TextBlock. TextBlock is not a ContentControl, its default family comes from
+                XAML itself rather than from a theme resource, and WinUI's BodyTextBlockStyle
+                and friends set size and weight without touching the family. Measured: with
+                only the resource above set, the title read Segoe UI Variable Display and the
+                body beside it still read Meiryo UI.
+
+                Implicit rather than named so that it also reaches the text inside control
+                templates, which is where the rest of it would have been missed. A template
+                that sets a family of its own still wins, because that is a local value and
+                this is a style, which is what keeps the icon fonts where they are.
+            -->
+            <Style TargetType="TextBlock">
+                <Setter Property="FontFamily" Value="{StaticResource ContentControlThemeFontFamily}"/>
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -30,6 +30,17 @@ public:
     void set_visible(bool visible) { window_.set_visible(visible); }
     [[nodiscard]] bool visible() const noexcept { return window_.visible(); }
 
+    /// Says the next draw has to cover the whole surface rather than only what it is
+    /// given, and reports whether one is owed.
+    ///
+    /// Two things ask for this. A surface that has never been written has undefined
+    /// contents. So does one whose contents have stopped being maintained -- a hidden
+    /// overlay is not drawn at all, so what was on it when it went away is still there when
+    /// it comes back, and a caller tracking damage has long since forgotten those pixels
+    /// existed.
+    void invalidate() noexcept { needs_full_draw_ = true; }
+    [[nodiscard]] bool needs_full_draw() const noexcept { return needs_full_draw_; }
+
     /// Opens a drawing session over `dirty` (in global coordinates), hands the Direct2D
     /// context to `draw`, then closes it. The caller commits once for all surfaces.
     ///
@@ -48,9 +59,9 @@ private:
     ComPtr<IDCompositionVisual2> visual_;
     ComPtr<IDCompositionSurface> surface_;
 
-    /// A freshly created surface has undefined contents, and DirectComposition
-    /// rejects a partial update until the whole thing has been written once.
-    bool initialised_ = false;
+    /// See invalidate(). True until the whole surface has been written at least once, and
+    /// again whenever somebody says the contents can no longer be relied on.
+    bool needs_full_draw_ = true;
 };
 
 } // namespace dp::win

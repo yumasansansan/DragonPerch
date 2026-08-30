@@ -63,15 +63,27 @@ void SpriteRenderer::end_frame()
 
         if (should_show != overlay.surface.visible()) {
             log_line(cat("output (", overlay.monitor.left(), ",", overlay.monitor.top(), "): ",
-                         should_show ? "showing after" : "hiding for", " a full-screen app"));
+                         should_show ? "showing after" : "hiding for", " a full-screen app",
+                         should_show ? "" : fullscreen::describe_cover(overlay.monitor)));
         }
         overlay.surface.set_visible(should_show);
 
         if (!should_show) {
+            // Nothing is drawn into a hidden surface, so whatever was on it when it went
+            // away is still on it when it comes back -- while the damage rectangle this
+            // loop works from has moved on and covers only where the pets are now. Those
+            // old pixels are in neither, so nobody ever clears them: a dragon frozen
+            // mid-stride stayed on the screen, and another one walking through it was the
+            // only thing that took it away. Every hide leaves one more.
+            overlay.surface.invalidate();
             continue;
         }
 
-        const PixelRect on_this_output = damage.intersect(overlay.surface.bounds());
+        // The whole surface when one is owed, because the damage rectangle is exactly the
+        // thing that cannot be trusted then -- and it may not even reach this monitor.
+        const PixelRect on_this_output = overlay.surface.needs_full_draw()
+                                             ? overlay.surface.bounds()
+                                             : damage.intersect(overlay.surface.bounds());
         if (on_this_output.empty()) {
             continue;
         }

@@ -37,6 +37,7 @@ internal sealed partial class SettingsWindow : Window
         SetTitleBar(AppTitleBar);
 
         SpeedSlider.ValueChanged += (_, e) => SpeedValue.Text = ((int)e.NewValue).ToString();
+        FullscreenToggle.Toggled += (_, _) => ShowToggleState();
 
         Load();
     }
@@ -91,6 +92,11 @@ internal sealed partial class SettingsWindow : Window
         SpeedValue.Text = ((int)SpeedSlider.Value).ToString();
         FullscreenToggle.IsOn = _settings.PauseForFullscreen;
 
+        // Explicitly, not by way of the Toggled event above: assigning IsOn only raises it
+        // when the value changes, so a saved setting that matches the default -- which is
+        // the common case -- would have left the label blank.
+        ShowToggleState();
+
         // An empty list in the file means "all of them", so every box starts ticked. That
         // is also why turning them all off saves an empty list rather than nothing: the two
         // mean the same thing to the daemon, and the wording on the card says so.
@@ -110,7 +116,7 @@ internal sealed partial class SettingsWindow : Window
             MascotList.Children.Add(new TextBlock
             {
                 Text = "No sprite packs found beside the daemon.",
-                Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+                Style = (Style)Root.Resources["CardNote"],
             });
         }
 
@@ -145,6 +151,10 @@ internal sealed partial class SettingsWindow : Window
             OutputList.Children.Add(box);
         }
     }
+
+    /// <summary>The word beside the switch. Windows puts it to the left of the knob.</summary>
+    private void ShowToggleState()
+        => FullscreenState.Text = FullscreenToggle.IsOn ? "On" : "Off";
 
     private static string Pretty(string id)
         => id.Length == 0 ? id : char.ToUpperInvariant(id[0]) + id[1..];

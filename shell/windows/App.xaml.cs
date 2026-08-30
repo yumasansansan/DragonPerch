@@ -80,6 +80,18 @@ public partial class App : Application
                 Log.Failure("showing the menu", e);
             }
         }
+        else if (argv.Length == 2 && argv[1] == "--settings")
+        {
+            Log.Line("showing the settings window");
+            try
+            {
+                _menu.ShowSettings();
+            }
+            catch (Exception e)
+            {
+                Log.Failure("showing the settings window", e);
+            }
+        }
         else
         {
             Log.Line("listening");
