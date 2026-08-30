@@ -122,7 +122,25 @@ internal sealed class ShellServer
             //
             // Safe to defer because the text has already been copied out of the sender's
             // memory above; nothing is held past the return.
-            _ = _ui?.TryEnqueue(() => _showMenu(x, y, paused));
+            _ = _ui?.TryEnqueue(() =>
+            {
+                // Caught here as well as in WindowProc, and not because two nets are better
+                // than one: this body runs later, off the dispatcher, long after the window
+                // procedure has returned, so the try up there does not cover it at all. An
+                // exception escaping a dispatcher callback ends the process without a word.
+                // That is precisely how a menu that threw while being built looked from
+                // outside -- the log stopped mid-sentence at "waiting for the host to be
+                // loaded", and the daemon fell back to its Win32 menu because there was no
+                // longer anything to answer it.
+                try
+                {
+                    _showMenu(x, y, paused);
+                }
+                catch (Exception e)
+                {
+                    Log.Failure("showing the menu", e);
+                }
+            });
             return 1;
         }
 

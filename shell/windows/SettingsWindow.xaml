@@ -90,6 +90,19 @@
                                        Text="Which dragons walk. Turning all of them off is the same as turning all of them on."/>
                         </StackPanel>
                         <StackPanel x:Name="MascotList" Spacing="2"/>
+
+                        <!--
+                            Declared here rather than built in code, so that nothing has to
+                            fetch a Style out of a ResourceDictionary and cast it. That cast
+                            is a QueryInterface, and under Native AOT one of those answered
+                            E_NOINTERFACE and ended the process; see TrayMenu.MenuFont. This
+                            path only runs when no sprite packs are installed, which is
+                            exactly the sort of thing that would have gone unnoticed.
+                        -->
+                        <TextBlock x:Name="NoMascots"
+                                   Style="{StaticResource CardNote}"
+                                   Text="No sprite packs found beside the daemon."
+                                   Visibility="Collapsed"/>
                     </StackPanel>
                 </Border>
 

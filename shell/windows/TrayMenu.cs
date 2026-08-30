@@ -192,9 +192,17 @@ internal sealed class TrayMenu
     /// system UI font for the current language. Measured, not assumed: the item reported
     /// Meiryo UI with the resource already overridden. A local value is the one thing a
     /// default style cannot outrank.
+    ///
+    /// Constructed rather than read out of Application.Current.Resources, and the name is
+    /// deliberately repeated from App.xaml. Casting what that dictionary returns to
+    /// FontFamily is a QueryInterface, and under Native AOT it answers E_NOINTERFACE and
+    /// takes the process with it: the menu logged that it was waiting for its host and then
+    /// simply was not there, and the daemon fell back to the Win32 menu because nothing
+    /// answered it. It only happens in a published build, which is why it survived being
+    /// measured -- the measuring was done on `dotnet build` output. Same family as the
+    /// projected IReadOnlyList in SettingsWindow.
     /// </remarks>
-    private static FontFamily MenuFont
-        => (FontFamily)Application.Current.Resources["ContentControlThemeFontFamily"];
+    private static readonly FontFamily MenuFont = new("Segoe UI Variable Text");
 
     private MenuFlyout BuildFlyout(bool paused)
     {

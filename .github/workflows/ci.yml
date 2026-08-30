@@ -216,6 +216,49 @@ jobs:
           $version = (Get-Content build\windows-x64/version.txt -Raw).Trim()
           Compress-Archive staging\* "dist\dragonperch_${version}_x64.zip"
 
+      # The published shell, started once and asked to put a window on the screen.
+      #
+      # Not a nicety. The AOT build is not the build anybody develops against, and it can
+      # fail where the other one does not: casting an object out of a ResourceDictionary is
+      # a QueryInterface, and under Native AOT one of those answered E_NOINTERFACE and ended
+      # the process before the menu appeared. Every local measurement had been taken on
+      # `dotnet build` output, which does not AOT-compile, so the artifact CI published was
+      # the only build with the bug in it and nothing ever ran it.
+      #
+      # `--settings` rather than `--menu`, because a window is enough to prove XAML started
+      # and needs no cursor. The shell exits immediately if no daemon is running, so one is
+      # started first and stopped after.
+      - name: Smoke-test the published shell
+        if: matrix.configuration == 'Release'
+        run: |
+          $daemon = Start-Process build\windows-x64\src\win\Release\dragonperch.exe -PassThru
+          Start-Sleep -Seconds 5
+          $shell = Start-Process dist\shell\DragonPerch.Shell.exe -ArgumentList '--settings' -PassThru
+
+          # Polled rather than slept at, so a cold runner is given time without every run
+          # paying for it. Sixty seconds is far longer than the hundred or so milliseconds
+          # this takes on a warm machine.
+          $log = 'dist\shell\DragonPerch.Shell.log'
+          $deadline = (Get-Date).AddSeconds(60)
+          while ((Get-Date) -lt $deadline) {
+              if ((Test-Path $log) -and (Select-String -Path $log -Pattern 'settings: shown' -Quiet)) { break }
+              if ($shell.HasExited) { break }
+              Start-Sleep -Milliseconds 500
+          }
+
+          if (Test-Path $log) { Get-Content $log }
+
+          $alive = -not $shell.HasExited
+          Stop-Process -Id $shell.Id -Force -ErrorAction SilentlyContinue
+          Stop-Process -Id $daemon.Id -Force -ErrorAction SilentlyContinue
+
+          if (-not (Test-Path $log)) { throw 'the shell wrote no log at all' }
+          if (-not (Select-String -Path $log -Pattern 'settings: shown' -Quiet)) {
+              throw 'the shell never showed its window'
+          }
+          if (-not $alive) { throw 'the shell exited while its window was up' }
+          Write-Host 'the published shell started and showed a window'
+
       # A zip of its own, because it is an order of magnitude larger than everything else
       # put together and nobody who only wants the pets should have to download it. The
       # daemon runs without it and falls back to a Win32 menu; unpacking this beside

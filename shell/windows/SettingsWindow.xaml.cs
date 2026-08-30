@@ -118,14 +118,7 @@ internal sealed partial class SettingsWindow : Window
             MascotList.Children.Add(box);
         }
 
-        if (_mascots.Count == 0)
-        {
-            MascotList.Children.Add(new TextBlock
-            {
-                Text = "No sprite packs found beside the daemon.",
-                Style = (Style)Root.Resources["CardNote"],
-            });
-        }
+        NoMascots.Visibility = _mascots.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
         // By index, not foreach. DisplayArea.FindAll returns a WinRT-projected
         // IReadOnlyList, and asking one of those for an enumerator under Native AOT throws
