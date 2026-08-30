@@ -88,3 +88,8 @@ structured format -- from random bytes it would spend its whole budget failing t
 signature check.
 
 Findings worth keeping should be added here as new seeds, so the next run starts from them.
+There is one so far. `kwin_report/negative-width.txt` is the first thing these targets
+caught: the report parser bounded how large a number could be but not whether a *length*
+could be negative, so `s DP-1 0 0 -920 1032` described a screen 920 pixels wide in the wrong
+direction, and the walkable edge built from it had its right end to the left of its left
+end. CI found it in twenty-two thousand executions, about two seconds in.

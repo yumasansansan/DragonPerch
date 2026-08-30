@@ -109,6 +109,27 @@ bool to_coordinate(std::string_view text, int& out) noexcept
     return true;
 }
 
+/// A width or a height, refused unless it could plausibly be one.
+///
+/// Separate from to_coordinate because the two admit different things. A coordinate may be
+/// negative -- a monitor placed to the left of the primary one starts at a negative x -- and
+/// a length may not.
+///
+/// Bounding only the magnitude, which is what this did at first, was not enough:
+/// `s DP-1 0 0 -920 1032` passed, and a rectangle 920 pixels wide in the wrong direction has
+/// a right edge to the left of its left edge. That reached the world as a walkable edge with
+/// left=0 and right=-920. The fuzzer found it inside a minute of the guard being written,
+/// which is rather the point of having one.
+bool to_length(std::string_view text, int& out) noexcept
+{
+    int value = 0;
+    if (!to_coordinate(text, value) || value < 0) {
+        return false;
+    }
+    out = value;
+    return true;
+}
+
 } // namespace
 
 KWinGeometryProvider::KWinGeometryProvider() = default;
@@ -243,7 +264,7 @@ void KWinGeometryProvider::apply(std::string_view report)
             int width = 0;
             int height = 0;
             if (!to_coordinate(fields.at[2], x) || !to_coordinate(fields.at[3], y)
-                || !to_coordinate(fields.at[4], width) || !to_coordinate(fields.at[5], height)) {
+                || !to_length(fields.at[4], width) || !to_length(fields.at[5], height)) {
                 continue;
             }
 
@@ -259,7 +280,7 @@ void KWinGeometryProvider::apply(std::string_view report)
             int z = 0;
             int kind = 0;
             if (!to_coordinate(fields.at[2], x) || !to_coordinate(fields.at[3], y)
-                || !to_coordinate(fields.at[4], width) || !to_coordinate(fields.at[5], height)
+                || !to_length(fields.at[4], width) || !to_length(fields.at[5], height)
                 || !to_int(fields.at[6], z) || !to_int(fields.at[7], kind)) {
                 continue;
             }
@@ -300,6 +321,15 @@ void KWinGeometryProvider::apply(std::string_view report)
         }
 
         for (const OutputInfo& output : outputs_) {
+            // A screen with nothing usable on it has no floor. The parser will not accept a
+            // negative width any more, but the invariant belongs here as well: this is the
+            // one place that turned a rectangle into an edge without ever looking at it,
+            // which is how a rectangle that was not one came out of it as an edge whose
+            // right was to the left of its left.
+            if (output.work_area.empty()) {
+                continue;
+            }
+
             edges.push_back(WalkableEdge{
                 .owner_id = -output.id - 1,
                 .y = output.work_area.bottom(),
