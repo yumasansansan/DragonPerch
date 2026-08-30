@@ -85,6 +85,35 @@ internal static partial class Native
     [LibraryImport("user32.dll", EntryPoint = "GetWindowThreadProcessId")]
     public static partial uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
 
+    [LibraryImport("user32.dll", EntryPoint = "LoadCursorW")]
+    private static partial IntPtr LoadCursor(IntPtr instance, IntPtr name);
+
+    [LibraryImport("user32.dll", EntryPoint = "SetCursor")]
+    private static partial IntPtr SetCursor(IntPtr cursor);
+
+    /// <summary>Puts the ordinary arrow on the screen now, without waiting for a mouse move.</summary>
+    /// <remarks>
+    /// The menu is shown at the pointer, and the window it is shown in has no cursor of its
+    /// own: enumerated at runtime, Microsoft.UI.Content.PopupWindowSiteBridge is visible with
+    /// a class cursor of NULL, while the host window beside it has an arrow. A window with no
+    /// class cursor does not set one, so Windows leaves whatever was already showing -- and
+    /// the pointer never moves, because the menu appeared exactly where it already was, so no
+    /// WM_SETCURSOR is sent to correct it. Right-clicking the tray icon leaves the shell's
+    /// busy pointer on screen, and it stayed there, spinning, until the mouse was moved.
+    ///
+    /// Only from the second menu onwards, because the first one creates that window rather
+    /// than reusing it, and creating it sets the cursor on the way.
+    /// </remarks>
+    public static void ShowTheArrowCursor()
+    {
+        // IDC_ARROW, which is an ordinal rather than a string.
+        IntPtr arrow = LoadCursor(IntPtr.Zero, 32512);
+        if (arrow != IntPtr.Zero)
+        {
+            _ = SetCursor(arrow);
+        }
+    }
+
     [LibraryImport("user32.dll", EntryPoint = "GetMonitorInfoW")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool GetMonitorInfo(IntPtr monitor, IntPtr info);
