@@ -8,7 +8,7 @@ Icon=dragonperch
 Categories=Utility;Amusement;
 Terminal=false
 
-# Not autostarted by installing it. A program that puts dragons on somebody's screen the
+# Not autostarted by installing it. A program that puts pets on somebody's screen the
 # next time they log in, because a package happened to be pulled in, is a program that gets
 # uninstalled. Copy this into ~/.config/autostart/ to have it start with the session.
 X-KDE-autostart-phase=2

@@ -20,7 +20,7 @@ KCM.SimpleKCM {
         anchors.fill: parent
 
         QQC2.SpinBox {
-            Kirigami.FormData.label: kcm.text("settings.pets", "Dragons per mascot:")
+            Kirigami.FormData.label: kcm.text("settings.pets", "Pets per mascot:")
             from: 0
             to: 64
             value: kcm.petsPerMascot
@@ -29,7 +29,7 @@ KCM.SimpleKCM {
 
         QQC2.Label {
             Kirigami.FormData.label: ""
-            text: kcm.text("settings.pets.note", "Three mascots at two each is six dragons.")
+            text: kcm.text("settings.pets.note", "Three mascots at two each is six pets.")
             font: Kirigami.Theme.smallFont
             opacity: 0.7
         }
@@ -132,7 +132,7 @@ KCM.SimpleKCM {
             }
 
             QQC2.Label {
-                text: kcm.text("settings.monitors.note", "Where the dragons are allowed. Turning all of them off is the same as turning all of them on.")
+                text: kcm.text("settings.monitors.note", "Where the pets are allowed. Turning all of them off is the same as turning all of them on.")
                 font: Kirigami.Theme.smallFont
                 opacity: 0.7
             }
@@ -148,7 +148,7 @@ KCM.SimpleKCM {
 
         QQC2.Label {
             Kirigami.FormData.label: ""
-            text: kcm.text("settings.fullscreen.note", "Hide the dragons on a monitor showing something full screen.")
+            text: kcm.text("settings.fullscreen.note", "Hide the pets on a monitor showing something full screen.")
             font: Kirigami.Theme.smallFont
             opacity: 0.7
         }

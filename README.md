@@ -4,8 +4,9 @@
 **Konqi and friends romp across your window title bars and panels — a cross-platform
 XPenguins for Windows and Wayland.**
 
-Dragons walk along the top edge of your windows, sit on your taskbar, and fall off when you
-drag the window out from under them. C++23, GPU rendering, as close to the platform as
+Pets walk along the top edge of your windows, sit on your taskbar, and fall off when you
+drag the window out from under them. Konqi, Katie and Kori come with it; the artwork is a
+sprite pack, so anybody's mascot can walk instead. C++23, GPU rendering, as close to the platform as
 practical.
 
 > Status: **Windows works.** Konqi, Katie and Kori walk on your title bars and taskbar,
@@ -29,7 +30,7 @@ Every build of `main` publishes a rolling **`nightly`** pre-release.
 | Any other Linux | unpack the `.tar.gz` anywhere and run `usr/bin/dragonperch-wl` |
 | Windows | unpack the `.zip` and run `dragonperch.exe` |
 
-On Linux, install the KWin script once so the dragons can find your windows:
+On Linux, install the KWin script once so the pets can find your windows:
 
 ```bash
 ./kwin/install.sh

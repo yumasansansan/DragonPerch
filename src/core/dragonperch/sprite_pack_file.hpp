@@ -44,7 +44,7 @@ struct SpritePackFile {
 /// section other than `[pack]` is an animation, named by its section.
 ///
 /// Throws std::runtime_error with the line number on anything malformed. A sprite pack is
-/// authored once and shipped; a silently mis-parsed one would show up as a dragon standing
+/// authored once and shipped; a silently mis-parsed one would show up as a pet standing
 /// in the wrong place, which is far harder to trace back than a refusal to start.
 [[nodiscard]] SpritePackFile parse_sprite_pack(std::string_view text, int atlas_id,
                                                PixelSize atlas_size);

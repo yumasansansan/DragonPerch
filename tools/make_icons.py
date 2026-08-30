@@ -13,7 +13,7 @@ Two outputs, because the two platforms ask for different things:
                               the tarball is meant to run unpacked -- so the pixels travel
                               with the program and go over D-Bus as IconPixmap.
 
-The head and shoulders rather than the whole dragon: at sixteen pixels a full figure is
+The head and shoulders rather than the whole figure: at sixteen pixels a full one is
 four green smudges, and what makes Konqi recognisable that small is the head.
 
 Usage:

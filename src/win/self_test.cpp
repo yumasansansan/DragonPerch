@@ -139,7 +139,7 @@ int run()
     const OutputInfo output{0, screen, screen, 1.0, "self-test"};
     renderer.set_outputs(std::span{&output, 1});
 
-    // Something actually drawn over the click point: a click that lands on a dragon is the
+    // Something actually drawn over the click point: a click that lands on a pet is the
     // interesting case, not one that misses.
     const std::vector<std::byte> atlas = placeholder_pack::render_atlas();
     const int atlas_id = renderer.register_atlas(atlas, placeholder_pack::atlas_size());

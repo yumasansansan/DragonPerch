@@ -106,7 +106,7 @@ std::vector<std::filesystem::path> find_sprite_packs(const std::filesystem::path
     }
 
     // One pack per mascot, named after the directory it lives in. Sorted, so that which
-    // dragon spawns where does not depend on the order the filesystem hands them back.
+    // pet spawns where does not depend on the order the filesystem hands them back.
     std::vector<std::filesystem::path> packs;
     std::error_code failed;
     for (const auto& entry : std::filesystem::directory_iterator{assets, failed}) {

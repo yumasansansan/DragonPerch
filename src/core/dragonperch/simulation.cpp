@@ -227,7 +227,7 @@ void Simulation::update_walking(Pet& pet, double seconds)
         // exactly, so every ledge ends on the same two columns, and a pet leaving one at
         // x = 0 or x = width is over nothing whichever ledge it left. Measured over 90
         // seconds, every single departure was from x = -6..-5 or x = 1920..1925. What that
-        // looks like is a dragon raining down the edge of the screen for ever.
+        // looks like is a pet raining down the edge of the screen for ever.
         //
         // So: look before stepping. Nothing below means turn round, which is also the
         // sensible thing for a creature at the end of a ledge over a void to do.

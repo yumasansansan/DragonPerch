@@ -181,7 +181,7 @@ idle-interval = -3
 TEST_CASE("an empty list means everything, not nothing", "[settings]")
 {
     // The difference matters: somebody who has never opened the settings has an empty
-    // mascot list and should get every dragon, not none.
+    // mascot list and should get every pet, not none.
     const Settings all = parse_settings("[DragonPerch]\nmascots =\n");
     CHECK(all.mascots.empty());
     CHECK(all.wants_mascot("konqi"));
@@ -195,7 +195,7 @@ TEST_CASE("an empty list means everything, not nothing", "[settings]")
 TEST_CASE("only a change to the cast needs the pets spawning again", "[settings]")
 {
     // Adjusting a speed while a pet is mid-stride should not teleport it, and changing
-    // which dragons exist cannot be done any other way.
+    // which pets exist cannot be done any other way.
     const Settings before;
 
     Settings faster = before;
@@ -309,7 +309,7 @@ TEST_CASE("a walk speed that is not a number is refused", "[settings]")
 {
     // strtod accepts "nan" and "inf", and std::clamp passes a NaN straight through: both
     // comparisons inside it are false. A NaN walk speed reaches std::lround in the
-    // simulation, where it is undefined behaviour rather than a slow dragon.
+    // simulation, where it is undefined behaviour rather than a slow pet.
     const Settings settings = parse_settings(R"(
 [DragonPerch]
 walk-speed = nan

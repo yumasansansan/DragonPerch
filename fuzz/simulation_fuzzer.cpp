@@ -116,7 +116,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
 
         for (const dp::Pet& pet : simulation.pets()) {
             // Velocity is the only floating point number a pet carries, and a NaN in it
-            // reaches std::lround, which is undefined behaviour rather than a slow dragon.
+            // reaches std::lround, which is undefined behaviour rather than a slow pet.
             if (!std::isfinite(pet.velocity_y())) {
                 std::abort();
             }

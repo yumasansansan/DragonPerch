@@ -29,7 +29,7 @@ enum class PetState {
 
 [[nodiscard]] std::string_view animation_for(PetState state) noexcept;
 
-/// One dragon.
+/// One pet.
 class Pet {
 public:
     Pet(int id, const SpritePack& pack, PixelPoint position);
@@ -118,7 +118,7 @@ public:
 
     Pet& spawn(const SpritePack& pack, PixelPoint at);
 
-    /// Removes every pet. What a settings change that alters *which* dragons there are has
+    /// Removes every pet. What a settings change that alters *which* pets there are has
     /// to do -- adjusting a walk speed does not disturb anybody, and changing the cast
     /// does. The head respawns afterwards, because only it knows which packs it has.
     void clear_pets() noexcept;

@@ -54,7 +54,7 @@ bool describe(HWND hwnd, int z, WindowCandidate& out)
 
     // DWMWA_EXTENDED_FRAME_BOUNDS, not GetWindowRect. GetWindowRect includes the invisible
     // resize border DWM keeps outside the visible frame -- roughly 7px per side on a
-    // standard window, enough that a dragon visibly floats off the left edge of the title
+    // standard window, enough that a pet visibly floats off the left edge of the title
     // bar.
     RECT frame{};
     if (FAILED(DwmGetWindowAttribute(hwnd, DWMWA_EXTENDED_FRAME_BOUNDS, &frame, sizeof(frame)))
@@ -181,7 +181,7 @@ void add_taskbar(std::vector<WalkableEdge>& edges)
 void add_screen_floors(std::vector<WalkableEdge>& edges, const std::vector<OutputInfo>& outputs)
 {
     for (const OutputInfo& output : outputs) {
-        // Bottom of the work area, so a dragon that runs out of windows lands above the
+        // Bottom of the work area, so a pet that runs out of windows lands above the
         // taskbar rather than behind it. When a taskbar is docked at the bottom that is
         // exactly the taskbar's own top edge, so skip it rather than stack two ledges on the
         // same pixel row.

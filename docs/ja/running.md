@@ -31,7 +31,7 @@ Windows では `Shell_NotifyIcon`、Linux では StatusNotifierItem で、後者
 Windows のメニューは本物の WinUI 3 の `MenuFlyout` で、`shell/windows/` にある別プログラム
 `DragonPerch.Shell.exe` が描きます。別プロセスなのは測って決めたことです。XAML の初期化はプロセスに
 恒久的に約50MB の専有メモリを要求し、閉じても返ってきません。だからツールキットは、必要になったときに
-起動して、竜に気づかれずに殺せる場所に置いてあります。`dragonperch.exe` は App SDK と無縁の
+起動して、マスコットに気づかれずに殺せる場所に置いてあります。`dragonperch.exe` は App SDK と無縁の
 2MB の Win32 プロセスのままです。
 
 デーモンはポインタがトレイアイコンに乗った時点でシェルを起動します。冷えた WinUI プロセスがボタンを

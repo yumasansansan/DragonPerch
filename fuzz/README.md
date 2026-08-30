@@ -99,7 +99,7 @@ with it.
 
 `world` and `simulation` are not boundaries at all. Every number in them has already been
 through one, so a crash is not what they are looking for: a wrong answer from `edge_below`
-crashes nothing and puts a dragon on the window behind the one it was standing over, which
+crashes nothing and puts a pet on the window behind the one it was standing over, which
 somebody has to notice by eye. They assert the invariants the rest of the core is written
 against -- the sort order the lookups assume, that the edge found is really the highest one
 below the point, that a pet claiming a perch has one that exists, that nothing becomes a NaN
@@ -129,7 +129,7 @@ than about the program. See above.
 
 The two behaviour targets are seeded with bytes that describe a plausible desktop rather
 than a random one, for the same reason: from random bytes the fuzzer spends its budget
-building a world at all instead of walking dragons around one.
+building a world at all instead of walking pets around one.
 
 ## Where they run
 

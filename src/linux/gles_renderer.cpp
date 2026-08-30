@@ -265,7 +265,7 @@ void GlesRenderer::flush(LayerSurface& overlay)
     const PixelSize buffer = overlay.buffer_size();
     glViewport(0, 0, buffer.width, buffer.height);
 
-    // Transparent, not black. The clear colour is what shows through everywhere a dragon
+    // Transparent, not black. The clear colour is what shows through everywhere a pet
     // is not, which is almost the entire screen.
     glClearColor(0.0F, 0.0F, 0.0F, 0.0F);
     glClear(GL_COLOR_BUFFER_BIT);

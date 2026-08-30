@@ -56,7 +56,7 @@ void read_double(const ini::Section& section, std::string_view key, double& out,
     // isfinite, because strtod accepts "nan" and "inf" and std::clamp passes a NaN
     // straight through -- both comparisons inside it are false against a NaN, so it
     // returns the NaN. That reaches std::lround in the simulation, where it is undefined
-    // behaviour rather than a slow dragon. "inf" is less exciting and just as wrong: it
+    // behaviour rather than a slow pet. "inf" is less exciting and just as wrong: it
     // clamps to the maximum, so the file says one thing and the pets do another.
     if (end != nullptr && *end == 0 && std::isfinite(value)) {
         out = std::clamp(value, lowest, highest);
@@ -216,7 +216,7 @@ std::string write_settings(const Settings& settings)
         "\n[",
         section_name,
         "]\n"
-        "\n; How many of each mascot. Three mascots at 2 is six dragons.\n"
+        "\n; How many of each mascot. Three mascots at 2 is six pets.\n"
         "pets-per-mascot = ",
         settings.pets_per_mascot,
         "\n"

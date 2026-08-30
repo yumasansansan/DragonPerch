@@ -53,7 +53,7 @@ and handing somebody two archives to unpack in the right order is not that.
 
 The artwork is found relative to the executable, so an unpacked tarball works without being
 installed and without an environment variable. Installing the package does **not** enable
-the KWin script and does **not** start anything at login — a program that puts dragons on
+the KWin script and does **not** start anything at login — a program that puts pets on
 somebody's screen because a dependency pulled it in is a program that gets uninstalled.
 
 ### Windows Defender flags the download

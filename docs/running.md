@@ -39,7 +39,7 @@ The first draws an opaque quad, a half-transparent one overlapping it, and an ou
 through DirectComposition on a click-through window. The second prints the walkable edges
 and reprints them whenever the desktop changes — drag a window and watch the numbers follow
 its title bar. The third is the app: it loads every mascot in `assets/` and shares the pets
-out between them, so that is six dragons, two of each.
+out between them, so that is six pets, two of each.
 
 **The diagnostic modes are Debug-only.** `--probe-composition`, `--dump-world`,
 `--self-test` and `--export-placeholder` are compiled out of a release build, which is what

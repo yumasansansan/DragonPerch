@@ -76,9 +76,9 @@ never written at all.
 
 In a release build that leftover is zeroes, so it is transparent and the bug is invisible.
 With `D3D11_CREATE_DEVICE_DEBUG` the debug layer fills new resources with a pattern, and it
-showed up as **97.6% of the screen tinted green** -- fading wherever a dragon had walked,
+showed up as **97.6% of the screen tinted green** -- fading wherever a pet had walked,
 because that is where damage finally covered it. Measured before and after: 97.6% of the
-screen down to 0.05%, which is one falling dragon.
+screen down to 0.05%, which is one falling pet.
 
 Worth knowing because the symptom points away from the cause twice over: it looks like a
 debug-only artefact, and it looks like something drawing green rather than something not
@@ -495,9 +495,9 @@ Each names how it is verified. No milestone is done because it compiles.
 | 1 | ~~**Composition renders on a layered window**~~ **done** | Screenshot shows opaque and blended quads over a visible desktop |
 | 2 | ~~Core simulation ported, Catch2 tests~~ **done** | 20 tests pass on both configurations; a fake world lands a pet exactly on the edge's row |
 | 3 | ~~`desktop_scanner` + `win_event_watcher`~~ **done** | `--dump-world` tracks a scripted window 12px per step; occlusion clips a maximised window to its visible run |
-| 4 | ~~Windows head end to end, placeholder sprites~~ **done** | Dragons render on the taskbar through DirectComposition; `--self-test` PASSes with a sprite over the click point; notification state stays `QUNS_ACCEPTS_NOTIFICATIONS` |
+| 4 | ~~Windows head end to end, placeholder sprites~~ **done** | Pets render on the taskbar through DirectComposition; `--self-test` PASSes with a sprite over the click point; notification state stays `QUNS_ACCEPTS_NOTIFICATIONS` |
 | 5 | ~~Fullscreen detection~~ **done** | A borderless full-screen window hides the pets on that monitor and closing it brings them back, in exactly two transitions |
-| 6 | ~~Wayland layer-shell surface + EGL on Plasma~~ **done** | Dragons visible on Plasma Wayland under llvmpipe; clicks pass through; `--probe-composition` tints the screen and reports frames presented |
+| 6 | ~~Wayland layer-shell surface + EGL on Plasma~~ **done** | Pets visible on Plasma Wayland under llvmpipe; clicks pass through; `--probe-composition` tints the screen and reports frames presented |
 | 7 | ~~KWin script + sd-bus geometry~~ **done** | Pets stand on real Plasma title bars and on the panel; `--dump-world` prints KWin's report as sent |
 | 8 | ~~KDE mascot artwork replaces the placeholder~~ **done** | Konqi, Katie and Kori walk on the taskbar together, each facing the way it is going; the two that carry KDE's K draw both directions rather than mirroring |
 | 9 | ~~Control interface, then a tray icon on both platforms~~ **Windows done, Linux written** | Right-click gives pause, settings and quit, in Breeze on Linux and WinUI on Windows; `--stop` becomes one caller of the same mechanism; the icon survives an Explorer restart and a tray appearing late; the daemon still builds and runs with no shell installed |
@@ -1018,7 +1018,7 @@ thread and set `g_reload`, which the render loop reads between frames.
 
 `--pets N` now means the same thing as `pets-per-mascot` and overrides it. It used to mean
 a total shared out between the mascots round-robin, which made `--pets 2` with three
-mascots a puzzle. With one of each as the default, the no-argument case is three dragons
+mascots a puzzle. With one of each as the default, the no-argument case is three pets
 either way.
 
 #### Windows: the same shell process, WinUI 3, in C# -- **done**

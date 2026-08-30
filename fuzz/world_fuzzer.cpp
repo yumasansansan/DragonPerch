@@ -53,7 +53,7 @@ constexpr int minimum_width = 64;
 ///
 /// Not an input boundary -- every number here has already been through one -- which is why
 /// this asserts properties rather than watching for a crash. A wrong answer from
-/// edge_below does not crash anything; it puts a dragon on the window behind the one it was
+/// edge_below does not crash anything; it puts a pet on the window behind the one it was
 /// standing over, which is a bug somebody has to notice by eye. These are the invariants
 /// the rest of the core is written against.
 extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size)
@@ -76,7 +76,7 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
     dp::append_window_edges(candidates, minimum_width, edges);
 
     // Every edge that survives is wide enough to stand on. Anything narrower is a sliver of
-    // a window mostly hidden behind another, and putting a dragon on one is the thing the
+    // a window mostly hidden behind another, and putting a pet on one is the thing the
     // occlusion pass exists to prevent.
     for (const dp::WalkableEdge& edge : edges) {
         if (edge.width() < minimum_width) {

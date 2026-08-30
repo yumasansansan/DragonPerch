@@ -72,7 +72,7 @@ void SpriteRenderer::end_frame()
             // Nothing is drawn into a hidden surface, so whatever was on it when it went
             // away is still on it when it comes back -- while the damage rectangle this
             // loop works from has moved on and covers only where the pets are now. Those
-            // old pixels are in neither, so nobody ever clears them: a dragon frozen
+            // old pixels are in neither, so nobody ever clears them: a pet frozen
             // mid-stride stayed on the screen, and another one walking through it was the
             // only thing that took it away. Every hide leaves one more.
             overlay.surface.invalidate();

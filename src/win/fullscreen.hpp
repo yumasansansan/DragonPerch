@@ -9,7 +9,7 @@ namespace dp::win::fullscreen {
 
 /// True when a full-screen application is covering the monitor whose bounds these are.
 ///
-/// A dragon walking across somebody's game or film is the fastest way to get an app
+/// A pet walking across somebody's game or film is the fastest way to get an app
 /// uninstalled, so this is checked every frame and the overlay on that monitor is hidden
 /// outright rather than merely skipped -- a hidden window is not composited at all.
 ///

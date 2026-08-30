@@ -73,7 +73,7 @@ void OutputSurface::draw(const PixelRect& dirty, const std::function<void(ID2D1D
     //
     // In a release build that leftover happens to be zeroes, so it is invisible and the bug
     // is not. With the D3D debug layer on it is a fill pattern, which showed up as the
-    // whole screen tinted green -- fading wherever a dragon walked, because that is where
+    // whole screen tinted green -- fading wherever a pet walked, because that is where
     // damage finally covered it.
     const PixelRect painted = local.translated(PixelOffset{bounds().left(), bounds().top()});
 

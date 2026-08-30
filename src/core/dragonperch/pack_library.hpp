@@ -24,14 +24,14 @@ struct DecodedImage {
 /// of which the core is allowed to know about, which is why this is a parameter.
 ///
 /// Must throw rather than return an empty image: a pack that names an atlas it cannot
-/// decode is an authoring mistake, and carrying on would show it as an invisible dragon.
+/// decode is an authoring mistake, and carrying on would show it as an invisible pet.
 using ImageDecoder = std::function<DecodedImage(const std::filesystem::path&)>;
 
 /// Loads a sprite pack from a definition file and registers its atlas with the renderer.
 ///
 /// Returns nothing if the file is missing, so a build with no artwork yet still runs on the
 /// procedural placeholder. A file that exists but does not parse throws instead: that is an
-/// authoring mistake too, and falling back silently would show it as a dragon standing in
+/// authoring mistake too, and falling back silently would show it as a pet standing in
 /// the wrong place rather than as an error.
 [[nodiscard]] std::optional<SpritePack> load_sprite_pack(const std::filesystem::path& definition,
                                                          ISpriteRenderer& renderer,

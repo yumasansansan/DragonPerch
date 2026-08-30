@@ -27,7 +27,7 @@ duration = 100
 TEST_CASE("a pack maps frame numbers onto a grid of cells", "[pack]")
 {
     // 128x64 at 32x32 is four columns and two rows, so frame 5 is the second cell of the
-    // second row. Getting this wrong shows up as a dragon made of pieces of its neighbours.
+    // second row. Getting this wrong shows up as a pet made of pieces of its neighbours.
     const SpritePackFile file = parse_sprite_pack(R"(
 [pack]
 atlas = konqi.png
@@ -184,7 +184,7 @@ TEST_CASE("the atlas filename can be read without the rest", "[pack]")
 TEST_CASE("a malformed pack is refused rather than half-read", "[pack]")
 {
     // A sprite pack is authored once and shipped. Silently mis-parsing one shows up as a
-    // dragon standing in the wrong place, which is far harder to trace than a refusal.
+    // pet standing in the wrong place, which is far harder to trace than a refusal.
     SECTION("no [pack] section")
     {
         CHECK_THROWS_AS(parse_sprite_pack("[walk]\nframes = 0\nduration = 1\n", 0,

@@ -68,9 +68,9 @@
                 <Border Style="{StaticResource Card}">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource CardTitle}" x:Name="PetsTitle" Text="Dragons per mascot"/>
+                            <TextBlock Style="{StaticResource CardTitle}" x:Name="PetsTitle" Text="Pets per mascot"/>
                             <TextBlock Style="{StaticResource CardNote}"
-                                       x:Name="PetsNote" Text="Three mascots at two each is six dragons."/>
+                                       x:Name="PetsNote" Text="Three mascots at two each is six pets."/>
                         </StackPanel>
                         <!--
                             The family named here rather than left to the theme resource.
@@ -94,7 +94,7 @@
                         <StackPanel>
                             <TextBlock Style="{StaticResource CardTitle}" x:Name="MascotsTitle" Text="Mascots"/>
                             <TextBlock Style="{StaticResource CardNote}"
-                                       x:Name="MascotsNote" Text="Which dragons walk. Turning all of them off is the same as turning all of them on."/>
+                                       x:Name="MascotsNote" Text="Which mascots walk. Turning all of them off is the same as turning all of them on."/>
                         </StackPanel>
                         <StackPanel x:Name="MascotList" Spacing="2"/>
 
@@ -161,7 +161,7 @@
                         <StackPanel>
                             <TextBlock Style="{StaticResource CardTitle}" x:Name="MonitorsTitle" Text="Monitors"/>
                             <TextBlock Style="{StaticResource CardNote}"
-                                       x:Name="MonitorsNote" Text="Where the dragons are allowed. Turning all of them off is the same as turning all of them on."/>
+                                       x:Name="MonitorsNote" Text="Where the pets are allowed. Turning all of them off is the same as turning all of them on."/>
                         </StackPanel>
                         <StackPanel x:Name="OutputList" Spacing="2"/>
                     </StackPanel>
@@ -172,7 +172,7 @@
                         <StackPanel VerticalAlignment="Center">
                             <TextBlock Style="{StaticResource CardTitle}" x:Name="FullscreenTitle" Text="Get out of the way of full-screen apps"/>
                             <TextBlock Style="{StaticResource CardNote}"
-                                       x:Name="FullscreenNote" Text="Hide the dragons on a monitor showing something full screen."/>
+                                       x:Name="FullscreenNote" Text="Hide the pets on a monitor showing something full screen."/>
                         </StackPanel>
                         <!--
                             The state as a label of its own, to the left, and the switch

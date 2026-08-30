@@ -111,7 +111,7 @@ TEST_CASE("a window in front takes a bite out of the one behind", "[edges]")
 TEST_CASE("slivers are not perches", "[edges]")
 {
     // A window with ten visible pixels of title bar is a tooltip or the edge of something
-    // mostly hidden. Standing a dragon on it looks like a bug.
+    // mostly hidden. Standing a pet on it looks like a bug.
     std::vector<WindowCandidate> candidates{
         window(1, 20, 0, 1900, 600, 10),
         window(2, 0, 0, 1000, 600, 5),

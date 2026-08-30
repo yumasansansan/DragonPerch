@@ -1,7 +1,7 @@
 {
     "KPlugin": {
         "Category": "Appearance",
-        "Description": "Dragons that walk along your window title bars and panels",
+        "Description": "Mascots that walk along your window title bars and panels",
         "Icon": "dragonperch",
         "License": "GPL-3.0-or-later",
         "Name": "DragonPerch",

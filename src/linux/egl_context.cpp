@@ -55,7 +55,7 @@ void EglContext::create(wl_display* display)
 
     // EGL_ALPHA_SIZE is the one that matters and the one that is easy to leave out. Without
     // it EGL is entitled to hand back an opaque config, and then the overlay is a black
-    // rectangle over the whole screen rather than a few dragons.
+    // rectangle over the whole screen rather than a few pets.
     const std::array<EGLint, 13> attributes{
         EGL_SURFACE_TYPE,    EGL_WINDOW_BIT,
         EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT,

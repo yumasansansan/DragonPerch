@@ -28,7 +28,7 @@ pause-for-fullscreen = true
 
 | Key | Range | Means |
 |---|---|---|
-| `pets-per-mascot` | 0 – 64 | How many of *each* mascot. Three mascots at 2 is six dragons. |
+| `pets-per-mascot` | 0 – 64 | How many of *each* mascot. Three mascots at 2 is six pets. |
 | `mascots` | pack ids, comma separated | Which ones walk. **Empty means all of them.** |
 | `walk-speed` | 1 – 1000 | Pixels per second. The walk cycle was drawn against 42. |
 | `idle-interval` | 0 – 3600 | Mean seconds between spontaneous pauses. 0 stops them. |

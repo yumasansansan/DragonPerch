@@ -24,7 +24,7 @@ internal sealed class Settings
 {
     public const string Section = "DragonPerch";
 
-    /// <summary>How many of each mascot. Three mascots at 2 is six dragons.</summary>
+    /// <summary>How many of each mascot. Three mascots at 2 is six pets.</summary>
     public int PetsPerMascot { get; set; } = 1;
 
     /// <summary>Pack ids. Empty means every one that is installed.</summary>
@@ -186,7 +186,7 @@ internal sealed class Settings
         text.Append("; DragonPerch settings. Written by the settings program and safe to edit by hand;\n");
         text.Append("; a line that cannot be read is ignored and its setting keeps the default.\n");
         text.Append($"\n[{Section}]\n");
-        text.Append("\n; How many of each mascot. Three mascots at 2 is six dragons.\n");
+        text.Append("\n; How many of each mascot. Three mascots at 2 is six pets.\n");
         text.Append($"pets-per-mascot = {PetsPerMascot.ToString(CultureInfo.InvariantCulture)}\n");
         text.Append("\n; Which mascots, by pack id: konqi, katie, kori. Empty means all of them.\n");
         text.Append($"mascots = {string.Join(", ", Mascots)}\n");

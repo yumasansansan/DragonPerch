@@ -92,7 +92,7 @@ TEST_CASE("the placeholder atlas is the size it claims and is not blank", "[spri
         }
     }
 
-    // Every frame should have a dragon in it. A blank atlas would render as nothing at all,
+    // Every frame should have a pet in it. A blank atlas would render as nothing at all,
     // which is hard to tell from a broken renderer.
     CHECK(opaque > 100U * static_cast<std::size_t>(placeholder_pack::frame_count));
 }

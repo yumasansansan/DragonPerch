@@ -18,7 +18,7 @@ namespace dp {
 /// a sensible answer to.
 struct Settings {
     /// How many of each mascot. Six pets from three mascots is two each, which is what
-    /// "how many dragons" means to somebody who has not read the source.
+    /// "how many pets" means to somebody who has not read the source.
     int pets_per_mascot = 1;
 
     /// Which mascots, by pack id. Empty means every one that is installed, which is what
