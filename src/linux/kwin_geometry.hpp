@@ -74,10 +74,16 @@ public:
     /// but the floor, which usually means the script is not installed or not enabled.
     [[nodiscard]] bool heard_from_kwin() const noexcept { return reports_ > 0; }
 
+    /// Turns one report into a snapshot.
+    ///
+    /// Public because it is the parsing, and the parsing is the part worth reaching from
+    /// outside: it takes text written by another process and turns it into the geometry
+    /// the pets walk on. fuzz/kwin_report_fuzzer.cpp drives exactly this. Nothing about it
+    /// needs the bus -- on_update below only unwraps the message and hands the string over.
+    void apply(std::string_view report);
+
 private:
     static int on_update(sd_bus_message* message, void* userdata, sd_bus_error* error);
-
-    void apply(std::string_view report);
 
     bool started_ = false;
     bool log_raw_ = false;

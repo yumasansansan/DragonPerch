@@ -20,7 +20,11 @@ internal static partial class Native
     public struct COPYDATASTRUCT
     {
         public IntPtr dwData;
-        public int cbData;
+
+        /// <summary>Unsigned, as Win32 declares it. Read as an int, a payload above 2 GB
+        /// arrives as a negative length.</summary>
+        public uint cbData;
+
         public IntPtr lpData;
     }
 
@@ -85,16 +89,24 @@ internal static partial class Native
     /// Reads the text out of a WM_COPYDATA. The daemon sends UTF-8 with no terminator, the
     /// same as it sends to its own control window; `cbData` is the length.
     /// </summary>
+    /// <summary>The largest request worth reading.</summary>
+    /// <remarks>
+    /// The one message this program accepts is about thirty bytes. Anything can send this
+    /// window a WM_COPYDATA, though, and without a ceiling a stranger could hand it a
+    /// gigabyte and have it allocated -- twice, once as bytes and once as a string.
+    /// </remarks>
+    private const uint LargestRequest = 4096;
+
     public static string ReadCopyData(IntPtr lparam)
     {
         COPYDATASTRUCT data = Marshal.PtrToStructure<COPYDATASTRUCT>(lparam);
-        if (data.lpData == IntPtr.Zero || data.cbData <= 0)
+        if (data.lpData == IntPtr.Zero || data.cbData == 0 || data.cbData > LargestRequest)
         {
             return string.Empty;
         }
 
         byte[] bytes = new byte[data.cbData];
-        Marshal.Copy(data.lpData, bytes, 0, data.cbData);
+        Marshal.Copy(data.lpData, bytes, 0, (int)data.cbData);
         return Encoding.UTF8.GetString(bytes);
     }
 }

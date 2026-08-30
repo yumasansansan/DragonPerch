@@ -74,7 +74,27 @@ internal sealed class ShellServer
         return _window != IntPtr.Zero;
     }
 
+    /// <remarks>
+    /// Everything is caught, and that is not defensiveness for its own sake. This is a
+    /// reverse P/Invoke: Windows calls it, and an exception that escapes back into native
+    /// code takes the process down rather than unwinding anywhere useful. Since anything
+    /// in the session can send this window a message, letting one escape would mean a
+    /// stranger could end the program by sending it something odd.
+    /// </remarks>
     private IntPtr WindowProc(IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam)
+    {
+        try
+        {
+            return Dispatch(hwnd, message, wparam, lparam);
+        }
+        catch (Exception e)
+        {
+            Log.Failure("handling a window message", e);
+            return 0;
+        }
+    }
+
+    private IntPtr Dispatch(IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam)
     {
         if (message != Native.WM_COPYDATA)
         {

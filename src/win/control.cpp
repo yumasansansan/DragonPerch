@@ -5,7 +5,9 @@
 #include "log.hpp"
 #include "win_headers.hpp"
 
+#include <algorithm>
 #include <array>
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -24,6 +26,29 @@ constexpr std::array<std::pair<Command, std::string_view>, 5> commands{{
     {Command::toggle_pause, "toggle-pause"},
     {Command::reload, "reload"},
 }};
+
+/// As much of a rejected command as is worth writing down, and nothing more.
+///
+/// This window answers WM_COPYDATA, which means any process in the session can send it
+/// anything: the payload is neither trusted nor bounded. Logging it whole let a stranger
+/// write as many megabytes into somebody's log file as they cared to, in whatever bytes
+/// they chose. Sixty characters is enough to recognise a command from a different build,
+/// which is the only reason to print it at all.
+std::string quoted_prefix(std::string_view text)
+{
+    constexpr std::size_t most = 60;
+
+    std::string out;
+    out.reserve(std::min(text.size(), most) + 3);
+
+    for (const char c : text.substr(0, most)) {
+        out += (c >= 0x20 && c < 0x7F) ? c : '.';
+    }
+    if (text.size() > most) {
+        out += "...";
+    }
+    return out;
+}
 
 LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lparam)
 {
@@ -44,7 +69,9 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
                     return TRUE;
                 }
             }
-            log_line(cat("control: ignoring an unknown command '", text, "'"));
+
+            log_line(cat("control: ignoring an unknown command, ", text.size(), " byte(s): '",
+                         quoted_prefix(text), "'"));
         }
         return FALSE;
     }

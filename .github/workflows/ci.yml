@@ -46,7 +46,7 @@ jobs:
       - name: Install the Wayland head's dependencies
         run: |
           sudo apt-get update
-          sudo apt-get purge -y snap snapd
+          sudo apt-get purge -y snap snapd firefox
           sudo apt-get full-upgrade -y
           sudo apt-get install --no-install-recommends -y libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev
 
@@ -149,10 +149,47 @@ jobs:
       - name: Build everything
         run: cmake --build build/linux-x64 --config ${{ matrix.configuration }}
 
+      # No ASAN_OPTIONS. LeakSanitizer is part of AddressSanitizer on Linux and is on by
+      # default; turning it off is the one thing that would make this step cheaper and
+      # worth less. A daemon meant to be left running all day is exactly what leak
+      # detection is for.
       - name: Test
-        env:
-          ASAN_OPTIONS: detect_leaks=0
         run: ctest --test-dir build/linux-x64 --build-config ${{ matrix.configuration }} --output-on-failure
+
+      # A fuzzer nobody runs is decoration, so the sanitized leg runs each one for half a
+      # minute over its seed corpus. That is not long enough to find much on its own; what
+      # it is long enough for is to keep finding the thing somebody broke this week, and to
+      # prove the corpus still parses.
+      #
+      # The targets exist only in this configuration -- see fuzz/CMakeLists.txt -- because
+      # they are built on the same `-fsanitize=...,fuzzer-no-link` instrumentation the
+      # sanitized build already puts on every object.
+      - name: Fuzz the parsers
+        if: matrix.sanitize == 'ON'
+        working-directory: build/linux-x64
+        run: |
+          for target in fuzz/Release/dragonperch_fuzz_*; do
+            name=$(basename "$target")
+            corpus="fuzz/Release/corpus/${name#dragonperch_fuzz_}"
+            echo "::group::$name"
+            "./$target" "$corpus" -max_total_time=30 -print_final_stats=1
+            echo "::endgroup::"
+          done
+
+      # Whatever libFuzzer wrote before it stopped. These are the only artifacts here worth
+      # having on a failure, and they are the ones that are gone when the runner is.
+      - name: Keep the fuzzer's findings
+        if: failure() && matrix.sanitize == 'ON'
+        uses: actions/upload-artifact@v7
+        with:
+          name: fuzz-findings-${{ matrix.configuration }}
+          path: |
+            build/linux-x64/crash-*
+            build/linux-x64/leak-*
+            build/linux-x64/timeout-*
+            build/linux-x64/oom-*
+          if-no-files-found: ignore
+          retention-days: 14
 
       # Release only. A Debug package would be several times the size and slower for no
       # reason anybody downloading it would want.
@@ -218,8 +255,6 @@ jobs:
         run: cmake --build build/windows-x64 --config ${{ matrix.configuration }}
 
       - name: Test
-        env:
-          ASAN_OPTIONS: windows_hook_legacy_allocators=0
         run: ctest --test-dir build/windows-x64 --build-config ${{ matrix.configuration }} --output-on-failure
 
       # Pinned rather than trusting whatever the image ships: the shell targets

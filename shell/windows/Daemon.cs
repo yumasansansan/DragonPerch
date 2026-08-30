@@ -44,7 +44,7 @@ internal static class Daemon
             Native.COPYDATASTRUCT data = new()
             {
                 dwData = IntPtr.Zero,
-                cbData = bytes.Length,
+                cbData = (uint)bytes.Length,
                 lpData = buffer,
             };
 

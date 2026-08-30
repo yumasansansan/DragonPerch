@@ -77,6 +77,10 @@ if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
 
+# Fuzz targets. The directory returns immediately unless DRAGONPERCH_SANITIZE is on, which
+# is the only configuration where they mean anything -- see fuzz/CMakeLists.txt.
+add_subdirectory(fuzz)
+
 if(UNIX AND NOT APPLE)
     include(GNUInstallDirs)
 

@@ -2,6 +2,7 @@
 #include "dragonperch/text.hpp"
 #include "png.hpp"
 
+#include <cstddef>
 #include <cstdio>
 #include <memory>
 #include <stdexcept>
@@ -65,6 +66,15 @@ dp::DecodedImage decode_image(const std::filesystem::path& file)
     }
 
     png_init_io(reader.png, handle.get());
+
+    // A ceiling on what the header may ask for, before a single row is read.
+    //
+    // libpng's own default is a million by a million, which it will happily accept and
+    // then hand over as a size to allocate: four terabytes from a file of a few dozen
+    // bytes. No atlas is anywhere near this, and no GPU here would take a texture that
+    // large either -- 16384 is the largest any of them advertise.
+    png_set_user_limits(reader.png, 16384, 16384);
+
     png_read_info(reader.png, reader.info);
 
     // Normalise everything to 8-bit RGBA before reading a single row: palettes, greyscale,
@@ -81,6 +91,19 @@ dp::DecodedImage decode_image(const std::filesystem::path& file)
     const auto height = static_cast<int>(png_get_image_height(reader.png, reader.info));
     if (width <= 0 || height <= 0) {
         throw std::runtime_error(cat(file.string(), " has no pixels"));
+    }
+
+    // What libpng is about to write per row, against what the row pointers below assume.
+    //
+    // The transformations above are meant to make every input come out as 8-bit RGBA, so
+    // this should be width * 4 for anything at all. "Should be" is the problem: the row
+    // pointers are built from our own arithmetic and libpng writes rowbytes, so any input
+    // where those two disagree is a heap overflow rather than a wrong picture. Asking is
+    // one call, and it turns a class of silent corruption into a refusal.
+    const std::size_t row_bytes = png_get_rowbytes(reader.png, reader.info);
+    if (row_bytes != static_cast<std::size_t>(width) * 4) {
+        throw std::runtime_error(cat(file.string(), " decodes to ", row_bytes,
+                                     " bytes a row, not the ", width * 4, " expected"));
     }
 
     image.size = PixelSize{width, height};
