@@ -29,6 +29,10 @@ specific file wins.
 A key nobody has translated falls back to its English on its own. **A partial translation is
 a useful translation** — there is no need to finish the file before it is worth having.
 
+One limit worth knowing: a translation may not contain `;` or `#`, because both parsers read
+them as the start of a comment and would cut the line there. Every language that needs one
+has a fullwidth form — `；` and `＃` — which is what a Japanese sentence would use anyway.
+
 ## Why the key is an id and not the English
 
 `menu.pause = 一時停止`, not `Pause = 一時停止`.
@@ -53,8 +57,14 @@ which is also what makes the fallback work without an English catalogue to insta
 | `src/core/dragonperch/language.hpp` | The table itself, and `tr` |
 | `lang/*.ini` | The catalogues |
 | `src/win/tray.cpp`, `src/linux/tray.cpp` | The tray menus |
-| `shell/windows/` | The Windows tray menu and settings window |
-| `kcm/` | The KDE settings module |
+| `shell/windows/Strings.cs` | The same catalogue, read by the Windows shell |
+| `shell/windows/TrayMenu.cs`, `SettingsWindow.xaml.cs` | The Fluent menu and settings window |
+| `kcm/` | The KDE settings module — not yet translated |
+
+The Windows settings window translates the sentence already in its markup rather than
+carrying a second copy of the English in the code: `Strings.Get("settings.pets",
+PetsTitle.Text)`. There is one place the English lives, and an id nobody has translated
+leaves the element exactly as the markup wrote it.
 
 Which language is chosen is asked of the operating system by each program, because the core
 is not allowed to: `GetUserPreferredUILanguages` on Windows, `LC_ALL` / `LC_MESSAGES` /

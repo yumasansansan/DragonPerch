@@ -68,9 +68,9 @@
                 <Border Style="{StaticResource Card}">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource CardTitle}" Text="Dragons per mascot"/>
+                            <TextBlock Style="{StaticResource CardTitle}" x:Name="PetsTitle" Text="Dragons per mascot"/>
                             <TextBlock Style="{StaticResource CardNote}"
-                                       Text="Three mascots at two each is six dragons."/>
+                                       x:Name="PetsNote" Text="Three mascots at two each is six dragons."/>
                         </StackPanel>
                         <!--
                             The family named here rather than left to the theme resource.
@@ -92,9 +92,9 @@
                 <Border Style="{StaticResource Card}">
                     <StackPanel Spacing="10">
                         <StackPanel>
-                            <TextBlock Style="{StaticResource CardTitle}" Text="Mascots"/>
+                            <TextBlock Style="{StaticResource CardTitle}" x:Name="MascotsTitle" Text="Mascots"/>
                             <TextBlock Style="{StaticResource CardNote}"
-                                       Text="Which dragons walk. Turning all of them off is the same as turning all of them on."/>
+                                       x:Name="MascotsNote" Text="Which dragons walk. Turning all of them off is the same as turning all of them on."/>
                         </StackPanel>
                         <StackPanel x:Name="MascotList" Spacing="2"/>
 
@@ -116,9 +116,9 @@
                 <Border Style="{StaticResource Card}">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource CardTitle}" Text="Walking speed"/>
+                            <TextBlock Style="{StaticResource CardTitle}" x:Name="SpeedTitle" Text="Walking speed"/>
                             <TextBlock Style="{StaticResource CardNote}"
-                                       Text="Pixels per second. The walk cycle was drawn against 42: much faster and the feet slide, much slower and it moonwalks."/>
+                                       x:Name="SpeedNote" Text="Pixels per second. The walk cycle was drawn against 42: much faster and the feet slide, much slower and it moonwalks."/>
                         </StackPanel>
                         <!--
                             The number on the left and the slider hard against the right
@@ -144,9 +144,9 @@
                 <Border Style="{StaticResource Card}">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource CardTitle}" Text="Pause now and then"/>
+                            <TextBlock Style="{StaticResource CardTitle}" x:Name="IdleTitle" Text="Pause now and then"/>
                             <TextBlock Style="{StaticResource CardNote}"
-                                       Text="Mean seconds between spontaneous pauses. Zero stops them happening at all."/>
+                                       x:Name="IdleNote" Text="Mean seconds between spontaneous pauses. Zero stops them happening at all."/>
                         </StackPanel>
                         <NumberBox x:Name="IdleBox" Grid.Column="1" Width="128"
                                    VerticalAlignment="Center"
@@ -159,9 +159,9 @@
                 <Border Style="{StaticResource Card}">
                     <StackPanel Spacing="10">
                         <StackPanel>
-                            <TextBlock Style="{StaticResource CardTitle}" Text="Monitors"/>
+                            <TextBlock Style="{StaticResource CardTitle}" x:Name="MonitorsTitle" Text="Monitors"/>
                             <TextBlock Style="{StaticResource CardNote}"
-                                       Text="Where the dragons are allowed. Turning all of them off is the same as turning all of them on."/>
+                                       x:Name="MonitorsNote" Text="Where the dragons are allowed. Turning all of them off is the same as turning all of them on."/>
                         </StackPanel>
                         <StackPanel x:Name="OutputList" Spacing="2"/>
                     </StackPanel>
@@ -170,9 +170,9 @@
                 <Border Style="{StaticResource Card}" Margin="0,0,0,24">
                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                         <StackPanel VerticalAlignment="Center">
-                            <TextBlock Style="{StaticResource CardTitle}" Text="Get out of the way of full-screen apps"/>
+                            <TextBlock Style="{StaticResource CardTitle}" x:Name="FullscreenTitle" Text="Get out of the way of full-screen apps"/>
                             <TextBlock Style="{StaticResource CardNote}"
-                                       Text="Hide the dragons on a monitor showing something full screen."/>
+                                       x:Name="FullscreenNote" Text="Hide the dragons on a monitor showing something full screen."/>
                         </StackPanel>
                         <!--
                             The state as a label of its own, to the left, and the switch

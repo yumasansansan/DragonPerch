@@ -36,6 +36,8 @@ internal sealed partial class SettingsWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
 
+        Translate();
+
         SpeedSlider.ValueChanged += (_, e) => SpeedValue.Text = ((int)e.NewValue).ToString();
         FullscreenToggle.Toggled += (_, _) => ShowToggleState();
 
@@ -164,9 +166,42 @@ internal sealed partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>
+    /// Puts every visible sentence through the catalogue, in place.
+    /// </summary>
+    /// <remarks>
+    /// The English fallback is the text already in the markup rather than a second copy
+    /// written out here, so there is one place the English lives and no way for the two to
+    /// disagree. An id nobody has translated leaves its element untouched.
+    ///
+    /// Assigned rather than bound. A markup extension would be tidier to read and would
+    /// mean a type resolved by name at run time, which is the thing that has already ended
+    /// this process once under Native AOT; see TrayMenu.MenuFont.
+    /// </remarks>
+    private void Translate()
+    {
+        PetsTitle.Text = Strings.Get("settings.pets", PetsTitle.Text);
+        PetsNote.Text = Strings.Get("settings.pets.note", PetsNote.Text);
+        MascotsTitle.Text = Strings.Get("settings.mascots", MascotsTitle.Text);
+        MascotsNote.Text = Strings.Get("settings.mascots.note", MascotsNote.Text);
+        NoMascots.Text = Strings.Get("settings.mascots.none", NoMascots.Text);
+        SpeedTitle.Text = Strings.Get("settings.speed", SpeedTitle.Text);
+        SpeedNote.Text = Strings.Get("settings.speed.note", SpeedNote.Text);
+        IdleTitle.Text = Strings.Get("settings.idle", IdleTitle.Text);
+        IdleNote.Text = Strings.Get("settings.idle.note", IdleNote.Text);
+        MonitorsTitle.Text = Strings.Get("settings.monitors", MonitorsTitle.Text);
+        MonitorsNote.Text = Strings.Get("settings.monitors.note", MonitorsNote.Text);
+        FullscreenTitle.Text = Strings.Get("settings.fullscreen", FullscreenTitle.Text);
+        FullscreenNote.Text = Strings.Get("settings.fullscreen.note", FullscreenNote.Text);
+
+        CloseButton.Content = Strings.Get("settings.close", "Close");
+        ApplyButton.Content = Strings.Get("settings.apply", "Apply");
+    }
+
     /// <summary>The word beside the switch. Windows puts it to the left of the knob.</summary>
     private void ShowToggleState()
-        => FullscreenState.Text = FullscreenToggle.IsOn ? "On" : "Off";
+        => FullscreenState.Text = FullscreenToggle.IsOn ? Strings.Get("settings.on", "On")
+                                                        : Strings.Get("settings.off", "Off");
 
     private static string Pretty(string id)
         => id.Length == 0 ? id : char.ToUpperInvariant(id[0]) + id[1..];
@@ -188,7 +223,8 @@ internal sealed partial class SettingsWindow : Window
 
         if (!_settings.Save())
         {
-            Report(InfoBarSeverity.Error, $"Could not write {Settings.Path}");
+            Report(InfoBarSeverity.Error,
+                   Strings.Get("settings.save-failed", "Could not write") + " " + Settings.Path);
             return;
         }
 
@@ -197,7 +233,10 @@ internal sealed partial class SettingsWindow : Window
         Report(Daemon.Send("reload")
                    ? InfoBarSeverity.Success
                    : InfoBarSeverity.Informational,
-               Daemon.IsRunning() ? "Saved." : "Saved. DragonPerch is not running.");
+               Daemon.IsRunning()
+                   ? Strings.Get("settings.saved", "Saved.")
+                   : Strings.Get("settings.saved.not-running",
+                                 "Saved. DragonPerch is not running."));
     }
 
     private void Report(InfoBarSeverity severity, string message)

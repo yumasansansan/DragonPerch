@@ -269,7 +269,10 @@ internal sealed class TrayMenu
     {
         MenuFlyoutItem pause = new()
         {
-            Text = paused ? "Resume" : "Pause",
+            // Through the catalogue, with the English here as the fallback. See
+            // docs/translating.md; the daemon's own menu says the same words the same way.
+            Text = paused ? Strings.Get("menu.resume", "Resume")
+                          : Strings.Get("menu.pause", "Pause"),
             Icon = MenuIcon(paused ? GlyphPlay : GlyphPause, 1),
             MinHeight = RoomyItemHeight,
             VerticalContentAlignment = VerticalAlignment.Center,
@@ -279,7 +282,7 @@ internal sealed class TrayMenu
 
         MenuFlyoutItem settings = new()
         {
-            Text = "Settings…",
+            Text = Strings.Get("menu.settings", "Settings…"),
             Icon = MenuIcon(GlyphSettings, 1),
             MinHeight = RoomyItemHeight,
             VerticalContentAlignment = VerticalAlignment.Center,
@@ -289,7 +292,7 @@ internal sealed class TrayMenu
 
         MenuFlyoutItem quit = new()
         {
-            Text = "Quit DragonPerch",
+            Text = Strings.Get("menu.quit", "Quit DragonPerch"),
             Icon = MenuIcon(GlyphQuit, 2),
             MinHeight = RoomyItemHeight,
             VerticalContentAlignment = VerticalAlignment.Center,
