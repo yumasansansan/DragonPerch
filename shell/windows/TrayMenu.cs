@@ -204,12 +204,28 @@ internal sealed class TrayMenu
     /// </remarks>
     private static readonly FontFamily MenuFont = new("Segoe UI Variable Text");
 
+    /// <summary>
+    /// One pixel up, so the glyph lines up with the label rather than with the row.
+    /// </summary>
+    /// <remarks>
+    /// Centring a line of text centres its line box, and a line box has the descender space
+    /// underneath it whether or not the word has a descender -- so the part anybody actually
+    /// sees, cap height down to baseline, ends up sitting slightly above the middle. An icon
+    /// glyph does not have that asymmetry and lands on the middle exactly. Measured on the
+    /// Pause item, whose label has neither an ascender nor a descender to confuse it: the
+    /// text was a pixel above the icon.
+    ///
+    /// The icon is moved rather than the label, because the label is the thing being read
+    /// and because moving it would mean restyling the item's template.
+    /// </remarks>
+    private static readonly Thickness IconNudge = new(0, -1, 0, 0);
+
     private MenuFlyout BuildFlyout(bool paused)
     {
         MenuFlyoutItem pause = new()
         {
             Text = paused ? "Resume" : "Pause",
-            Icon = new FontIcon { Glyph = paused ? GlyphPlay : GlyphPause },
+            Icon = new FontIcon { Glyph = paused ? GlyphPlay : GlyphPause, Margin = IconNudge },
             FontFamily = MenuFont,
         };
         pause.Click += (_, _) => _ = Daemon.Send("toggle-pause");
@@ -217,7 +233,7 @@ internal sealed class TrayMenu
         MenuFlyoutItem settings = new()
         {
             Text = "Settings…",
-            Icon = new FontIcon { Glyph = GlyphSettings },
+            Icon = new FontIcon { Glyph = GlyphSettings, Margin = IconNudge },
             FontFamily = MenuFont,
         };
         settings.Click += (_, _) => ShowSettings();
@@ -225,7 +241,7 @@ internal sealed class TrayMenu
         MenuFlyoutItem quit = new()
         {
             Text = "Quit DragonPerch",
-            Icon = new FontIcon { Glyph = GlyphQuit },
+            Icon = new FontIcon { Glyph = GlyphQuit, Margin = IconNudge },
             FontFamily = MenuFont,
         };
         quit.Click += (_, _) => _ = Daemon.Send("quit");

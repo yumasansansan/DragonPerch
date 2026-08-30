@@ -40,6 +40,11 @@ internal sealed partial class SettingsWindow : Window
         FullscreenToggle.Toggled += (_, _) => ShowToggleState();
 
         Load();
+
+        // After the tree is up, or there is nothing to take it from. Programmatic, so no
+        // focus rectangle is drawn: the point is that the window opens with nothing looking
+        // like it has been clicked on.
+        Root.Loaded += (_, _) => Root.Focus(FocusState.Programmatic);
     }
 
     /// <summary>The pack ids that are actually installed, from the assets beside us.</summary>
@@ -107,12 +112,17 @@ internal sealed partial class SettingsWindow : Window
                 Content = Pretty(id),
                 IsChecked = _settings.Mascots.Count == 0 || _settings.Mascots.Contains(id),
 
-                // Centred against the box rather than aligned to the top of it. WinUI's
-                // default padding puts the label where Segoe UI's ascent wants it, and
-                // Segoe UI Variable does not have the same one, so the words sat a little
-                // high beside the tick. Set here rather than as an implicit style, which on
-                // a templated control replaces the default style rather than adding to it.
+                // Centred against the box, and the top padding taken off so that centring
+                // means what it says. WinUI's CheckBoxPadding is 8,5,0,0: five pixels of it
+                // are above the label, put there to sit the text against the top of the box
+                // the way Segoe UI's ascent wants. Centre the content and those five pixels
+                // are still there, pushing it down by half of them -- measured at exactly
+                // two pixels low, against a twenty pixel box.
+                //
+                // Set here rather than as an implicit style, which on a templated control
+                // replaces the default style rather than adding to it.
                 VerticalContentAlignment = VerticalAlignment.Center,
+                Padding = new Thickness(8, 0, 0, 0),
             };
             _mascots.Add((id, box));
             MascotList.Children.Add(box);
@@ -147,6 +157,7 @@ internal sealed partial class SettingsWindow : Window
                           + $" at {area.OuterBounds.X}, {area.OuterBounds.Y}",
                 IsChecked = _settings.Outputs.Count == 0 || _settings.Outputs.Contains(name),
                 VerticalContentAlignment = VerticalAlignment.Center,
+                Padding = new Thickness(8, 0, 0, 0),
             };
             _outputs.Add((name, box));
             OutputList.Children.Add(box);

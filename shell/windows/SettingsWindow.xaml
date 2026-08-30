@@ -8,7 +8,14 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid x:Name="Root" RowDefinitions="Auto,Auto,*,Auto" Background="Transparent">
+    <!--
+        IsTabStop on the root so that something harmless can hold the focus when the window
+        opens. XAML gives it to the first tab stop otherwise, which is the NumberBox at the
+        top, and a NumberBox with the focus selects its contents and shows its spin buttons:
+        the window appeared with a setting already half edited by nobody.
+    -->
+    <Grid x:Name="Root" RowDefinitions="Auto,Auto,*,Auto" Background="Transparent"
+          IsTabStop="True" UseSystemFocusVisuals="False">
 
         <!--
             Every colour, radius and thickness below is a system theme resource rather than
