@@ -250,8 +250,8 @@ void KWinGeometryProvider::apply(std::string_view report)
                     log_line(cat("kwin: the script talking speaks format ", version,
                                  ", this build speaks ", format_version, "."));
                     log_line("Almost certainly an old copy in ~/.local/share/kwin/scripts,");
-                    log_line("which KWin prefers over the packaged one. Reinstall it:");
-                    log_line("    kwin/install.sh");
+                    log_line("which KWin prefers over the packaged one. Delete it:");
+                    log_line("    rm -rf ~/.local/share/kwin/scripts/dragonperch-geometry");
                     log_line("");
                 }
             }

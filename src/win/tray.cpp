@@ -78,10 +78,13 @@ void show_menu(HWND hwnd, TrayState& state, POINT at)
     AppendMenuW(menu, MF_STRING | (paused ? MF_CHECKED : 0U), menu_pause, pause.c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
-    // Greyed until milestone 10 gives it something to open. Present because leaving it out
-    // and adding it later moves everything else in the menu, and people learn where an item
-    // is by where it sits.
-    AppendMenuW(menu, MF_STRING | MF_GRAYED, menu_settings, settings.c_str());
+    // Greyed when there is nothing to open. The settings window lives in the optional
+    // shell, and an item that is present and does nothing is worse than one that is visibly
+    // not available -- the Linux tray greys its own on the same question, asked of
+    // kcmshell6. Present either way: leaving it out and adding it later moves everything
+    // else in the menu, and people learn where an item is by where it sits.
+    AppendMenuW(menu, MF_STRING | (shell::is_installed() ? 0U : MF_GRAYED), menu_settings,
+                settings.c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, menu_quit, quit.c_str());
 
@@ -94,6 +97,16 @@ void show_menu(HWND hwnd, TrayState& state, POINT at)
                                         at.x, at.y, hwnd, nullptr);
     PostMessageW(hwnd, WM_NULL, 0, 0);
     DestroyMenu(menu);
+
+    // Ahead of the handler check, and not through the handler: the daemon has no settings
+    // window of its own to show, and this is the one item whose work happens in another
+    // process entirely.
+    if (chosen == menu_settings) {
+        if (!shell::open_settings()) {
+            log_line("tray: could not open the settings window");
+        }
+        return;
+    }
 
     if (!state.handler) {
         return;

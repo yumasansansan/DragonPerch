@@ -162,6 +162,60 @@ internal static partial class Native
         }
     }
 
+    private const uint SMTO_ABORTIFHUNG = 0x0002;
+
+    /// <summary>
+    /// Sends one text request to a message-only window as WM_COPYDATA, and says whether the
+    /// receiver acted on it.
+    /// </summary>
+    /// <remarks>
+    /// The wire both directions use: text rather than an enum value, so that two programs
+    /// from different builds either understand each other or do nothing, instead of meaning
+    /// whatever the third enumerator happened to be that week.
+    ///
+    /// SendMessageTimeout, not PostMessage: WM_COPYDATA hands over a pointer into this
+    /// process, so the receiver has to be finished with it before the buffer goes away. The
+    /// timeout is what stops a wedged receiver wedging the caller with it.
+    /// </remarks>
+    public static bool SendCopyData(IntPtr target, string request, uint timeoutMs)
+    {
+        if (target == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        byte[] bytes = Encoding.UTF8.GetBytes(request);
+        IntPtr buffer = Marshal.AllocHGlobal(bytes.Length);
+        try
+        {
+            Marshal.Copy(bytes, 0, buffer, bytes.Length);
+
+            COPYDATASTRUCT data = new()
+            {
+                dwData = IntPtr.Zero,
+                cbData = (uint)bytes.Length,
+                lpData = buffer,
+            };
+
+            IntPtr packed = Marshal.AllocHGlobal(Marshal.SizeOf<COPYDATASTRUCT>());
+            try
+            {
+                Marshal.StructureToPtr(data, packed, false);
+                _ = SendMessageTimeout(target, WM_COPYDATA, IntPtr.Zero, packed,
+                                       SMTO_ABORTIFHUNG, timeoutMs, out IntPtr result);
+                return result != IntPtr.Zero;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(packed);
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
+        }
+    }
+
     /// <summary>The largest request worth reading.</summary>
     /// <remarks>
     /// The one message this program accepts is about thirty bytes. Anything can send this

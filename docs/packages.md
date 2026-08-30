@@ -49,12 +49,17 @@ desktop-shaped dependencies. A single package that grows a Recommends for every 
 existence is the shape being avoided.
 
 The tarball is deliberately not split. "Unpack anywhere and run" is the whole point of it,
-and handing somebody two archives to unpack in the right order is not that.
+and handing somebody two archives to unpack in the right order is not that. It therefore
+carries the KWin script as well, at `usr/share/kwin/scripts/`.
 
-The artwork is found relative to the executable, so an unpacked tarball works without being
-installed and without an environment variable. Installing the package does **not** enable
-the KWin script and does **not** start anything at login — a program that puts pets on
-somebody's screen because a dependency pulled it in is a program that gets uninstalled.
+The artwork, the translations and that script are all found relative to the executable, so
+an unpacked tarball works where it was unpacked — without being installed, and without an
+environment variable.
+
+Installing the package does **not** enable the KWin script in `kwinrc` and does **not**
+start anything at login. It does not need to: DragonPerch loads the script itself at every
+startup, and a program that puts pets on somebody's screen because a dependency pulled it in
+is a program that gets uninstalled. [What you need](requirements.md) has the whole story.
 
 ### Windows Defender flags the download
 

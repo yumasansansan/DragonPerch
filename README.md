@@ -30,14 +30,16 @@ Every build of `main` publishes a rolling **`nightly`** pre-release.
 | Any other Linux | unpack the `.tar.gz` anywhere and run `usr/bin/dragonperch-wl` |
 | Windows | unpack the `.zip` and run `dragonperch.exe` |
 
-On Linux, install the KWin script once so the pets can find your windows:
+**Linux means Wayland, and today it means Plasma.** The overlay needs
+`zwlr_layer_shell_v1`, which GNOME does not offer, and a Wayland client is not allowed to
+know where your windows are — so something inside the compositor has to tell it, and so far
+that is written for KWin and nothing else. On Sway or Hyprland the pets appear and have only
+the bottom of the screen to walk on.
 
-```bash
-./kwin/install.sh
-```
-
-Then enable it in **System Settings → Window Management → KWin Scripts**. Installing the
-package deliberately does not enable it and does not start anything at login.
+On Plasma there is **nothing to install or enable** for that: DragonPerch finds the KWin
+script and asks the compositor to run it every time it starts, whether it came from the
+package, the tarball or a build directory. [What you need](docs/requirements.md) has the
+whole picture, and what to do on the day it goes wrong.
 
 Windows Defender may flag the download. It is a false positive and
 [there is a page about why](docs/packages.md#windows-defender-flags-the-download).
@@ -47,7 +49,7 @@ Windows Defender may flag the download. It is a false positive and
 Right-click the tray icon: **Pause**, **Settings**, **Quit**. That is the whole interface.
 
 ```bash
-dragonperch --pets 6      # six of each mascot
+dragonperch --pets 6      # six of each mascot; dragonperch-wl on Linux
 dragonperch --stop
 ```
 
@@ -58,6 +60,7 @@ dragonperch --stop
 
 | | |
 |---|---|
+| [What you need](docs/requirements.md) | Which systems and compositors work, and the KWin script |
 | [How it is put together](docs/design.md) | The one constraint that decided the design, and the source layout |
 | [Running it](docs/running.md) | Command line, tray icon, diagnostics, logs |
 | [Settings](docs/settings.md) | The configuration file and the settings programs |

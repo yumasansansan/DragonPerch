@@ -67,6 +67,12 @@ The tray menu's **Settings** item, which is part of `DragonPerch.Shell.exe` — 
 optional WinUI 3 program that draws the Fluent tray menu. See
 [Running it](running.md) for what it is and why it is a separate process.
 
+Both menus open it. The Fluent one shows the window itself; the daemon's own Win32 menu —
+the one drawn when the shell is missing or was too slow for that click — asks a running
+shell for it, or starts one when there is none. When no shell is installed the item is
+greyed, on the same reasoning as the Linux one below: an item that is present and does
+nothing is worse than one that is visibly not available.
+
 ### Linux
 
 A KDE Config Module, `kcm_dragonperch`. The tray menu's **Settings** item runs

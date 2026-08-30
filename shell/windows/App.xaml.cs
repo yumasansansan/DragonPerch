@@ -41,7 +41,20 @@ public partial class App : Application
         // leaving two windows of the same class for the daemon to choose between.
         if (ShellServer.AlreadyRunning())
         {
-            Log.Line("another shell is already listening; leaving it to it");
+            // Passed on rather than dropped. Somebody who runs this by hand with
+            // --settings while a shell is already listening asked for a window, and
+            // exiting silently is indistinguishable from the program being broken.
+            if (Environment.GetCommandLineArgs() is [_, "--settings"])
+            {
+                Log.Line(ShellServer.AskRunning("settings")
+                             ? "another shell is listening; asked it for the settings window"
+                             : "another shell is listening, but it would not take the request");
+            }
+            else
+            {
+                Log.Line("another shell is already listening; leaving it to it");
+            }
+
             Exit();
             return;
         }
@@ -51,7 +64,7 @@ public partial class App : Application
             return;
         }
 
-        _server = new ShellServer(_menu.ShowAt);
+        _server = new ShellServer(_menu.ShowAt, _menu.ShowSettings);
         if (!_server.Start())
         {
             // Nothing can reach this program, so it is a background process with no

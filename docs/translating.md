@@ -77,5 +77,5 @@ shell and `QLocale::system().uiLanguages()` in the settings module.
 
 Not the locale, on either platform: the locale is what a number looks like and the UI
 language is what the words are, and both systems let them differ. `LC_ALL=C` with
-`LANG=ja_JP.UTF-8` correctly means English, and was checked. `dragonperch.log` says which catalogue was
-loaded and how many strings it had.
+`LANG=ja_JP.UTF-8` correctly means English, and was checked. `dragonperch.log` says which
+catalogue was loaded and how many strings it had.

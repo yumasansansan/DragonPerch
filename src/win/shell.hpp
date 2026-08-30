@@ -18,6 +18,20 @@ namespace shell {
 /// Is a shell listening in this session?
 [[nodiscard]] bool is_listening();
 
+/// Is one installed beside the daemon, whether or not it is running?
+///
+/// What the daemon's own menu needs in order to decide whether its Settings item can do
+/// anything -- the settings window lives in the shell, so an item that opens nothing is
+/// worse than one that is visibly not available. The Linux tray greys its item on the same
+/// question, asked of `kcmshell6`.
+[[nodiscard]] bool is_installed();
+
+/// Opens the settings window, starting a shell for it.
+///
+/// Only reached from the menu the daemon drew: when the shell draws the menu it opens the
+/// window itself. False when there is nothing to start.
+bool open_settings();
+
 /// Asks the running shell to show its menu at a point in physical screen pixels.
 /// False when there is nobody to ask, or the ask did not land.
 [[nodiscard]] bool show_menu(int x, int y, bool paused);

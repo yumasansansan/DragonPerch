@@ -448,6 +448,23 @@ A Wayland client cannot see other clients' windows. The compositor has to tell u
 - **wlroots**: `swaymsg -t get_tree` / `hyprctl clients -j` adapters.
 - **X11**: not supported. See §13.1.
 
+The script is found and loaded by the daemon, not by the user. `find_kwin_script()` looks
+beside the executable, in `$XDG_DATA_HOME`, then in `/usr/share` and `/usr/local/share`, then
+up the source tree, and `reload_kwin_script()` hands the path to KWin's own
+`loadScript`/`start` over D-Bus at every startup. That is what makes a package, a tarball and
+a build directory all work with nothing installed and nothing ticked in System Settings —
+which the documentation claimed the opposite of until 2026-08-30, and which is worth stating
+because it is not the shape a KWin script usually has. The `kwinrc` entry and
+`kwin/install.sh` remain useful for having KWin load the script at login on its own; they are
+not a requirement.
+
+The first two of those four search paths are the same file on a packaged install —
+`/usr/bin/../share` and `/usr/share` — so the shadowing warning fired on every start of every
+`.deb`, naming one path twice and advising the reader to delete the script the daemon was
+using. `find_kwin_script()` now compares the canonical paths. Measured against a fake tree
+before and after: the packaged case went from one spurious warning to none, and a genuine
+stale copy in `~/.local/share` still warns in both.
+
 ---
 
 ## 8. Settings
@@ -1026,6 +1043,21 @@ either way.
 The settings window is a page in `DragonPerch.Shell.exe`, the program §13.3 gives the tray
 icon to. One WinUI application rather than two, and the tray's Settings item opens a window
 it already owns instead of starting a process. It costs 0.6 MB on top of the menu.
+
+The daemon's own Win32 menu can open it too, which it could not until 2026-08-30: the item
+was left `MF_GRAYED` with a comment saying "until milestone 10 gives it something to open",
+and milestone 10 came and went. It is now greyed only when no shell is installed beside the
+daemon -- the same question the Linux tray asks of `kcmshell6` -- and otherwise sends
+`settings` on the shell wire, or starts a shell with `--settings` when none is listening.
+
+Both halves of that are needed, and the second is not the obvious one. Starting a process
+unconditionally does not work: a second shell finds the first and exits without showing
+anything, and "a shell is running, it was merely too slow to draw the menu" is precisely the
+case in which the fallback menu is on screen at all. Measured on a staged Release build:
+`--settings` cold opened the window (`settings: shown`); the same request over WM_COPYDATA to
+a listening shell returned 1 and opened it in that process; and a hand-typed `--settings`
+against a listening shell now logs `asked it for the settings window` and shows one, where
+before it logged `leaving it to it` and showed nothing.
 
 Nothing is applied until Apply is pressed; then the file is written and the daemon is sent
 `reload` on the same control interface `--reload` uses. Verified end to end by unticking a

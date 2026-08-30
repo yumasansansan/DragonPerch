@@ -4,7 +4,8 @@
 You do not need this to use DragonPerch: the [packages](packages.md) are built by CI
 from the same rules. This is for changing it.
 
-#
+## The daemon
+
 CMake is the single source of truth. The Visual Studio solution is generated from it.
 
 ```bash
@@ -66,7 +67,7 @@ Ninja is the generator on Linux because there is no solution to open there -- it
 executor, the counterpart to MSBuild, and CMake writes its input. On Windows the Visual
 Studio generator does that job, so there is deliberately no Ninja preset for Windows.
 
-#### Compiler and linker flags
+### Compiler and linker flags
 
 All of them live in [cmake/CompilerOptions.cmake](../cmake/CompilerOptions.cmake), on one
 interface target that every real target links. Nothing else in the tree sets a flag.
@@ -87,7 +88,45 @@ rather than rejected:
 optimisation is expressed as `CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE` instead of raw
 flags, which keeps the two halves together and gives `-flto` on Clang for free.
 
-### Tests
+## The optional pieces
+
+Three things in this tree are built separately, and the daemon has to keep building when
+none of them are present.
+
+**The Windows shell** — the Fluent tray menu and settings window — is C# and is deliberately
+not wired into CMake: CMake cannot sensibly build a WinUI project, and the daemon must build
+with no .NET anywhere near it. It needs the .NET 10 SDK.
+
+```bash
+dotnet publish shell/windows/DragonPerch.Shell.csproj -c Release -o dist/shell
+```
+
+Publish rather than build, always. `dotnet build` does not run the Native AOT compiler, so
+what it produces behaves differently from what ships — a cast that works in a `dotnet build`
+output has already thrown `E_NOINTERFACE` in the published one and taken the tray menu with
+it. Measure on the published binary or do not measure.
+
+**The KDE settings module** is the only thing here that wants Qt and KF6:
+
+```bash
+sudo apt install qt6-base-dev qt6-declarative-dev extra-cmake-modules libkf6config-dev libkf6coreaddons-dev libkf6i18n-dev libkf6kcmutils-dev
+```
+
+```bash
+cmake --preset linux-x64 -D DRAGONPERCH_BUILD_KCM=ON && cmake --build --preset linux-x64-debug
+```
+
+**The fuzz targets** are built by `DRAGONPERCH_SANITIZE=ON`, which is what libFuzzer needs
+anyway. [The fuzz targets](../fuzz/README.md) says what each one asserts and how to run one.
+
+| Option | Default | What it does |
+|---|---|---|
+| `DRAGONPERCH_DIAGNOSTICS` | `OFF` in Release | Keeps `--dump-world` and the other probes in a Release build |
+| `DRAGONPERCH_SANITIZE` | `OFF` | ASan, UBSan, and the fuzz targets |
+| `DRAGONPERCH_BUILD_KCM` | `OFF` | The KDE settings module |
+| `DRAGONPERCH_TIDY` | `OFF` | Runs clang-tidy over every translation unit as it builds |
+
+## Tests
 
 ```bash
 ctest --test-dir build/windows-x64 --build-config Debug --output-on-failure

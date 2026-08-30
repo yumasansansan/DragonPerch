@@ -3,8 +3,10 @@
 #
 # Installs the geometry script into KWin and turns it on.
 #
-# A Wayland client cannot see other clients' windows, so this script is not an optional
-# extra: without it DragonPerch draws pets that have nothing to stand on but the floor.
+# Optional. DragonPerch finds the script and asks KWin to run it at every startup, so a
+# package, a tarball and a build directory all work without this ever being run. What this
+# adds is the kwinrc entry, which has KWin load the script at login on its own -- and a copy
+# in ~/.local/share, which then shadows a packaged one. See docs/requirements.md.
 set -eu
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)

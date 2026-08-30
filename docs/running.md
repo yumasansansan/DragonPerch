@@ -21,11 +21,10 @@ how to run it is in [Settings](settings.md).
 ./build/windows-x64/src/win/Debug/dragonperch.exe --stop
 ```
 
-On Linux the geometry has to come from the compositor, so install the KWin script first:
-
-```bash
-./kwin/install.sh
-```
+On Linux the geometry comes from the compositor, and DragonPerch arranges that itself: it
+finds the KWin script and asks KWin to run it at every startup, so there is nothing to
+install or enable first. [What you need](requirements.md) says where it looks, which
+compositors work at all, and what `kwin/install.sh` is for.
 
 ```bash
 ./build/linux-x64/src/linux/Debug/dragonperch-wl --dump-world --hold
@@ -55,9 +54,9 @@ shipped build misbehaves. A Debug build has different timing and a different Dir
 layer, so it answers a different question.
 
 There is a tray icon on both platforms, and it is the ordinary way to stop DragonPerch:
-right-click it for Pause and Quit. On Windows it is `Shell_NotifyIcon`; on Linux it is
-StatusNotifierItem, where the menu is *described* rather than drawn — Plasma builds it from
-the labels, in Breeze, following the user's theme with no code on our side.
+right-click it for Pause, Settings and Quit. On Windows it is `Shell_NotifyIcon`; on Linux
+it is StatusNotifierItem, where the menu is *described* rather than drawn — Plasma builds it
+from the labels, in Breeze, following the user's theme with no code on our side.
 
 The menu the two platforms draw is meant to be the native one, and on Windows that now
 means a real WinUI 3 `MenuFlyout` rather than something shaped like one. It lives in

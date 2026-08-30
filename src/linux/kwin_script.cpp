@@ -92,17 +92,29 @@ std::filesystem::path find_kwin_script()
             continue;
         }
 
+        const std::filesystem::path resolved =
+            std::filesystem::weakly_canonical(candidate, failed);
         if (found.empty()) {
-            found = std::filesystem::weakly_canonical(candidate, failed);
+            found = resolved;
             continue;
         }
 
-        // A copy in the user's data directory shadows the packaged one, which is right for
+        // The same file, reached by two of the routes above. A packaged install is both
+        // `<exe>/../share` and `/usr/share`, so without this every one of them warned that
+        // /usr/share was shadowing /usr/share -- and told the reader to delete the script
+        // the program was using.
+        if (resolved == found) {
+            continue;
+        }
+
+        // Two genuinely different copies. One in the user's data directory is right for
         // developing and wrong after an upgrade: `kwin/install.sh` run once from a checkout
         // leaves a script behind that a later package will not replace. Silently loading the
-        // older of the two is the sort of thing that costs an evening, so say it.
-        log_line(cat("kwin: ", found.string(), " is being used, and ", candidate.string(),
-                     " is being shadowed. Delete the first if it is stale."));
+        // older of the two is the sort of thing that costs an evening, so say it -- and say
+        // which is which, because the one to delete depends on which of them is old.
+        log_line(cat("kwin: two copies are installed. Using ", found.string(), ", and ",
+                     candidate.string(), " is there as well. Delete whichever is stale;"
+                     " KWin's own loader prefers the copy under your home directory."));
         break;
     }
 

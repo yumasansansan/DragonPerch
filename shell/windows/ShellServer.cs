@@ -17,8 +17,13 @@ namespace DragonPerch.Shell;
 /// process already has a message loop, and a second thread would only have to marshal back
 /// onto the first one.
 ///
-/// Requests are text, and there is one:
+/// Requests are text, and there are two:
 /// <code>menu &lt;x&gt; &lt;y&gt; &lt;paused|running&gt;</code>
+/// <code>settings</code>
+///
+/// The second is sent by the daemon's own Win32 menu, which is drawn when this program was
+/// too slow to answer the click. Its Settings item still has to work, and the window it
+/// opens is here.
 /// </remarks>
 internal sealed class ShellServer
 {
@@ -26,6 +31,7 @@ internal sealed class ShellServer
     public const string WindowClass = "DragonPerch.Shell";
 
     private readonly Action<int, int, bool> _showMenu;
+    private readonly Action _showSettings;
 
     // Held so the delegate is not collected while Windows still has the pointer. A
     // WndProc that has been garbage-collected is a crash at the next message, and one
@@ -35,15 +41,30 @@ internal sealed class ShellServer
     private IntPtr _window;
     private DispatcherQueue? _ui;
 
-    public ShellServer(Action<int, int, bool> showMenu)
+    public ShellServer(Action<int, int, bool> showMenu, Action showSettings)
     {
         _showMenu = showMenu;
+        _showSettings = showSettings;
         _proc = WindowProc;
     }
 
+    /// <summary>The message window of a shell already listening, or zero.</summary>
+    public static IntPtr Running()
+        => Native.FindWindowEx(Native.HWND_MESSAGE, IntPtr.Zero, WindowClass, null);
+
     /// <summary>True when another shell is already listening in this session.</summary>
-    public static bool AlreadyRunning()
-        => Native.FindWindowEx(Native.HWND_MESSAGE, IntPtr.Zero, WindowClass, null) != IntPtr.Zero;
+    public static bool AlreadyRunning() => Running() != IntPtr.Zero;
+
+    /// <summary>
+    /// Hands one request to a shell that is already listening.
+    /// </summary>
+    /// <remarks>
+    /// For a second copy of this program started with a request on its command line: it
+    /// exits on finding the first, so without passing the request on the request is simply
+    /// lost. The daemon asks the running shell directly and does not come through here.
+    /// </remarks>
+    public static bool AskRunning(string request)
+        => Native.SendCopyData(Running(), request, 2000);
 
     public bool Start()
     {
@@ -139,6 +160,25 @@ internal sealed class ShellServer
                 catch (Exception e)
                 {
                     Log.Failure("showing the menu", e);
+                }
+            });
+            return 1;
+        }
+
+        if (parts.Length == 1 && parts[0] == "settings")
+        {
+            // Deferred for the same reason as the menu: the daemon sends this with
+            // SendMessage from the thread that draws the pets, and building a window is not
+            // a small thing to do inside somebody else's frame.
+            _ = _ui?.TryEnqueue(() =>
+            {
+                try
+                {
+                    _showSettings();
+                }
+                catch (Exception e)
+                {
+                    Log.Failure("showing the settings window", e);
                 }
             });
             return 1;
