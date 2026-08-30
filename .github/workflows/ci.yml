@@ -53,6 +53,15 @@ jobs:
           sudo apt-get full-upgrade -y
           sudo apt-get install --no-install-recommends -y libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev
 
+      # The settings module's own, kept separate because they are a different kind of thing:
+      # the daemon links none of them and must keep building on a machine with none of them.
+      # Built here anyway, so that the package is complete and so that the half of milestone
+      # 10 that only KDE users see is compiled by something other than the person who wrote
+      # it.
+      - name: Install the settings module's dependencies
+        run: |
+          sudo apt-get install --no-install-recommends -y             qt6-base-dev qt6-declarative-dev extra-cmake-modules             libkf6config-dev libkf6coreaddons-dev libkf6i18n-dev libkf6kcmutils-dev
+
       - uses: ./.github/actions/llvm
 
       # The preset points at cmake/ClangLatest.cmake, which picks the newest clang++ on
@@ -62,7 +71,7 @@ jobs:
       # The version carries the build time and the commit, so that apt can tell one
       # nightly from the next -- see cmake/Packaging.cmake for why the tilde matters.
       - name: Configure
-        run: cmake --preset linux-x64 -D DRAGONPERCH_VERSION_SUFFIX="~$(date -u +%Y%m%d.%H%M).g$(git rev-parse --short HEAD)${{ matrix.sanitize == 'ON' && '~sanitized' || '' }}" -D DRAGONPERCH_SANITIZE=${{ matrix.sanitize }}
+        run: cmake --preset linux-x64 -D DRAGONPERCH_VERSION_SUFFIX="~$(date -u +%Y%m%d.%H%M).g$(git rev-parse --short HEAD)${{ matrix.sanitize == 'ON' && '~sanitized' || '' }}" -D DRAGONPERCH_SANITIZE=${{ matrix.sanitize }} -D DRAGONPERCH_BUILD_KCM=ON
 
       # The portability guard, built first and named so its failure is unambiguous. The core
       # must compile with no platform anything; if this step breaks, a backend has leaked

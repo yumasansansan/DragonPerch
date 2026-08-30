@@ -42,6 +42,12 @@ file(WRITE ${CMAKE_BINARY_DIR}/version.txt "${DRAGONPERCH_FULL_VERSION}")
 # different timing and a different D2D layer and so is answering a different question.
 option(DRAGONPERCH_DIAGNOSTICS "Include the diagnostic modes in Release builds too" OFF)
 
+# The KDE settings module. Off by default and on in the packaging build: it is the only
+# part of this project that wants Qt and KDE Frameworks, and the daemon must keep building
+# on a machine with neither of them installed.
+option(DRAGONPERCH_BUILD_KCM "Build the KDE settings module (Qt6 and KF6 required)" OFF)
+set(DRAGONPERCH_ECM_MINIMUM 6.0 CACHE STRING "The extra-cmake-modules version the KCM needs")
+
 # A generator expression, not an if(CMAKE_BUILD_TYPE). Both generators here pick the
 # configuration at build time, so testing it at configure time silently does nothing --
 # the same trap as the optimisation flags in cmake/CompilerOptions.cmake.
@@ -111,6 +117,10 @@ if(UNIX AND NOT APPLE)
     # and a desktop that would rather use a themed name than our pixels can.
     install(FILES packaging/dragonperch.png
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/64x64/apps)
+
+    if(DRAGONPERCH_BUILD_KCM)
+        add_subdirectory(kcm)
+    endif()
 
     include(Packaging)
 endif()

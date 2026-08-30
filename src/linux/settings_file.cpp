@@ -8,6 +8,7 @@
 #include <fstream>
 #include <ios>
 #include <string>
+#include <system_error>
 
 namespace dp::wl {
 namespace {
@@ -70,6 +71,29 @@ Settings load_settings()
 
     log_line(cat("settings: ", path.string()));
     return parse_settings(text);
+}
+
+bool save_settings(const Settings& settings)
+{
+    const std::filesystem::path path = settings_path();
+    if (path.empty()) {
+        return false;
+    }
+
+    std::error_code failed;
+    std::filesystem::create_directories(path.parent_path(), failed);
+    if (failed) {
+        return false;
+    }
+
+    std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+    if (!stream) {
+        return false;
+    }
+
+    const std::string text = write_settings(settings);
+    stream.write(text.data(), static_cast<std::streamsize>(text.size()));
+    return stream.good();
 }
 
 } // namespace dp::wl

@@ -1065,9 +1065,10 @@ touches the daemon.
 
 And a second implementation of the settings file. `Settings.cs` reads and writes the same
 INI as `dragonperch/settings.cpp`, with the same defaults, the same clamping and the same
-refusal to throw. That duplication is inherent rather than accidental -- the Linux settings
-program is a KCM and will use KConfig -- so **the file is the contract and the code cannot
-be shared**. It is currently checked by running both over the same set of awkward
+refusal to throw. That duplication is forced by the language rather than chosen -- there is
+no way for C# to call the core -- so for the Windows half **the file is the contract and the
+code cannot be shared**. The Linux settings module is C++ and links the core instead; see
+below for why that turned out to matter. It is currently checked by running both over the same set of awkward
 files and diffing what each makes of them, which is how the numbers above were obtained and
 how two disagreements were found: `[DragonPerch] junk` opened the section on one side and
 not the other, and a repeated key or section took the first answer on one side and the last
@@ -1086,6 +1087,23 @@ places.
 
 It adds Qt6 and KF6 as build dependencies, so it is `-DDRAGONPERCH_BUILD_KCM=ON`, off by
 default and on in the packaging build. The daemon must keep building with neither.
+
+**It reads the file with the core, not with KConfig**, which is a change of mind from what
+this section first said. The reasoning was that a KCM naturally uses KConfig and the file is
+the contract, so a second implementation was inherent. It is not: the Windows head already
+has one in C#, and it cost two real bugs -- a monitor identifier the daemon could never
+match, and a disagreement about what a file with one unreadable line means. The core is
+portable, has no platform dependencies, is tested and is fuzzed; linking it is less code
+than KConfig and cannot disagree with the daemon. KConfig's cascading and defaults buy
+nothing for six settings. The Windows settings window cannot do this -- it is C# -- which is
+precisely why it is the one that keeps being wrong.
+
+`kcmutils_add_qml_kcm` puts the plugin in
+`lib/<triplet>/qt6/plugins/plasma/kcms/systemsettings` and generates the `.desktop` file
+that makes it findable, both verified by installing into a staging prefix. The tray's
+Settings item runs `kcmshell6 kcm_dragonperch`, and is greyed when there is no `kcmshell6`
+to run: an item that is present and does nothing is worse than one that is visibly not
+available, and the module is a separate build a package may not ship.
 
 #### What is worth settling
 

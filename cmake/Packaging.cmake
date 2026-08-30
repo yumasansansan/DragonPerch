@@ -43,4 +43,14 @@ set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 # also has a Windows head would be wrong.
 set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "kwin-wayland | kwin-x11")
 
+# What the settings module needs when it is in the package, and for the same reason. Its
+# Qt and KDE libraries are picked up by dpkg-shlibdeps because it links them; these two are
+# not, and could not be. `org.kde.kirigami` is a QML module loaded by name at run time --
+# nothing links it -- and kcmshell6 is the program the tray's Settings item runs, which the
+# daemon only ever names as a string.
+if(DRAGONPERCH_BUILD_KCM)
+    string(APPEND CPACK_DEBIAN_PACKAGE_RECOMMENDS
+        ", qml6-module-org-kde-kirigami, libkf6kcmutils-bin")
+endif()
+
 include(CPack)

@@ -8,12 +8,16 @@
 #include "session_bus.hpp"
 
 #include <cstddef>
+#include <cstdlib>
 #include <filesystem>
+#include <ranges>
 #include <string_view>
 #include <system_error>
 #include <utility>
 
+#include <sys/wait.h>
 #include <systemd/sd-bus.h>
+#include <unistd.h>
 
 namespace dp::wl {
 namespace {
@@ -35,6 +39,67 @@ enum MenuId : int {
     menu_separator_b = 4,
     menu_quit = 5,
 };
+
+/// Is there a `kcmshell6` to open the settings module with?
+///
+/// Asked once, at startup, and the answer decides whether the Settings item is offered at
+/// all. An item that is there and does nothing is worse than one that is visibly not
+/// available: the module is a separate build (-DDRAGONPERCH_BUILD_KCM=ON) and a package
+/// that ships the daemon without it is a perfectly ordinary thing.
+bool settings_available()
+{
+    static const bool found = [] {
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        const char* path = std::getenv("PATH");
+        if (path == nullptr) {
+            return false;
+        }
+
+        for (const auto part : std::views::split(std::string_view{path}, ':')) {
+            const std::string_view directory{part.begin(), part.end()};
+            if (directory.empty()) {
+                continue;
+            }
+
+            std::error_code ignored;
+            if (std::filesystem::exists(std::filesystem::path{directory} / "kcmshell6",
+                                        ignored)) {
+                return true;
+            }
+        }
+        return false;
+    }();
+    return found;
+}
+
+/// Starts the settings module, and does not wait for it.
+///
+/// Forked twice. Nothing in this program ever calls wait(), so a single fork would leave a
+/// zombie behind every time somebody opened the settings; the middle child exits at once
+/// and init inherits the one that matters.
+///
+/// This runs on the bus thread, so the child does nothing between the fork and the exec
+/// but the exec: fork in a process with more than one thread gives the child only this
+/// thread, and anything holding a lock in another one is holding it forever.
+void open_settings()
+{
+    const pid_t middle = fork();
+    if (middle < 0) {
+        log_line("settings: could not fork");
+        return;
+    }
+
+    if (middle == 0) {
+        if (fork() == 0) {
+            execlp("kcmshell6", "kcmshell6", "kcm_dragonperch", nullptr);
+            _exit(127);
+        }
+        _exit(0);
+    }
+
+    int status = 0;
+    (void)waitpid(middle, &status, 0);
+}
 
 int append_string_entry(sd_bus_message* m, const char* key, const char* value)
 {
@@ -132,11 +197,11 @@ int append_item_properties(sd_bus_message* m, int id, bool paused)
 
     case menu_settings:
         failed = append_string_entry(m, "label", "Settings...");
-        // Greyed until milestone 10 gives it something to open. Present because leaving it
-        // out and adding it later moves everything else, and people learn where an item is
-        // by where it sits.
+        // Greyed when there is no kcmshell6 to open the module with. Present either way,
+        // because leaving it out and adding it later moves everything else, and people
+        // learn where an item is by where it sits.
         if (failed >= 0) {
-            failed = append_bool_entry(m, "enabled", false);
+            failed = append_bool_entry(m, "enabled", settings_available());
         }
         break;
 
@@ -460,6 +525,12 @@ int TrayIcon::on_menu_event(sd_bus_message* message, void* userdata, sd_bus_erro
         switch (id) {
         case menu_pause:
             self->handler_(Command::toggle_pause);
+            break;
+        case menu_settings:
+            // Not a command for the daemon: opening a window is this side's own business,
+            // and the module talks to the daemon over the control interface once it has
+            // something to say.
+            open_settings();
             break;
         case menu_quit:
             self->handler_(Command::quit);
