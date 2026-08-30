@@ -182,6 +182,32 @@ void KWinGeometryProvider::apply(std::string_view report)
 
         const Fields fields = split(line);
 
+        // The script says which format it speaks, and it says it first. Read rather than
+        // skipped over, because a mismatch here is the difference between "the pets have
+        // nothing to stand on" and "an old copy of the script is still running", and those
+        // two look identical from the outside.
+        //
+        // Said once per change rather than once per report: reports arrive continuously,
+        // and a line repeated sixty times a second is not a warning, it is a log file.
+        if (fields.at[0] == "v" && fields.count == 2) {
+            int version = 0;
+            if (to_int(fields.at[1], version)
+                && script_version_.exchange(version) != version) {
+                if (version == format_version) {
+                    log_line(cat("kwin: script format ", version));
+                } else {
+                    log_line("");
+                    log_line(cat("kwin: the script talking speaks format ", version,
+                                 ", this build speaks ", format_version, "."));
+                    log_line("Almost certainly an old copy in ~/.local/share/kwin/scripts,");
+                    log_line("which KWin prefers over the packaged one. Reinstall it:");
+                    log_line("    kwin/install.sh");
+                    log_line("");
+                }
+            }
+            continue;
+        }
+
         if (fields.at[0] == "s" && fields.count == 6) {
             int x = 0;
             int y = 0;

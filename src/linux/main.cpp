@@ -327,6 +327,13 @@ int run_pets(int pet_count, std::span<const std::filesystem::path> pack_paths)
         log_line("The KWin script never said anything, so the pets had nothing to stand on but");
         log_line("the floor. Install and enable it:");
         log_line("    kwin/install.sh");
+    } else if (world.script_format_version() == 0) {
+        // It talked, but never said what it was. Every version that sends a version puts
+        // it on the first line, so silence there means a script older than that.
+        log_line("");
+        log_line("The KWin script never said which format it speaks, so it predates this");
+        log_line("build. Reinstall it:");
+        log_line("    kwin/install.sh");
     }
 
     return 0;

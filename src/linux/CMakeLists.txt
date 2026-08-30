@@ -3,14 +3,18 @@
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(WAYLAND REQUIRED IMPORTED_TARGET wayland-client wayland-egl)
 pkg_check_modules(EGL REQUIRED IMPORTED_TARGET egl glesv2)
-pkg_check_modules(PNG REQUIRED IMPORTED_TARGET libpng)
+# GLOBAL on the two that fuzz/ also links. An imported target belongs to the directory
+# that created it unless it says otherwise, so without this a sibling directory sees
+# "Target ... links to PkgConfig::PNG but the target was not found" -- which reads like a
+# typo rather than a scoping rule.
+pkg_check_modules(PNG REQUIRED IMPORTED_TARGET GLOBAL libpng)
 
 # sd-bus, for the KWin geometry script. It lives in libsystemd rather than in a library of
 # its own; libelogind provides the same API on systems without systemd, and the header and
 # the calls are identical, which is why only the module name is conditional here.
-pkg_check_modules(SDBUS IMPORTED_TARGET libsystemd)
+pkg_check_modules(SDBUS IMPORTED_TARGET GLOBAL libsystemd)
 if(NOT SDBUS_FOUND)
-    pkg_check_modules(SDBUS REQUIRED IMPORTED_TARGET libelogind)
+    pkg_check_modules(SDBUS REQUIRED IMPORTED_TARGET GLOBAL libelogind)
 endif()
 
 # One library for the protocol bindings, so the warning policy below does not apply to

@@ -74,6 +74,20 @@ public:
     /// but the floor, which usually means the script is not installed or not enabled.
     [[nodiscard]] bool heard_from_kwin() const noexcept { return reports_ > 0; }
 
+    /// The report format the script that is talking says it speaks, or 0 if it has not
+    /// said -- which itself means something: every version that sends one puts it first.
+    ///
+    /// Worth having because DragonPerch does not decide which script runs. It asks KWin to
+    /// load one, but KWin also loads it itself from kwinrc, out of its own search path,
+    /// which prefers the user's copy over the packaged one. A stale copy left in
+    /// ~/.local/share by an old install.sh therefore keeps running whatever the daemon
+    /// does, and the only way to notice is to listen to what the script says it is.
+    [[nodiscard]] int script_format_version() const noexcept { return script_version_; }
+
+    /// The format this build speaks. Matched by FORMAT_VERSION in
+    /// kwin/dragonperch-geometry/contents/code/main.js; the two have to move together.
+    static constexpr int format_version = 1;
+
     /// Turns one report into a snapshot.
     ///
     /// Public because it is the parsing, and the parsing is the part worth reaching from
@@ -88,6 +102,7 @@ private:
     bool started_ = false;
     bool log_raw_ = false;
     std::atomic<std::uint64_t> reports_{0};
+    std::atomic<int> script_version_{0};
 
     /// `current()` is read from the render loop while the bus thread publishes.
     mutable std::mutex mutex_;
