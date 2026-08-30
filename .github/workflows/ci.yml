@@ -158,11 +158,31 @@ jobs:
 
           # And the split itself, because a component that quietly stops being installed
           # produces a package that is simply empty rather than one that fails.
-          test -f dragonperch_*.deb
-          test -f dragonperch-kde_*.deb
-          dpkg-deb -c dragonperch-kde_*.deb | grep -q kwin/scripts/dragonperch-geometry
-          dpkg-deb -c dragonperch-kde_*.deb | grep -q kcm_dragonperch
-          dpkg-deb -c dragonperch_*.deb | grep -q bin/dragonperch-wl
+          #
+          # Each check says what it was looking for. The first version of this was a run of
+          # bare greps under `set -e`, and when one of them failed the log said "exit code 1"
+          # and nothing else -- which is a poor way to learn that the settings module had
+          # landed in a component neither package collects.
+          expect() {
+            local package="$1" pattern="$2" what="$3"
+            if dpkg-deb -c "$package" | grep -q -- "$pattern"; then
+              echo "  ok      $what"
+            else
+              echo "  MISSING $what  (no $pattern in $package)"
+              dpkg-deb -c "$package" | sed 's/^/      /'
+              return 1
+            fi
+          }
+
+          core=$(ls dragonperch_*.deb)
+          kde=$(ls dragonperch-kde_*.deb)
+
+          expect "$core" bin/dragonperch-wl          "the daemon, in the core package"
+          expect "$core" share/dragonperch/assets    "the artwork, in the core package"
+          expect "$core" share/dragonperch/lang      "the translations, in the core package"
+          expect "$kde"  kwin/scripts/dragonperch    "the KWin script, in the KDE package"
+          expect "$kde"  kcm_dragonperch             "the settings module, in the KDE package"
+
           echo "the two packages hold what they should"
 
       - name: Upload the packages

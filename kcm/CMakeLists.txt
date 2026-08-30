@@ -18,15 +18,21 @@ list(APPEND CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 # Nothing is lost by it. The two sets are for different things: CMAKE_INSTALL_* is where the
 # daemon and the artwork go, KDE_INSTALL_* is where a plugin and a .desktop file go, and only
 # kcmutils reads the second.
-# Everything installed from this directory belongs to the KDE package. kcmutils writes its
-# own install() rules -- the plugin and the generated .desktop file -- and there is no way
-# to pass a component through them, so the default is set instead. Directory scoped, so
-# nothing outside here is affected.
-set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME kde)
-
 set(KDE_INSTALL_DIRS_NO_CMAKE_VARIABLES TRUE)
 include(KDEInstallDirs)
 include(KDECMakeSettings)
+
+# Everything installed from this directory belongs to the KDE package. kcmutils writes its
+# own install() rules -- the plugin and the generated .desktop file -- and there is no way
+# to pass a component through them, so the default is set instead. Directory scoped, so
+# nothing outside this file is affected.
+#
+# After the includes, not before, and that is the whole of it: KDEInstallDirs sets this
+# variable to the project name unconditionally, so setting it first was setting it and
+# having it taken away. The files went into a component called `DragonPerch`, which is in
+# neither package, and the .deb that should have held the settings module held the KWin
+# script and nothing else.
+set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME kde)
 
 find_package(Qt6 REQUIRED COMPONENTS Core DBus Gui Quick)
 find_package(KF6 REQUIRED COMPONENTS CoreAddons KCMUtils)
