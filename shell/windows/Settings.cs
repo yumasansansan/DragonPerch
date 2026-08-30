@@ -101,8 +101,12 @@ internal sealed class Settings
 
             if (line[0] == '[')
             {
-                int close = line.IndexOf(']');
-                inSection = close > 0 && line[1..close].Trim() == Section;
+                // The whole line has to be the header, not merely start with one. Taking
+                // everything up to the first ']' meant `[DragonPerch] oops` opened the
+                // section here while the daemon called it malformed and ignored every key
+                // underneath it -- two programs reading one file and disagreeing about what
+                // it said, which is the failure this file's format is most exposed to.
+                inSection = line[^1] == ']' && line[1..^1].Trim() == Section;
                 continue;
             }
 

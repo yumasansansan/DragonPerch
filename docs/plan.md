@@ -990,10 +990,15 @@ pack-specific, and is now `dragonperch/ini.hpp` with both callers on it.
   carries knobs -- terminal velocity, the chance of turning at an edge -- meant for whoever
   writes the simulation, not whoever runs it. `to_options()` is the narrow gate between
   them, and a test asserts that nothing else gets through.
-- **Nothing in it throws.** A value that cannot be read keeps its default and a file that
-  will not parse at all is every default. This file is edited by hand and written by two
-  other programs; a dragon that never appears because of a stray bracket is worse than one
-  that appears with the defaults.
+- **Nothing in it throws, and nothing in it is all-or-nothing.** A value that cannot be
+  read keeps its default, and a line that cannot be read costs that line alone. This file is
+  edited by hand and written by two other programs, so one typo must not be able to put
+  every setting back to its default -- which is what it used to do, and which meant the
+  daemon and the settings program could disagree about what the user had chosen with neither
+  of them saying so. `ini::parse` takes an `OnBadLine`; settings pass `skip` and sprite packs
+  keep the default `refuse`, because a pack that is only half readable describes the wrong
+  sprites. Where the same thing is said twice -- a repeated key, or a section opened again --
+  the later answer wins, as INI conventionally means and as KConfig reads it.
 - **`std::strtod`, not `std::from_chars`.** Reading one `double` with `from_chars` drags in
   the Ryu conversion tables -- the same 118 KB that `dragonperch/text.hpp` exists to keep
   out. `strtod` is an import against the C runtime. `two_places()` formats the value back
@@ -1062,8 +1067,11 @@ And a second implementation of the settings file. `Settings.cs` reads and writes
 INI as `dragonperch/settings.cpp`, with the same defaults, the same clamping and the same
 refusal to throw. That duplication is inherent rather than accidental -- the Linux settings
 program is a KCM and will use KConfig -- so **the file is the contract and the code cannot
-be shared**. It is currently checked by running both against one file, which is how the
-numbers above were obtained; a C# test project asserting the round trip is worth adding and
+be shared**. It is currently checked by running both over the same set of awkward
+files and diffing what each makes of them, which is how the numbers above were obtained and
+how two disagreements were found: `[DragonPerch] junk` opened the section on one side and
+not the other, and a repeated key or section took the first answer on one side and the last
+on the other. A C# test project that does this in CI rather than by hand is worth adding and
 is not there yet.
 
 #### Linux: Kirigami, as a KCM

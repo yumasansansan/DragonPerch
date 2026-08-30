@@ -4,6 +4,7 @@
 #include "dragonperch/text.hpp"
 
 #include <algorithm>
+#include <ranges>
 #include <stdexcept>
 
 namespace dp::ini {
@@ -24,13 +25,19 @@ std::string_view trim(std::string_view text) noexcept
 
 const Entry* Section::find(std::string_view key) const noexcept
 {
-    const auto it = std::ranges::find(entries, key, [](const Entry& entry) {
+    // The last entry with that key, not the first. Neither settings program writes a file
+    // that repeats one, but a person editing by hand does -- and what somebody means by
+    // putting a corrected line under the old one is the correction. It is what INI
+    // conventionally means, what KConfig does, and what the Windows settings program has
+    // always done with this same file, by the simple route of assigning as it reads.
+    const auto reversed = entries | std::views::reverse;
+    const auto it = std::ranges::find(reversed, key, [](const Entry& entry) {
         return std::string_view{entry.key};
     });
-    return it == entries.end() ? nullptr : &*it;
+    return it == reversed.end() ? nullptr : &*it;
 }
 
-std::vector<Section> parse(std::string_view text)
+std::vector<Section> parse(std::string_view text, OnBadLine bad_line)
 {
     std::vector<Section> sections;
     std::size_t line_number = 0;
@@ -51,25 +58,40 @@ std::vector<Section> parse(std::string_view text)
             line = trim(line.substr(0, comment));
         }
 
-        if (!line.empty()) {
-            if (line.front() == '[') {
-                if (line.back() != ']') {
-                    throw std::runtime_error(
-                        cat("line ", line_number, ": unterminated section header"));
-                }
+        const bool refusing = bad_line == OnBadLine::refuse;
+
+        if (line.empty()) {
+            // Nothing on it but whitespace or a comment.
+        } else if (line.front() == '[') {
+            if (line.back() == ']') {
                 sections.push_back(
                     Section{std::string{trim(line.substr(1, line.size() - 2))}, line_number, {}});
+            } else if (refusing) {
+                throw std::runtime_error(
+                    cat("line ", line_number, ": unterminated section header"));
             } else {
-                const std::size_t equals = line.find('=');
-                if (equals == std::string_view::npos) {
+                // Skipped -- but it still ends the section above it, rather than being
+                // passed over as though it were a blank line. Keys written underneath a
+                // header nobody could read were not meant for whatever section came before
+                // it, and quietly filing them there would be a worse answer than losing
+                // them. They go into a section with no name instead, which no lookup asks
+                // for. The Windows settings program reaches the same place by a different
+                // route: it simply stops being in a section.
+                sections.push_back(Section{std::string{}, line_number, {}});
+            }
+        } else {
+            const std::size_t equals = line.find('=');
+            if (equals == std::string_view::npos) {
+                if (refusing) {
                     throw std::runtime_error(
                         cat("line ", line_number, ": expected 'key = value', got '", line, "'"));
                 }
-                if (sections.empty()) {
+            } else if (sections.empty()) {
+                if (refusing) {
                     throw std::runtime_error(
                         cat("line ", line_number, ": key outside any section"));
                 }
-
+            } else {
                 sections.back().entries.push_back(Entry{
                     std::string{trim(line.substr(0, equals))},
                     std::string{trim(line.substr(equals + 1))},

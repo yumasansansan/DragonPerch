@@ -172,25 +172,38 @@ Settings parse_settings(std::string_view text)
 
     std::vector<ini::Section> sections;
     try {
-        sections = ini::parse(text);
+        // Line by line, not all or nothing. This file is edited by hand and written by two
+        // other programs, and one typo should cost the setting it is in rather than every
+        // setting in the file -- which is what the file's own header comment promises the
+        // person editing it, and what the Windows settings program has always done with the
+        // same file. Until now the daemon read it the other way: a single unreadable line
+        // put every setting back to its default, so the two programs could disagree about
+        // what the user's settings were and neither said anything.
+        sections = ini::parse(text, ini::OnBadLine::skip);
     } catch (const std::exception&) {
-        // A malformed file is every default, not a refusal to start. This one is edited by
-        // hand and written by two other programs, and a dragon that will not appear because
-        // of a stray bracket is worse than a dragon that appears with the defaults.
+        // Nothing in skip mode throws by design, so what is left is bad_alloc on a file
+        // large enough to matter. parse_settings promises never to throw, and the fuzz
+        // target holds it to that promise rather than taking it on trust.
         return settings;
     }
 
-    const auto it = std::ranges::find(sections, section_name, &ini::Section::name);
-    if (it == sections.end()) {
-        return settings;
-    }
+    // Every section with the name, in the order they appear, rather than the first one and
+    // no further. A hand-edited file opens the same section twice easily enough, and what a
+    // person means by writing the header again is that reading should carry on. Applied in
+    // order, so a question answered twice takes the later answer -- the same rule as within
+    // a section, and the same rule the Windows settings program follows.
+    for (const ini::Section& section : sections) {
+        if (section.name != section_name) {
+            continue;
+        }
 
-    read_int(*it, "pets-per-mascot", settings.pets_per_mascot, 0, 64);
-    read_list(*it, "mascots", settings.mascots);
-    read_double(*it, "walk-speed", settings.walk_speed, 1.0, 1000.0);
-    read_double(*it, "idle-interval", settings.idle_interval, 0.0, 3600.0);
-    read_list(*it, "outputs", settings.outputs);
-    read_bool(*it, "pause-for-fullscreen", settings.pause_for_fullscreen);
+        read_int(section, "pets-per-mascot", settings.pets_per_mascot, 0, 64);
+        read_list(section, "mascots", settings.mascots);
+        read_double(section, "walk-speed", settings.walk_speed, 1.0, 1000.0);
+        read_double(section, "idle-interval", settings.idle_interval, 0.0, 3600.0);
+        read_list(section, "outputs", settings.outputs);
+        read_bool(section, "pause-for-fullscreen", settings.pause_for_fullscreen);
+    }
 
     return settings;
 }

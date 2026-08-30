@@ -82,12 +82,84 @@ mascots = kori
     CHECK(settings.mascots == std::vector<std::string>{"kori"});
 }
 
-TEST_CASE("a malformed file is every default rather than a refusal", "[settings]")
+TEST_CASE("an unreadable line costs that line and nothing else", "[settings]")
 {
-    // A dragon that will not appear because of a stray bracket is worse than a dragon that
-    // appears with the defaults. The parser itself does throw -- that is checked below --
-    // and reading settings is where it is caught.
+    // One typo should cost the setting it is in, not every setting in the file. The daemon
+    // used to take the other view -- a single bad line put the whole file back to its
+    // defaults -- which meant it and the settings program could disagree about what the
+    // user had chosen, with neither of them saying so.
+    const Settings settings = parse_settings(R"(
+[DragonPerch]
+pets-per-mascot = 3
+this line is not a setting at all
+walk-speed = 55
+)");
+
+    CHECK(settings.pets_per_mascot == 3);
+    CHECK(settings.walk_speed == Catch::Approx(55.0));
+}
+
+TEST_CASE("a key written before any section is skipped", "[settings]")
+{
+    const Settings settings = parse_settings(R"(
+pets-per-mascot = 9
+[DragonPerch]
+pets-per-mascot = 3
+)");
+
+    CHECK(settings.pets_per_mascot == 3);
+}
+
+TEST_CASE("keys under an unreadable header do not join the section above", "[settings]")
+{
+    // The tolerant reading skips the header, but it must not go on filing what follows into
+    // whatever section came before: those keys were written for the section the author meant
+    // to open, and quietly moving them somewhere else would be a worse answer than losing
+    // them.
+    const Settings settings = parse_settings(R"(
+[DragonPerch]
+pets-per-mascot = 3
+[unterminated
+walk-speed = 55
+)");
+
+    CHECK(settings.pets_per_mascot == 3);
+    CHECK(settings.walk_speed == Settings{}.walk_speed);
+}
+
+TEST_CASE("a file that opens no section at all is every default", "[settings]")
+{
     CHECK(parse_settings("[unterminated\npets-per-mascot = 9") == Settings{});
+}
+
+TEST_CASE("a question answered twice takes the later answer", "[settings]")
+{
+    // Neither settings program writes a file that repeats a key. Somebody editing by hand
+    // does, and what they mean by putting a corrected line under the old one is the
+    // correction -- which is also what INI conventionally means and what the Windows
+    // settings program does, by the simple route of assigning as it reads.
+    const Settings settings = parse_settings(R"(
+[DragonPerch]
+walk-speed = 42
+walk-speed = 90
+)");
+
+    CHECK(settings.walk_speed == Catch::Approx(90.0));
+}
+
+TEST_CASE("a section opened twice carries on where it left off", "[settings]")
+{
+    const Settings settings = parse_settings(R"(
+[DragonPerch]
+pets-per-mascot = 3
+[Other]
+walk-speed = 1
+[DragonPerch]
+walk-speed = 55
+)");
+
+    CHECK(settings.pets_per_mascot == 3);
+    CHECK(settings.walk_speed == Catch::Approx(55.0));
 }
 
 TEST_CASE("values are clamped rather than taken as written", "[settings]")
@@ -184,11 +256,43 @@ c = 3
     CHECK(ini::find(sections, "three", "c") == nullptr);
 }
 
+TEST_CASE("find returns the last entry with a key, not the first", "[ini]")
+{
+    const std::vector<ini::Section> sections = ini::parse("[a]\nk = first\nk = last\n");
+
+    REQUIRE(ini::find(sections, "a", "k") != nullptr);
+    CHECK(ini::find(sections, "a", "k")->value == "last");
+    CHECK(ini::find(sections, "a", "k")->line == 3);
+}
+
 TEST_CASE("the parser refuses what it cannot make sense of", "[ini]")
 {
+    // The default, and what sprite packs are read with: a pack that is only half readable
+    // describes the wrong sprites, and drawing those is worse than refusing the pack.
     CHECK_THROWS_AS(ini::parse("[unterminated\n"), std::runtime_error);
     CHECK_THROWS_AS(ini::parse("[a]\nno equals sign\n"), std::runtime_error);
     CHECK_THROWS_AS(ini::parse("key = value\n"), std::runtime_error);
+}
+
+TEST_CASE("the tolerant mode reads past all three of those", "[ini]")
+{
+    // The same three inputs, asked for the other answer. Settings are read this way; see
+    // parse_settings.
+    CHECK_NOTHROW(ini::parse("[unterminated\n", ini::OnBadLine::skip));
+    CHECK_NOTHROW(ini::parse("[a]\nno equals sign\n", ini::OnBadLine::skip));
+    CHECK_NOTHROW(ini::parse("key = value\n", ini::OnBadLine::skip));
+
+    const std::vector<ini::Section> sections =
+        ini::parse("[a]\nk = 1\nnonsense\nj = 2\n", ini::OnBadLine::skip);
+
+    REQUIRE(sections.size() == 1);
+    CHECK(sections[0].entries.size() == 2);
+    REQUIRE(ini::find(sections, "a", "j") != nullptr);
+    CHECK(ini::find(sections, "a", "j")->value == "2");
+
+    // And the line numbers still count the lines that were skipped, so a complaint about
+    // one of the ones that survived still names the right line.
+    CHECK(ini::find(sections, "a", "j")->line == 4);
 }
 
 TEST_CASE("a line number travels with every value", "[ini]")

@@ -36,13 +36,30 @@ struct Section {
     [[nodiscard]] const Entry* find(std::string_view key) const noexcept;
 };
 
-/// Splits text into sections. Throws only on a malformed section header or a line outside
-/// any section -- everything else a caller has to judge for itself, because what counts as
-/// valid depends on what the file is for.
+/// What to do with a line that is neither a section header nor `key = value`.
+///
+/// The two files this parser reads want opposite answers, which is why it is a parameter
+/// rather than a decision made here.
+enum class OnBadLine {
+    /// Stop, naming the line. Right for a file this program wrote itself: a sprite pack
+    /// that is only half readable describes the wrong sprites, and drawing those is worse
+    /// than refusing the pack.
+    refuse,
+
+    /// Skip it and read the rest. Right for a file people edit by hand, where losing every
+    /// setting to one typo is worse than losing the setting the typo is in. This is what
+    /// the settings file's own header comment promises, and what the Windows settings
+    /// program has always done with the same file.
+    skip,
+};
+
+/// Splits text into sections. What counts as valid beyond that is a caller's judgement,
+/// because it depends on what the file is for.
 ///
 /// Both `#` and `;` start a comment: the first is what people type, the second is what
 /// KConfig writes.
-[[nodiscard]] std::vector<Section> parse(std::string_view text);
+[[nodiscard]] std::vector<Section> parse(std::string_view text,
+                                         OnBadLine bad_line = OnBadLine::refuse);
 
 /// The value of `key` in `[section]`, or nothing.
 [[nodiscard]] const Entry* find(const std::vector<Section>& sections, std::string_view section,
