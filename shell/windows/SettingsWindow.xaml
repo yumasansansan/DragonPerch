@@ -65,8 +65,18 @@
                             <TextBlock Style="{StaticResource CardNote}"
                                        Text="Three mascots at two each is six dragons."/>
                         </StackPanel>
+                        <!--
+                            The family named here rather than left to the theme resource.
+                            NumberBox's default style does not reference
+                            ContentControlThemeFontFamily, so replacing that resource moved
+                            every label in this window and left the digits inside the box
+                            behind. Setting it on the NumberBox carries it to the TextBox in
+                            its template, which is what actually draws them. Measured both
+                            ways round; MenuFlyoutItem needed the same treatment.
+                        -->
                         <NumberBox x:Name="PetsBox" Grid.Column="1" Width="128"
                                    VerticalAlignment="Center"
+                                   FontFamily="{StaticResource ContentControlThemeFontFamily}"
                                    Minimum="0" Maximum="64" SmallChange="1" LargeChange="5"
                                    SpinButtonPlacementMode="Compact"/>
                     </Grid>
@@ -90,14 +100,23 @@
                             <TextBlock Style="{StaticResource CardNote}"
                                        Text="Pixels per second. The walk cycle was drawn against 42: much faster and the feet slide, much slower and it moonwalks."/>
                         </StackPanel>
+                        <!--
+                            The number on the left and the slider hard against the right
+                            edge, the same shape as the switch below it. It was the other way
+                            round, and a fixed forty pixel wide label after the slider meant
+                            the row stopped short of where every other control in this window
+                            ends: the gap was the empty part of the label, not a margin.
+                            Right aligned within its width so the slider does not shift as
+                            the number goes from one digit to three.
+                        -->
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12"
-                                    VerticalAlignment="Center">
+                                    HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBlock x:Name="SpeedValue" Width="32" TextAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       Style="{StaticResource CardTitle}"/>
                             <Slider x:Name="SpeedSlider" Width="200"
                                     Minimum="1" Maximum="200" StepFrequency="1"
                                     VerticalAlignment="Center"/>
-                            <TextBlock x:Name="SpeedValue" Width="40"
-                                       VerticalAlignment="Center"
-                                       Style="{StaticResource CardTitle}"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -111,6 +130,7 @@
                         </StackPanel>
                         <NumberBox x:Name="IdleBox" Grid.Column="1" Width="128"
                                    VerticalAlignment="Center"
+                                   FontFamily="{StaticResource ContentControlThemeFontFamily}"
                                    Minimum="0" Maximum="3600" SmallChange="1" LargeChange="10"
                                    SpinButtonPlacementMode="Compact"/>
                     </Grid>

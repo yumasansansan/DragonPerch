@@ -106,6 +106,13 @@ internal sealed partial class SettingsWindow : Window
             {
                 Content = Pretty(id),
                 IsChecked = _settings.Mascots.Count == 0 || _settings.Mascots.Contains(id),
+
+                // Centred against the box rather than aligned to the top of it. WinUI's
+                // default padding puts the label where Segoe UI's ascent wants it, and
+                // Segoe UI Variable does not have the same one, so the words sat a little
+                // high beside the tick. Set here rather than as an implicit style, which on
+                // a templated control replaces the default style rather than adding to it.
+                VerticalContentAlignment = VerticalAlignment.Center,
             };
             _mascots.Add((id, box));
             MascotList.Children.Add(box);
@@ -146,6 +153,7 @@ internal sealed partial class SettingsWindow : Window
                 Content = $"{area.OuterBounds.Width} x {area.OuterBounds.Height}"
                           + $" at {area.OuterBounds.X}, {area.OuterBounds.Y}",
                 IsChecked = _settings.Outputs.Count == 0 || _settings.Outputs.Contains(name),
+                VerticalContentAlignment = VerticalAlignment.Center,
             };
             _outputs.Add((name, box));
             OutputList.Children.Add(box);

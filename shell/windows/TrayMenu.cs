@@ -4,6 +4,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
 
 namespace DragonPerch.Shell;
@@ -181,12 +182,27 @@ internal sealed class TrayMenu
         };
     }
 
+    /// <summary>
+    /// Fluent 2's body font, as a value on the item rather than a resource under it.
+    /// </summary>
+    /// <remarks>
+    /// App.xaml replaces ContentControlThemeFontFamily, which is enough for every control in
+    /// the settings window. It is not enough here: MenuFlyoutItem's default style does not
+    /// reference that resource, so the items kept the XAML default, which resolves to the
+    /// system UI font for the current language. Measured, not assumed: the item reported
+    /// Meiryo UI with the resource already overridden. A local value is the one thing a
+    /// default style cannot outrank.
+    /// </remarks>
+    private static FontFamily MenuFont
+        => (FontFamily)Application.Current.Resources["ContentControlThemeFontFamily"];
+
     private MenuFlyout BuildFlyout(bool paused)
     {
         MenuFlyoutItem pause = new()
         {
             Text = paused ? "Resume" : "Pause",
             Icon = new FontIcon { Glyph = paused ? GlyphPlay : GlyphPause },
+            FontFamily = MenuFont,
         };
         pause.Click += (_, _) => _ = Daemon.Send("toggle-pause");
 
@@ -194,6 +210,7 @@ internal sealed class TrayMenu
         {
             Text = "Settings…",
             Icon = new FontIcon { Glyph = GlyphSettings },
+            FontFamily = MenuFont,
         };
         settings.Click += (_, _) => ShowSettings();
 
@@ -201,6 +218,7 @@ internal sealed class TrayMenu
         {
             Text = "Quit DragonPerch",
             Icon = new FontIcon { Glyph = GlyphQuit },
+            FontFamily = MenuFont,
         };
         quit.Click += (_, _) => _ = Daemon.Send("quit");
 
@@ -215,6 +233,7 @@ internal sealed class TrayMenu
         flyout.Items.Add(settings);
         flyout.Items.Add(new MenuFlyoutSeparator());
         flyout.Items.Add(quit);
+
 
         flyout.Closed += (sender, _) =>
         {

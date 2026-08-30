@@ -27,16 +27,6 @@ bool is_shell_window(HWND hwnd)
     return name == L"Progman" || name == L"WorkerW" || name == L"Shell_TrayWnd";
 }
 
-/// A window that never appears in the taskbar and is not somebody's application.
-///
-/// Flyouts, thumbnails and other shell furniture set this; a game or a video player cannot,
-/// because a full-screen app with no taskbar button would be one nobody could get back to.
-/// Narrowing rather than guessing at class names: this is true of the whole category.
-bool is_tool_window(HWND hwnd)
-{
-    return (GetWindowLongPtrW(hwnd, GWL_EXSTYLE) & WS_EX_TOOLWINDOW) != 0;
-}
-
 bool belongs_to_us(HWND hwnd)
 {
     DWORD pid = 0;
@@ -63,8 +53,7 @@ bool window_fills(HWND hwnd, const RECT& monitor)
 bool covers(const PixelRect& output_bounds)
 {
     const HWND foreground = GetForegroundWindow();
-    if (foreground == nullptr || is_shell_window(foreground) || is_tool_window(foreground)
-        || belongs_to_us(foreground)) {
+    if (foreground == nullptr || is_shell_window(foreground) || belongs_to_us(foreground)) {
         return false;
     }
 
@@ -138,8 +127,7 @@ std::string describe_cover(const PixelRect& output_bounds)
                "' pid ", pid, " at (", frame.left, ",", frame.top, ")-(", frame.right, ",",
                frame.bottom, ") vs monitor (", output_bounds.left(), ",", output_bounds.top(),
                ")-(", output_bounds.right(), ",", output_bounds.bottom(),
-               "), notification state ", static_cast<int>(state),
-               is_tool_window(foreground) ? ", tool window" : "");
+               "), notification state ", static_cast<int>(state));
 }
 
 } // namespace dp::win::fullscreen
