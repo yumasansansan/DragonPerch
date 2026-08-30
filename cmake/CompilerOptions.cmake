@@ -117,6 +117,32 @@ if(MSVC)
     target_compile_options(dragonperch_options INTERFACE
         /W4 /WX
         /analyze
+        # MSVC's useful warnings that are off even at /W4. Measured before being added:
+        # every one of these is silent on this code today, so they cost nothing now and
+        # guard the classes they cover from here on.
+        #
+        # C4263 is deliberately not in the list. It is a good warning -- a member function
+        # that looks like an override and is not -- and it fires thirty-two times inside
+        # the Windows SDK's own dcomp.h, which is not this project's to fix.
+        /w14242     # conversion, possible loss of data
+        /w14244     # conversion from one integral type to a smaller one
+        /w14254     # a larger bit field assigned to a smaller one
+        /w14265     # a class with virtual functions and a non-virtual destructor
+        /w14287     # unsigned/negative constant mismatch
+        /w14296     # an expression that is always true or always false
+        /w14311     # pointer truncation
+        /w14545     # an expression before a comma that evaluates to nothing
+        /w14546     # a function call before a comma with no argument list
+        /w14547     # an operator before a comma with no effect
+        /w14549     # an operator before a comma with no effect, the other shape
+        /w14555     # an expression with no effect at all
+        /w14619     # a #pragma warning for a warning number that does not exist
+        /w14640     # a local static that is not thread-safe
+        /w14826     # a sign-extending conversion that may be unintended
+        /w14905     # a wide string literal cast to LPSTR
+        /w14906     # a string literal cast to LPWSTR
+        /w14928     # an illegal copy-initialisation, applied more than once
+        /w14062     # an enumerator not handled in a switch, even with a default
         /options:strict         # reject unknown compiler options instead of ignoring them
         /permissive-            # conformance mode; without it MSVC accepts non-standard code
         /utf-8                  # source and execution charset, or Japanese literals break
@@ -128,7 +154,55 @@ if(MSVC)
         LINKER:/WX)
 else()
     target_compile_options(dragonperch_options INTERFACE
-        -Wall -Wextra -Wpedantic -Wshadow -Wunused -Werror)
+        -Wall -Wextra -Wpedantic -Wshadow -Wunused -Werror
+
+        # The same exercise as the MSVC list above, and the same result: all of these are
+        # silent on this code today. -Wconversion in particular was worth checking rather
+        # than assuming, given how much of this is arithmetic on sizes and indices; the
+        # answer is that every narrowing here is already an explicit static_cast.
+        -Wconversion
+        -Wsign-conversion
+        -Wold-style-cast
+        -Wdouble-promotion
+        -Wnull-dereference
+        -Wcast-qual
+        -Wextra-semi
+        -Wsuggest-override)
+endif()
+
+# ---------------------------------------------------------------------------------------
+# Static analysis
+# ---------------------------------------------------------------------------------------
+#
+# MSVC's /analyze is on above, unconditionally, and covers the Windows head. Clang's
+# equivalent is clang-tidy, which is not free -- it re-parses every translation unit -- so
+# it is a switch rather than something every build pays for. CI turns it on in a job of
+# its own.
+#
+# Which checks is in .clang-tidy at the root, along with why each excluded one is
+# excluded. scan-build is deliberately not used as well: it drives the same Clang Static
+# Analyzer that clang-tidy runs as its clang-analyzer-* family, so it would be a second
+# mechanism for one analysis, with its own build and no NOLINT.
+option(DRAGONPERCH_TIDY "Run clang-tidy over every translation unit as it is built" OFF)
+
+if(DRAGONPERCH_TIDY)
+    if(MSVC)
+        message(FATAL_ERROR
+            "DRAGONPERCH_TIDY needs a Clang build. The MSVC one already runs /analyze.")
+    endif()
+
+    string(REGEX MATCH "^[0-9]+" DRAGONPERCH_TIDY_MAJOR "${CMAKE_CXX_COMPILER_VERSION}")
+    find_program(DRAGONPERCH_CLANG_TIDY
+        NAMES clang-tidy-${DRAGONPERCH_TIDY_MAJOR} clang-tidy)
+
+    if(NOT DRAGONPERCH_CLANG_TIDY)
+        message(FATAL_ERROR
+            "DRAGONPERCH_TIDY is on but no clang-tidy was found; install "
+            "clang-tidy-${DRAGONPERCH_TIDY_MAJOR}.")
+    endif()
+
+    set(CMAKE_CXX_CLANG_TIDY "${DRAGONPERCH_CLANG_TIDY}")
+    message(STATUS "Static analysis: ${DRAGONPERCH_CLANG_TIDY}")
 endif()
 
 # ---------------------------------------------------------------------------------------

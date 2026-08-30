@@ -124,7 +124,11 @@ std::string two_places(double value)
     const bool negative = value < 0.0;
     const double magnitude = negative ? -value : value;
 
-    const auto scaled = static_cast<long long>(magnitude * 100.0 + 0.5);
+    // llround, not (x + 0.5) truncated. The two agree almost everywhere and disagree
+    // exactly where it is hardest to notice: adding 0.5 to a double just below a .5
+    // boundary can round *up* in the addition itself, so the truncation then lands a
+    // whole unit high. clang-tidy's bugprone-incorrect-roundings is what pointed at this.
+    const long long scaled = std::llround(magnitude * 100.0);
     const long long whole = scaled / 100;
     const long long fraction = scaled % 100;
 

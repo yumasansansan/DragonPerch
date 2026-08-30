@@ -316,6 +316,61 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  # clang-tidy, in a job of its own rather than bolted onto the build legs.
+  #
+  # It re-parses every translation unit, so putting it in the matrix would slow the builds
+  # that produce the packages for an answer that has nothing to do with them. A separate
+  # job also means its failure reads as "the analyser objected" rather than "Linux Release
+  # broke".
+  #
+  # Debug, because the analyser does not care and a Debug build is quicker to get to.
+  analyse:
+    name: static analysis (clang-tidy)
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Install the Wayland head's dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev
+
+      # The same archive and the same "newest release branch" rule as the build jobs, with
+      # clang-tidy added: it ships in clang-tools-NN rather than in clang-NN.
+      - name: Install the newest Clang, LLD and clang-tidy from apt.llvm.org
+        run: |
+          set -o pipefail
+          codename=$(lsb_release -cs)
+
+          newest=$(curl -fsSL --compressed "https://apt.llvm.org/$codename/dists/" \
+                   | grep -oE "llvm-toolchain-$codename-[0-9]+" \
+                   | sed 's/.*-//' | sort -n | tail -1)
+          test -n "$newest"
+          echo "newest release-branch suite for $codename: $newest"
+
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+          echo "deb https://apt.llvm.org/$codename/ llvm-toolchain-$codename-$newest main" \
+            | sudo tee /etc/apt/sources.list.d/apt.llvm.org.list > /dev/null
+
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            "clang-$newest" "lld-$newest" "llvm-$newest" "clang-tools-$newest" "clang-tidy-$newest"
+
+      - name: Configure
+        run: cmake --preset linux-x64 -D DRAGONPERCH_TIDY=ON
+
+      # The core first and on its own, so that a finding there is not buried under the
+      # Wayland head's -- the core is the half that has to stay portable and is the half
+      # every other target is built on.
+      - name: Analyse the core
+        run: cmake --build build/linux-x64 --config Debug --target dragonperch_core
+
+      - name: Analyse everything else
+        run: cmake --build build/linux-x64 --config Debug
+
   # A single rolling "nightly" pre-release holding the latest packages, replaced each time.
   # Pull requests deliberately do not publish: they build and test, and that is all a
   # proposed change has earned.

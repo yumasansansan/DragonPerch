@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# clang-tidy, for the half of this project MSVC's /analyze never sees.
+#
+# The Windows head has had a static analyser since the compiler options were written --
+# /analyze is on, warnings-as-errors, and it is what forced check_handle into
+# win_headers.hpp. The Wayland head and the core had nothing. This is that.
+#
+# Which checks, decided by running them rather than by taste. On the core as it stands:
+#
+#   bugprone-* clang-analyzer-* cert-* concurrency-*      7 findings
+#   performance-*                                         2
+#   portability-*                                        13
+#   misc-*                                               82
+#   cppcoreguidelines-*                                  96
+#   readability-*                                       132
+#   modernize-*                                         166
+#
+# The first line is a gate somebody can keep green. The rest are a style argument with
+# four hundred opinions in it, and mixing the two would mean the gate is never green and
+# therefore never read. They are deliberately out; turning one on is a separate piece of
+# work with a separate discussion.
+#
+# The seven that first line found: one real bug (two_places rounded with the
+# (x + 0.5)-truncated idiom, which lands a unit high just below a .5 boundary), one
+# platform artefact excluded below, and five from a check that is famously noisy.
+
+Checks: >
+  -*,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  performance-*,
+  portability-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape
+
+# bugprone-easily-swappable-parameters is an API-shape opinion, not a bug finder: it fires
+# on any function taking two adjacent parameters of the same type, of which a geometry
+# library has rather a lot.
+#
+# bugprone-exception-escape is excluded for a narrower reason and it is worth writing down,
+# because the check is otherwise a good one. It fires on SpritePack's implicit move
+# constructor, through std::map's -- but only with MSVC's standard library, whose map move
+# allocates a sentinel node and can therefore throw bad_array_new_length. libstdc++'s does
+# not. So the finding is a property of one implementation of the standard library rather
+# than of this code, and there is nothing to change in response to it.
+
+WarningsAsErrors: '*'
+
+# Ours only. Everything under _deps/ is Catch2, and the Windows SDK headers turn up
+# through win_headers.hpp; neither is this project's to fix.
+HeaderFilterRegex: '.*/(src|fuzz)/.*'
+
+FormatStyle: none
