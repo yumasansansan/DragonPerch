@@ -180,16 +180,22 @@ void GlesRenderer::build_program()
 
     // The last argument of glVertexAttribPointer is declared const void* and is not a
     // pointer: with a buffer bound it is a byte offset into that buffer, and the cast is
-    // how every GL program in existence passes one. performance-no-int-to-ptr is right in
-    // general and has no alternative to offer here -- the API has no overload that takes
-    // an integer.
+    // how every GL program passes one. performance-no-int-to-ptr is right in general and
+    // has nothing to offer here -- the API has no overload that takes an integer.
+    //
+    // Hoisted into their own lines so the suppressions land on them. NOLINTNEXTLINE covers
+    // exactly the line after it, and clang-tidy reports this at the sub-expression, which
+    // in a wrapped call is a continuation line rather than the line the statement starts
+    // on -- so a suppression above the call does nothing at all.
+    //
+    // NOLINTNEXTLINE(performance-no-int-to-ptr)
+    const auto* const texture_offset = reinterpret_cast<const void*>(offsetof(Vertex, u));
+    // NOLINTNEXTLINE(performance-no-int-to-ptr)
+    const auto* const opacity_offset = reinterpret_cast<const void*>(offsetof(Vertex, opacity));
+
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, nullptr);
-    // NOLINTNEXTLINE(performance-no-int-to-ptr)
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride,
-                          reinterpret_cast<const void*>(offsetof(Vertex, u)));
-    // NOLINTNEXTLINE(performance-no-int-to-ptr)
-    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, stride,
-                          reinterpret_cast<const void*>(offsetof(Vertex, opacity)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, texture_offset);
+    glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, stride, opacity_offset);
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
     glEnableVertexAttribArray(2);

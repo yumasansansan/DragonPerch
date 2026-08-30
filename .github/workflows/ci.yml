@@ -365,11 +365,15 @@ jobs:
       # The core first and on its own, so that a finding there is not buried under the
       # Wayland head's -- the core is the half that has to stay portable and is the half
       # every other target is built on.
+      # `-k 0` tells ninja to keep going after a failure instead of stopping at the first
+      # one. Without it a run reports whichever file failed earliest and nothing about the
+      # rest, so a handful of independent findings take a handful of round trips to see --
+      # which is exactly how this went. The step still fails; it just says everything first.
       - name: Analyse the core
-        run: cmake --build build/linux-x64 --config Debug --target dragonperch_core
+        run: cmake --build build/linux-x64 --config Debug --target dragonperch_core -- -k 0
 
       - name: Analyse everything else
-        run: cmake --build build/linux-x64 --config Debug
+        run: cmake --build build/linux-x64 --config Debug -- -k 0
 
   # A single rolling "nightly" pre-release holding the latest packages, replaced each time.
   # Pull requests deliberately do not publish: they build and test, and that is all a
