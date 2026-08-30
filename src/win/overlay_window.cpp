@@ -62,19 +62,13 @@ OverlayWindow OverlayWindow::create(const PixelRect& bounds)
 {
     ensure_class_registered();
 
-    const HWND hwnd = CreateWindowExW(
-        WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOOLWINDOW
-            | WS_EX_NOACTIVATE | WS_EX_TOPMOST,
-        kClassName,
-        L"DragonPerch",
-        WS_POPUP,
-        bounds.left(), bounds.top(), bounds.width, bounds.height,
-        nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
-
-    check_last_error(hwnd != nullptr, "CreateWindowExW");
-    if (!hwnd) {
-        throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), "CreateWindowExW");
-    }
+    const HWND hwnd = check_handle(
+        CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | WS_EX_TRANSPARENT
+                            | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TOPMOST,
+                        kClassName, L"DragonPerch", WS_POPUP, bounds.left(), bounds.top(),
+                        bounds.width, bounds.height, nullptr, nullptr,
+                        GetModuleHandleW(nullptr), nullptr),
+        "CreateWindowExW");
 
     // Fully opaque: the alpha that matters comes from the composition content. This call
     // exists only because a layered window must have been given attributes once, and being

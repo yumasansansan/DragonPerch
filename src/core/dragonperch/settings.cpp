@@ -5,6 +5,7 @@
 #include "dragonperch/text.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <charconv>
 #include <cstddef>
 #include <cstdlib>
@@ -51,7 +52,13 @@ void read_double(const ini::Section& section, std::string_view key, double& out,
 
     char* end = nullptr;
     const double value = std::strtod(entry->value.c_str(), &end);
-    if (end != nullptr && *end == 0) {
+
+    // isfinite, because strtod accepts "nan" and "inf" and std::clamp passes a NaN
+    // straight through -- both comparisons inside it are false against a NaN, so it
+    // returns the NaN. That reaches std::lround in the simulation, where it is undefined
+    // behaviour rather than a slow dragon. "inf" is less exciting and just as wrong: it
+    // clamps to the maximum, so the file says one thing and the pets do another.
+    if (end != nullptr && *end == 0 && std::isfinite(value)) {
         out = std::clamp(value, lowest, highest);
     }
 }

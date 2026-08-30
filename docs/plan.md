@@ -158,14 +158,18 @@ workflow.)
 
 | | Windows | Linux |
 |---|---|---|
-| Compiler | MSVC 19.51 (VS 2026) | Clang 22, named explicitly |
+| Compiler | MSVC 19.51 (VS 2026) | the newest Clang installed |
 | Generator | Visual Studio 18 2026 | Ninja Multi-Config |
 | Standard | C++23 | C++23 |
 | CI image | `windows-2025-vs2026` | `ubuntu-26.04` |
 
-CI installs nothing on either platform. The Windows image carries Visual Studio 2026 and
-the generator configures MSVC itself; the Linux image carries Clang 22. The preset names
-`clang-22` rather than `clang`, since plain `clang` on Ubuntu 26.04 is 21.
+The Windows image carries Visual Studio 2026 and the generator configures MSVC itself. On
+Linux the image carries Clang 22 alongside the distribution's 21, and the preset points at
+`cmake/ClangLatest.cmake`, which takes the newest `clang++-NN` it can find rather than
+naming one. Plain `clang` would be the older of the two, and a number written down here
+would need editing every release and would refuse to configure on a machine that had moved
+on. LLD is then required at the compiler's own version, because Release is ThinLTO; CI
+works out which that is the same way the toolchain file does and installs it.
 
 One compiler per platform rather than several. Building with both Clang and GCC would be a
 better portability check, and this trades that away for a simpler pipeline.

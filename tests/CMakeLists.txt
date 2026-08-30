@@ -45,8 +45,20 @@ catch_discover_tests(dragonperch_tests)
 # on a missing DLL dialog.
 if(DRAGONPERCH_SANITIZE AND MSVC)
     get_filename_component(MSVC_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
-    add_custom_command(TARGET dragonperch_tests POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${MSVC_BIN_DIR}/clang_rt.asan_dynamic-x86_64.dll"
-        "$<TARGET_FILE_DIR:dragonperch_tests>")
+    set(DRAGONPERCH_ASAN_RUNTIME "${MSVC_BIN_DIR}/clang_rt.asan_dynamic-x86_64.dll")
+
+    # Checked rather than copied blind: when the runtime is not where the compiler is, the
+    # copy fails with a path and no explanation, and the real answer -- that the ASan
+    # component of Visual Studio is not installed -- is nowhere in the message.
+    if(EXISTS "${DRAGONPERCH_ASAN_RUNTIME}")
+        add_custom_command(TARGET dragonperch_tests POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${DRAGONPERCH_ASAN_RUNTIME}"
+            "$<TARGET_FILE_DIR:dragonperch_tests>")
+    else()
+        message(WARNING
+            "DRAGONPERCH_SANITIZE is on but ${DRAGONPERCH_ASAN_RUNTIME} is missing. "
+            "Install the 'C++ AddressSanitizer' component of Visual Studio, or put the "
+            "runtime on PATH; without it dragonperch_tests will not start.")
+    endif()
 endif()

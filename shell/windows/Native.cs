@@ -43,7 +43,13 @@ internal static partial class Native
 
     public delegate IntPtr WndProc(IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam);
 
-    [LibraryImport("user32.dll", EntryPoint = "RegisterClassExW")]
+    /// <remarks>
+    /// SetLastError, because ShellServer reads GetLastPInvokeError to tell
+    /// ERROR_CLASS_ALREADY_EXISTS from a real failure. Without it the runtime never
+    /// captures the error and that read returns whatever some unrelated call left behind,
+    /// which makes the check look right and mean nothing.
+    /// </remarks>
+    [LibraryImport("user32.dll", EntryPoint = "RegisterClassExW", SetLastError = true)]
     public static partial ushort RegisterClassEx(ref WNDCLASSEXW description);
 
     [LibraryImport("user32.dll", EntryPoint = "CreateWindowExW", StringMarshalling = StringMarshalling.Utf16)]

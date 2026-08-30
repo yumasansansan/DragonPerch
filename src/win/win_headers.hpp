@@ -37,9 +37,25 @@ inline void check_last_error(bool ok, const char* what)
     if (!ok) {
         throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), what);
     }
-#if defined(_MSC_VER) && !defined(__clang__)
-    __assume(ok);
-#endif
+}
+
+/// The same, for a handle, returning what it checked.
+///
+/// `check_last_error(hwnd != nullptr, ...)` tells a human that hwnd is good from there on
+/// and tells /analyze nothing: the analyser reasons about the caller's expression, and a
+/// throw inside a callee is not a postcondition it can see. An `__assume` in the callee
+/// does not help either -- measured, and it does not. What does help is saying so with
+/// SAL, once, here.
+///
+/// Without it every call site has to repeat the null test to keep C6387 quiet, which is
+/// three lines of dead code per handle and a second place for the message to drift.
+template <typename Handle>
+[[nodiscard]] _Ret_notnull_ Handle check_handle(Handle handle, const char* what)
+{
+    if (handle == nullptr) {
+        throw std::system_error(static_cast<int>(GetLastError()), std::system_category(), what);
+    }
+    return handle;
 }
 
 } // namespace dp::win

@@ -59,7 +59,7 @@ git submodule update --init --depth 1
 ```
 
 ```bash
-sudo apt install clang-22 cmake ninja-build libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev pkg-config
+sudo apt install clang-22 lld-22 cmake ninja-build libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev pkg-config
 ```
 
 ```bash
@@ -70,10 +70,23 @@ Use the preset rather than a hand-written `cmake -G Ninja`, and note the environ
 variable for the C compiler is `CC`, not `C` — set the wrong one and CMake silently picks
 whatever `cc` happens to be while using Clang for C++.
 
-The Linux preset names `clang-22` rather than `clang`, because on Ubuntu 26.04 plain
-`clang` is 21. Both are on the image, so nothing is installed — but picking up a different
-compiler than intended is the kind of thing that surfaces much later as a confusing
-diagnostic, so it is stated rather than inferred.
+**Clang and LLD are build dependencies, and the newest ones installed are the ones used.**
+The Linux preset points at [cmake/ClangLatest.cmake](cmake/ClangLatest.cmake), which walks
+`clang++-19` … `clang++-40` and takes the highest that is present, then also asks an
+unsuffixed `clang++` its version in case that is newer still. `clang-22` in the line above
+is a version that is known to work, not a requirement: install 23 instead and the build
+picks it up with no edit anywhere.
+
+Plain `clang` is deliberately not what gets used. On Ubuntu 26.04 the unsuffixed name is
+21 while 22 is installed beside it, so asking for it would silently build with the older
+compiler — which is the thing this is here to prevent, not a portability nicety to fall
+back on.
+
+The linker is `lld` **of the compiler's own version**, derived rather than written down,
+and a hard error if it is missing. Release builds are ThinLTO, and the bitcode a compiler
+emits is only guaranteed readable by its own version's linker; pairing Clang 22 with an
+LLD from 21 is a link failure at best and a silently non-LTO Release at worst. There is no
+fall back to GNU ld.
 
 `external/` holds `wayland-protocols` and `wlr-protocols` as submodules rather than copies
 of the two XML files, so that where each came from is recorded and updating is one command.

@@ -209,10 +209,15 @@ internal sealed class Settings
     private static List<string> SplitList(string value)
         => [.. value.Split(',').Select(part => part.Trim()).Where(part => part.Length > 0)];
 
-    /// <summary>InvariantCulture, because the daemon reads this file with the C locale and
-    /// a decimal comma would come back as a different number or as none at all.</summary>
+    /// <summary>
+    /// InvariantCulture, because the daemon reads this file with the C locale and a decimal
+    /// comma would come back as a different number or as none at all. IsFinite, because
+    /// both parsers accept "NaN" and "Infinity" and neither clamp does anything useful with
+    /// one -- see the same guard in dragonperch/settings.cpp.
+    /// </summary>
     private static bool TryDouble(string value, out double result)
-        => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result);
+        => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out result)
+           && double.IsFinite(result);
 
     private static string TwoPlaces(double value)
         => value.ToString("0.00", CultureInfo.InvariantCulture);

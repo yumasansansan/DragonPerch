@@ -24,7 +24,7 @@ on:
 # Wayland head links against, not a compiler. The image has no reason to carry them.
 jobs:
   linux:
-    name: linux (Clang 22, ${{ matrix.configuration }}${{ matrix.sanitize == 'ON' && ', Sanitized' || '' }})
+    name: linux (Clang, ${{ matrix.configuration }}${{ matrix.sanitize == 'ON' && ', Sanitized' || '' }})
     runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
@@ -48,13 +48,33 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev
 
-      # The preset names clang-22 rather than clang, because plain `clang` on this image is
-      # 21 and picking up a different compiler than intended is the kind of thing that only
-      # shows up as a confusing diagnostic much later.
+      # LLD of the same version as the Clang the toolchain file will pick, worked out the
+      # same way it does rather than written down. Release builds are ThinLTO, so the
+      # linker has to be able to read the compiler's bitcode, and a version named here
+      # would go stale the moment the runner image gains a newer Clang -- which is the
+      # thing cmake/ClangLatest.cmake exists to stop mattering.
+      - name: Install the LLD that matches the newest Clang
+        run: |
+          major=$(ls /usr/bin/clang++-* 2>/dev/null | sed 's/.*clang++-//' | sort -n | tail -1)
+
+          # The unsuffixed one too, and by asking it rather than assuming, because the
+          # toolchain file considers it as well: on a distribution that has caught up it
+          # can be the newest of the lot.
+          plain=$(clang++ --version 2>/dev/null | grep -om1 'clang version [0-9]*' | grep -o '[0-9]*$')
+          if [ "${plain:-0}" -gt "${major:-0}" ]; then major=$plain; fi
+
+          echo "newest clang++: ${major:-none}"
+          test -n "$major"
+          sudo apt-get install --no-install-recommends -y "lld-$major"
+
+      # The preset points at cmake/ClangLatest.cmake, which picks the newest numbered
+      # clang++ on the machine. Plain `clang` on this image is 21 while 22 is installed
+      # beside it, so asking for the unsuffixed name would quietly build with the older
+      # one -- and pinning a number here would need an edit every release.
       # The version carries the build time and the commit, so that apt can tell one
       # nightly from the next -- see cmake/Packaging.cmake for why the tilde matters.
       - name: Configure
-        run: cmake --preset linux-x64 -D DRAGONPERCH_VERSION_SUFFIX="~$(date -u +%Y%m%d.%H%M).g$(git rev-parse --short HEAD)${{ matrix.sanitize == 'ON' && '-sanitized' || '' }}" -D DRAGONPERCH_SANITIZE=${{ matrix.sanitize }}
+        run: cmake --preset linux-x64 -D DRAGONPERCH_VERSION_SUFFIX="~$(date -u +%Y%m%d.%H%M).g$(git rev-parse --short HEAD)${{ matrix.sanitize == 'ON' && '~sanitized' || '' }}" -D DRAGONPERCH_SANITIZE=${{ matrix.sanitize }}
 
       # The portability guard, built first and named so its failure is unambiguous. The core
       # must compile with no platform anything; if this step breaks, a backend has leaked
@@ -127,7 +147,7 @@ jobs:
         run: |
           $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMdd.HHmm')
           $sha = git rev-parse --short HEAD
-          $suffix = if ('${{ matrix.sanitize }}' -eq 'ON') { '-sanitized' } else { '' }
+          $suffix = if ('${{ matrix.sanitize }}' -eq 'ON') { '~sanitized' } else { '' }
           cmake --preset windows-x64 -D DRAGONPERCH_VERSION_SUFFIX="~$stamp.g$sha$suffix" -D DRAGONPERCH_SANITIZE=${{ matrix.sanitize }}
 
       - name: Build
@@ -222,4 +242,15 @@ jobs:
           # the packages were actually built from. The files themselves are versioned, so a
           # rolling tag costs nothing: what somebody downloaded is written on it.
           gh release delete nightly --cleanup-tag --yes || true
-          gh release create nightly $(find dist -type f) --prerelease --title "Nightly build" --notes "Built from ${{ github.sha }}. Every file carries the build time and the commit in its version, so apt upgrades one nightly to the next. Unsigned and untested beyond CI. The dragonperch-shell zip is optional and only for Windows: it is the Fluent tray menu, and unpacking it beside dragonperch.exe replaces the plain Win32 one. The pets do not need it."
+
+          # Everything except the sanitized build. That one is a debugging aid, several
+          # times slower and only useful to somebody chasing a crash, and it must not be
+          # offered as a download beside the real thing. It stays a CI artifact, whose
+          # fourteen-day retention is exactly the right lifetime for it.
+          #
+          # Not only tidiness: the two .deb files carry the same package name, and dpkg
+          # orders `0.1.0~STAMP` BEFORE `0.1.0~STAMP-sanitized` -- an absent Debian
+          # revision sorts before a named one -- so apt shown both would have called the
+          # instrumented build the newer one. That is also why the suffix is now a tilde,
+          # which sorts before everything, rather than the hyphen it started as.
+          gh release create nightly $(find dist -type f -not -path '*sanitized*') --prerelease --title "Nightly build" --notes "Built from ${{ github.sha }}. Every file carries the build time and the commit in its version, so apt upgrades one nightly to the next. Unsigned and untested beyond CI. The dragonperch-shell zip is optional and only for Windows: it is the Fluent tray menu, and unpacking it beside dragonperch.exe replaces the plain Win32 one. The pets do not need it."

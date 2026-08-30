@@ -118,19 +118,69 @@ if(MSVC)
         LINKER:/HIGHENTROPYVA
     )
 else()
+    include(CheckCXXCompilerFlag)
+
+    # -fcf-protection is x86 only and is an error elsewhere, so it is asked for rather than
+    # assumed. Everything below it is portable.
+    check_cxx_compiler_flag(-fcf-protection=full DRAGONPERCH_HAS_CF_PROTECTION)
+    if(DRAGONPERCH_HAS_CF_PROTECTION)
+        add_compile_options(-fcf-protection=full)
+    endif()
+
     add_compile_options(
-        -fcf-protection=full
         -fstack-protector-strong
         -fstack-clash-protection
         -D_GLIBCXX_ASSERTIONS
-        $<$<NOT:$<CONFIG:Debug>>:-D_FORTIFY_SOURCE=3>
     )
+
+    # _FORTIFY_SOURCE needs care in two directions.
+    #
+    # It is undefined first because several distributions predefine it in their compiler
+    # packages; redefining it to a different value is a macro-redefinition warning, and
+    # -Werror turns that into a failed build on somebody else's machine rather than ours.
+    #
+    # And it is left out entirely under a sanitizer. The fortified string and memory
+    # functions and ASan's interceptors are two implementations of the same checks, and
+    # running both produces warnings at best and misattributed reports at worst. The
+    # sanitizer is the better check of the two; when it is on it should be the only one.
+    if(NOT DRAGONPERCH_SANITIZE)
+        add_compile_options(
+            $<$<NOT:$<CONFIG:Debug>>:-U_FORTIFY_SOURCE>
+            $<$<NOT:$<CONFIG:Debug>>:-D_FORTIFY_SOURCE=3>)
+    endif()
+
     add_link_options(
-        -fuse-ld=lld-22
         LINKER:-z,relro
         LINKER:-z,now
         LINKER:-z,noexecstack
     )
+
+    # LLD, of the same version as the compiler that was chosen.
+    #
+    # Not `-fuse-ld=lld`, for the reason cmake/ClangLatest.cmake picks a numbered clang++:
+    # on Ubuntu the unsuffixed name is the distribution's default and the default lags, so
+    # asking for it pairs the newest compiler with an older linker. Without LTO that is
+    # merely untidy. Release builds are ThinLTO, and the bitcode a compiler emits is only
+    # guaranteed to be readable by its own version's linker -- so the versions have to
+    # agree, and the way to make them agree is to derive one from the other rather than to
+    # write both down.
+    #
+    # Missing is a hard error rather than a fall back to GNU ld. LLD is a build dependency;
+    # a machine without it should be told so here, by name, instead of finding out from a
+    # link failure or from a Release build that quietly stopped being LTO.
+    string(REGEX MATCH "^[0-9]+" DRAGONPERCH_CLANG_MAJOR "${CMAKE_CXX_COMPILER_VERSION}")
+
+    find_program(DRAGONPERCH_LLD NAMES ld.lld-${DRAGONPERCH_CLANG_MAJOR})
+    if(NOT DRAGONPERCH_LLD)
+        message(FATAL_ERROR
+            "ld.lld-${DRAGONPERCH_CLANG_MAJOR} was not found, and the compiler is Clang "
+            "${CMAKE_CXX_COMPILER_VERSION}. DragonPerch links with LLD of the compiler's own "
+            "version and does not fall back to GNU ld; install lld-${DRAGONPERCH_CLANG_MAJOR} "
+            "and configure again.")
+    endif()
+
+    add_link_options(-fuse-ld=lld-${DRAGONPERCH_CLANG_MAJOR})
+    message(STATUS "Linker: ${DRAGONPERCH_LLD}")
 endif()
 
 # ---------------------------------------------------------------------------------------

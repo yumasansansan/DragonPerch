@@ -166,3 +166,18 @@ TEST_CASE("a line number travels with every value", "[ini]")
     REQUIRE(sections[0].find("k") != nullptr);
     CHECK(sections[0].find("k")->line == 5);
 }
+
+TEST_CASE("a walk speed that is not a number is refused", "[settings]")
+{
+    // strtod accepts "nan" and "inf", and std::clamp passes a NaN straight through: both
+    // comparisons inside it are false. A NaN walk speed reaches std::lround in the
+    // simulation, where it is undefined behaviour rather than a slow dragon.
+    const Settings settings = parse_settings(R"(
+[DragonPerch]
+walk-speed = nan
+idle-interval = inf
+)");
+
+    CHECK(settings.walk_speed == Catch::Approx(Settings{}.walk_speed));
+    CHECK(settings.idle_interval == Catch::Approx(Settings{}.idle_interval));
+}
