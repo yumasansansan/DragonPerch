@@ -376,13 +376,26 @@ jobs:
   # proposed change has earned.
   nightly:
     name: nightly release
-    needs: [linux, windows]
+    # Every job, not just the ones that produce the files. `analyse` was missing, so a
+    # clang-tidy failure published a release anyway -- the packages were built by jobs that
+    # had passed, and nothing was watching the one that had not.
+    #
+    # `needs` waits for every leg of a matrix and requires all of them, so the sanitized
+    # builds gate this too. That is deliberate: a sanitizer report is a defect, and a
+    # nightly built from a commit with one should not be offered to anybody.
+    needs: [linux, windows, analyse]
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-26.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
+
+      # Before anything is downloaded, let alone published. `needs:` above is the only
+      # thing standing between a failing job and a release, and it is a list somebody has
+      # to remember to add to. This checks they did.
+      - name: Every job must gate this one
+        run: python3 tools/check_release_gate.py
 
       - uses: actions/download-artifact@v7
         with:
