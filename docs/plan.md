@@ -168,8 +168,33 @@ Linux the image carries Clang 22 alongside the distribution's 21, and the preset
 `cmake/ClangLatest.cmake`, which takes the newest `clang++-NN` it can find rather than
 naming one. Plain `clang` would be the older of the two, and a number written down here
 would need editing every release and would refuse to configure on a machine that had moved
-on. LLD is then required at the compiler's own version, because Release is ThinLTO; CI
-works out which that is the same way the toolchain file does and installs it.
+on. CI does not settle for whatever the image happens to carry, either: it reads
+apt.llvm.org's suite listing, takes the highest numbered `llvm-toolchain-<codename>-NN`,
+and installs `clang-NN` and `lld-NN` from it. No version is written down anywhere, so a
+`-24` suite appearing is used the day it appears.
+
+That archive's layout is the opposite way round from what the names suggest, which is
+worth recording because it decides which suite to take. The *unversioned* suite carries
+the **main** branch, rebuilt nightly; the numbered ones carry release branches. Measured
+on 2026-08-30:
+
+| suite | `clang` version |
+|---|---|
+| `llvm-toolchain-resolute` | `1:24~++20260819112932+d141332bd2ae` |
+| `llvm-toolchain-resolute-23` | `1:23.1.0~++20260818083945+55feb0a3b6b7` |
+| `llvm-toolchain-resolute-22` | `1:22.1.8~++20260714015917+ca7933e47d3a` |
+
+Every one is a dated branch snapshot: this archive never publishes a clean release
+version, so the `~++<date>+<hash>` on 23 does not make it less finished than 22 -- 22 wears
+the same thing. Ubuntu's own archive has no `clang-23` at all, in any suite.
+
+`llvm.sh`, the script apt.llvm.org offers, is deliberately not used. It requires root, and
+it installs `CURRENT_LLVM_STABLE`, a constant baked into the script -- 22 at the time of
+writing -- so it would not give the newest anyway without being told a number. Fetching a
+script and running it as root in a workflow that publishes releases is also more trust than
+this needs when adding the repository directly is six lines.
+
+LLD is then required at the compiler's own version, because Release is ThinLTO.
 
 One compiler per platform rather than several. Building with both Clang and GCC would be a
 better portability check, and this trades that away for a simpler pipeline.

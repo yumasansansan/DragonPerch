@@ -75,7 +75,9 @@ The Linux preset points at [cmake/ClangLatest.cmake](cmake/ClangLatest.cmake), w
 `clang++-19` … `clang++-40` and takes the highest that is present, then also asks an
 unsuffixed `clang++` its version in case that is newer still. `clang-22` in the line above
 is a version that is known to work, not a requirement: install 23 instead and the build
-picks it up with no edit anywhere.
+picks it up with no edit anywhere. Ubuntu itself has no `clang-23`, so the newest ones come
+from [apt.llvm.org](https://apt.llvm.org/) — CI adds that archive and takes the highest
+numbered `llvm-toolchain-<codename>-NN` suite it offers, which is one way to get them.
 
 Plain `clang` is deliberately not what gets used. On Ubuntu 26.04 the unsuffixed name is
 21 while 22 is installed beside it, so asking for it would silently build with the older

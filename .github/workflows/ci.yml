@@ -45,32 +45,78 @@ jobs:
       # against. libsystemd is there for sd-bus, which is how the KWin script reaches us.
       - name: Install the Wayland head's dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev
+          sudo apt update
+          sudo apt full-upgrade
+          sudo apt install --no-install-recommends -y libwayland-bin libwayland-dev libwayland-egl-backend-dev libegl-dev libgles-dev libpng-dev libsystemd-dev
 
-      # LLD of the same version as the Clang the toolchain file will pick, worked out the
-      # same way it does rather than written down. Release builds are ThinLTO, so the
-      # linker has to be able to read the compiler's bitcode, and a version named here
-      # would go stale the moment the runner image gains a newer Clang -- which is the
-      # thing cmake/ClangLatest.cmake exists to stop mattering.
-      - name: Install the LLD that matches the newest Clang
+      # The newest LLVM release branch apt.llvm.org publishes for this distribution.
+      #
+      # Its layout is worth writing down, because it is the opposite way round from what
+      # the names suggest. The *unversioned* suite, llvm-toolchain-<codename>, carries the
+      # main branch -- rebuilt nightly, and 24 at the time of writing. The numbered suites,
+      # llvm-toolchain-<codename>-NN, carry release branch NN. So the numbered ones are the
+      # conservative ones, and this takes the highest of those and leaves main alone.
+      #
+      # Measured rather than assumed, against http://apt.llvm.org/resolute/dists/ :
+      #
+      #   llvm-toolchain-resolute      clang-24  1:24~++20260819112932+d141332bd2ae
+      #   llvm-toolchain-resolute-23   clang-23  1:23.1.0~++20260818083945+55feb0a3b6b7
+      #   llvm-toolchain-resolute-22   clang-22  1:22.1.8~++20260714015917+ca7933e47d3a
+      #
+      # Note that every one of them is a dated branch snapshot: this archive never
+      # publishes a clean release version, so the `~++<date>+<hash>` on 23 does not make it
+      # less finished than 22. Ubuntu's own archive has no clang-23 at all.
+      #
+      # No version is named anywhere below. A -24 suite appearing is used the day it does.
+      - name: Install the newest Clang and LLD from apt.llvm.org
+        run: |
+          set -o pipefail
+          codename=$(lsb_release -cs)
+
+          # curl with --compressed, and that is not a preference. This server answers the
+          # directory listing with Content-Encoding: gzip even when the client did not ask
+          # for it, so `wget -qO-` pipes gzip bytes into grep, matches nothing, and the
+          # build stops on the emptiness check below with no hint as to why. Measured, not
+          # guessed: the response begins 1f 8b with no Accept-Encoding sent at all. The key
+          # is application/octet-stream and is not compressed; only text/html is.
+          #
+          # And -L, because http:// on this host is a 301 to https://.
+          newest=$(curl -fsSL --compressed "https://apt.llvm.org/$codename/dists/" \
+                   | grep -oE "llvm-toolchain-$codename-[0-9]+" \
+                   | sed 's/.*-//' | sort -n | tail -1)
+          test -n "$newest"
+          echo "newest release-branch suite for $codename: $newest"
+
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+          echo "deb https://apt.llvm.org/$codename/ llvm-toolchain-$codename-$newest main" \
+            | sudo tee /etc/apt/sources.list.d/apt.llvm.org.list > /dev/null
+
+          sudo apt update
+          sudo apt install --no-install-recommends -y "clang-$newest" "lld-$newest"
+          clang++-$newest --version | head -1
+
+      # The archive is not the only place a Clang can come from -- the runner image ships
+      # one too -- and cmake/ClangLatest.cmake picks the newest of everything installed.
+      # If that turns out to be the image's rather than the one above, its LLD has to be
+      # here as well, or configure stops with a message about a missing ld.lld-NN.
+      - name: Make sure the LLD matches whichever Clang is newest
         run: |
           major=$(ls /usr/bin/clang++-* 2>/dev/null | sed 's/.*clang++-//' | sort -n | tail -1)
 
           # The unsuffixed one too, and by asking it rather than assuming, because the
-          # toolchain file considers it as well: on a distribution that has caught up it
-          # can be the newest of the lot.
+          # toolchain file considers it as well.
           plain=$(clang++ --version 2>/dev/null | grep -om1 'clang version [0-9]*' | grep -o '[0-9]*$')
           if [ "${plain:-0}" -gt "${major:-0}" ]; then major=$plain; fi
 
-          echo "newest clang++: ${major:-none}"
+          echo "newest clang++ installed: ${major:-none}"
           test -n "$major"
-          sudo apt-get install --no-install-recommends -y "lld-$major"
+          sudo apt install --no-install-recommends -y "lld-$major"
 
-      # The preset points at cmake/ClangLatest.cmake, which picks the newest numbered
-      # clang++ on the machine. Plain `clang` on this image is 21 while 22 is installed
-      # beside it, so asking for the unsuffixed name would quietly build with the older
-      # one -- and pinning a number here would need an edit every release.
+      # The preset points at cmake/ClangLatest.cmake, which picks the newest clang++ on
+      # the machine -- whichever of the ones installed above that turns out to be. Plain
+      # `clang` is not it: on this image the unsuffixed name is the distribution's older
+      # one, so asking for it would quietly build with that.
       # The version carries the build time and the commit, so that apt can tell one
       # nightly from the next -- see cmake/Packaging.cmake for why the tilde matters.
       - name: Configure
