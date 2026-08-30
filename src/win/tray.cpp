@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "tray.hpp"
 
+#include "dragonperch/language.hpp"
 #include "dragonperch/text.hpp"
 #include "log.hpp"
+#include "paths.hpp"
 #include "resource.h"
 #include "shell.hpp"
 #include "win_headers.hpp"
@@ -62,15 +64,26 @@ void show_menu(HWND hwnd, TrayState& state, POINT at)
     }
 
     const bool paused = state.paused && state.paused();
-    AppendMenuW(menu, MF_STRING | (paused ? MF_CHECKED : 0U), menu_pause, L"&Pause");
+
+    // Through the catalogue, with the English right here as the fallback: a build with no
+    // translations installed reads exactly as it always has. The ampersand is the keyboard
+    // accelerator and stays outside the translation -- a translator should not have to know
+    // what it means, and which letter it should mark is a question about the translated
+    // word rather than the English one.
+    const std::wstring pause = to_utf16(paused ? tr("menu.resume", "Resume")
+                                               : tr("menu.pause", "Pause"));
+    const std::wstring settings = to_utf16(tr("menu.settings", "Settings..."));
+    const std::wstring quit = to_utf16(tr("menu.quit", "Quit DragonPerch"));
+
+    AppendMenuW(menu, MF_STRING | (paused ? MF_CHECKED : 0U), menu_pause, pause.c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
 
     // Greyed until milestone 10 gives it something to open. Present because leaving it out
     // and adding it later moves everything else in the menu, and people learn where an item
     // is by where it sits.
-    AppendMenuW(menu, MF_STRING | MF_GRAYED, menu_settings, L"&Settings...");
+    AppendMenuW(menu, MF_STRING | MF_GRAYED, menu_settings, settings.c_str());
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_STRING, menu_quit, L"&Quit DragonPerch");
+    AppendMenuW(menu, MF_STRING, menu_quit, quit.c_str());
 
     // Both of these are needed and neither is obvious. Without the foreground call the menu
     // does not close when clicked away from, which reads as a hang; without the posted

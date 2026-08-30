@@ -24,6 +24,20 @@ std::string to_utf8(std::wstring_view text)
     return out;
 }
 
+std::wstring to_utf16(std::string_view text)
+{
+    if (text.empty()) {
+        return {};
+    }
+
+    const int count = MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()),
+                                          nullptr, 0);
+    std::wstring out(static_cast<std::size_t>(count), L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), out.data(),
+                        count);
+    return out;
+}
+
 namespace {
 
 std::string make_log_path()

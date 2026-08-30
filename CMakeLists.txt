@@ -98,6 +98,13 @@ if(UNIX AND NOT APPLE)
         FILES_MATCHING PATTERN "*.ini" PATTERN "*.png"
         PATTERN "source" EXCLUDE)
 
+    # The translations, beside the artwork and found the same way: relative to the
+    # executable, so an unpacked tarball has them without being installed. A language
+    # nobody has translated is simply absent, and every call site carries its English.
+    install(DIRECTORY lang/
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/dragonperch/lang
+        FILES_MATCHING PATTERN "*.ini")
+
     # Into KWin's own script directory, so it appears in System Settings -> Window
     # Management -> KWin Scripts and only has to be ticked. It is still not enabled by
     # installing it: a package that starts running code inside somebody's compositor

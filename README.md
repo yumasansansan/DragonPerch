@@ -59,6 +59,7 @@ dragonperch --stop
 | [Settings](docs/settings.md) | The configuration file and the settings programs |
 | [Packages](docs/packages.md) | What the downloads are, how versions sort, Defender |
 | [Building from source](docs/building.md) | Presets, dependencies, compiler flags, tests |
+| [Translating it](docs/translating.md) | One string table, and how to add a language |
 | [The fuzz targets](fuzz/README.md) | What is fuzzed and what each target asserts |
 | [The plan of record](docs/plan.md) | What is built, what is next, and findings that cost real time |
 

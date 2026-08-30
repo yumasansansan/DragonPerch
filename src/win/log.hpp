@@ -11,6 +11,10 @@ namespace dp::win {
 /// Latin-1, which on this machine includes most window titles.
 std::string to_utf8(std::wstring_view text);
 
+/// And back again, for the Win32 calls that take wide strings. Translated text arrives as
+/// UTF-8 -- the catalogue is a file, and a file has bytes -- and menus want UTF-16.
+std::wstring to_utf16(std::string_view text);
+
 /// Writes a line to stdout *and* to a log file beside the executable.
 ///
 /// A GUI-subsystem binary has no console of its own, and whether `AttachConsole` reaches

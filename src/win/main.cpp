@@ -5,9 +5,11 @@
 #include "dragonperch/simulation.hpp"
 #include "frame_clock.hpp"
 #include "dragonperch/geometry.hpp"
+#include "dragonperch/language.hpp"
 #include "dragonperch/text.hpp"
 #include "log.hpp"
 #include "overlay_window.hpp"
+#include "paths.hpp"
 #ifdef DRAGONPERCH_DIAGNOSTICS
 #include "dragonperch/placeholder_pack.hpp"
 #include "self_test.hpp"
@@ -417,6 +419,53 @@ duration = 200
 
 #endif // DRAGONPERCH_DIAGNOSTICS
 
+/// Loads the translations for whatever language this account reads in.
+///
+/// GetUserPreferredUILanguages rather than the locale: the locale is what a number looks
+/// like and the UI language is what the words are, and Windows lets them differ. It answers
+/// with a list in preference order, which is exactly what the catalogue wants -- somebody
+/// whose first choice has no catalogue gets their second.
+///
+/// Silent when there is nothing to load. A missing catalogue is not a fault: the English at
+/// every call site is the fallback, and most installations will have no lang directory at
+/// all.
+void install_translations()
+{
+    ULONG count = 0;
+    ULONG characters = 0;
+    if (GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &count, nullptr, &characters) == FALSE) {
+        return;
+    }
+
+    std::wstring buffer(characters, L'\0');
+    if (GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &count, buffer.data(), &characters)
+        == FALSE) {
+        return;
+    }
+
+    // A run of null-terminated names, ended by an empty one.
+    std::vector<std::string> tags;
+    for (std::size_t start = 0; start < buffer.size();) {
+        const std::size_t end = buffer.find(L'\0', start);
+        if (end == std::wstring::npos || end == start) {
+            break;
+        }
+        for (std::string& tag : language_tags(to_utf8(std::wstring_view{buffer}.substr(
+                 start, end - start)))) {
+            if (std::ranges::find(tags, tag) == tags.end()) {
+                tags.push_back(std::move(tag));
+            }
+        }
+        start = end + 1;
+    }
+
+    Catalogue catalogue = Catalogue::load(executable_directory(), tags);
+    if (!catalogue.empty()) {
+        log_line(cat("language: ", catalogue.language(), " (", catalogue.size(), " strings)"));
+    }
+    install_catalogue(std::move(catalogue));
+}
+
 int run(std::span<const std::wstring_view> args)
 {
     const auto has = [&](std::wstring_view flag) {
@@ -425,6 +474,7 @@ int run(std::span<const std::wstring_view> args)
 
     attach_parent_console();
     handle_console_stop(&request_stop);
+    install_translations();
 
     if (has(L"--version")) {
         log_line(DRAGONPERCH_VERSION);

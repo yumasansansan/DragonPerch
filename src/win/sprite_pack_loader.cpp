@@ -2,6 +2,7 @@
 #include "sprite_pack_loader.hpp"
 
 #include "log.hpp"
+#include "paths.hpp"
 #include "dragonperch/text.hpp"
 #include "png.hpp"
 #include "win_headers.hpp"
@@ -12,14 +13,6 @@
 
 namespace dp::win {
 namespace {
-
-std::filesystem::path executable_directory()
-{
-    std::array<wchar_t, MAX_PATH> buffer{};
-    const DWORD length = GetModuleFileNameW(nullptr, buffer.data(),
-                                            static_cast<DWORD>(buffer.size()));
-    return std::filesystem::path{std::wstring_view{buffer.data(), length}}.parent_path();
-}
 
 } // namespace
 

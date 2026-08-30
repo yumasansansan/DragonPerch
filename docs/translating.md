@@ -1,0 +1,62 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+# Translating DragonPerch
+
+There is **one string table for the whole project**, because there are three programs in it
+— the daemon, the Windows shell and the KDE settings module — and three mechanisms would
+mean the same sentence translated three times and drifting three ways.
+
+Nothing has to be installed for the program to work. Every call site carries its English,
+and that English is the fallback: a build with no `lang` directory at all reads exactly as
+it did before any of this existed.
+
+## Adding a language
+
+Copy `lang/ja.ini`, rename it to your language tag, and translate the right-hand side.
+
+```ini
+[Strings]
+menu.pause = Pausa
+menu.quit = Chiudi DragonPerch
+```
+
+The file goes in `lang/` beside the executable, or `share/dragonperch/lang` when installed —
+the same rule the artwork follows, so an unpacked archive works without being installed.
+
+`ja.ini` is matched for `ja`, `ja-JP`, and anything else that begins `ja-`. Name it
+`pt-BR.ini` when a region needs its own words and `pt.ini` when it does not; the more
+specific file wins.
+
+A key nobody has translated falls back to its English on its own. **A partial translation is
+a useful translation** — there is no need to finish the file before it is worth having.
+
+## Why the key is an id and not the English
+
+`menu.pause = 一時停止`, not `Pause = 一時停止`.
+
+Two reasons, both practical. This file is INI, and an English sentence may contain `=`, `;`
+or `#` — every one of which the format reads as punctuation. And rewording the English is a
+thing that happens; keyed by the English, every translation of that string would silently
+detach itself, and the only symptom would be a page half in one language.
+
+The cost is that a call site names its string twice:
+
+```cpp
+tr("menu.pause", "Pause")
+```
+
+which is also what makes the fallback work without an English catalogue to install.
+
+## Where the strings are
+
+| | |
+|---|---|
+| `src/core/dragonperch/language.hpp` | The table itself, and `tr` |
+| `lang/*.ini` | The catalogues |
+| `src/win/tray.cpp`, `src/linux/tray.cpp` | The tray menus |
+| `shell/windows/` | The Windows tray menu and settings window |
+| `kcm/` | The KDE settings module |
+
+Which language is chosen is asked of the operating system by each program, because the core
+is not allowed to: `GetUserPreferredUILanguages` on Windows, `LC_ALL` / `LC_MESSAGES` /
+`LANG` on Linux, in that order of preference. `dragonperch.log` says which catalogue was
+loaded and how many strings it had.

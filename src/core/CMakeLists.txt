@@ -9,6 +9,7 @@ add_library(dragonperch_core STATIC
     dragonperch/geometry.cpp
     dragonperch/host.cpp
     dragonperch/ini.cpp
+    dragonperch/language.cpp
     dragonperch/pack_library.cpp
     dragonperch/placeholder_pack.cpp
     dragonperch/settings.cpp

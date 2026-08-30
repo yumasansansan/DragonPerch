@@ -214,8 +214,9 @@ jobs:
       - name: Package
         if: matrix.configuration == 'Release'
         run: |
-          New-Item -ItemType Directory -Force staging\assets, dist | Out-Null
+          New-Item -ItemType Directory -Force staging\assets, staging\lang, dist | Out-Null
           Copy-Item build\windows-x64\src\win\Release\dragonperch.exe staging\
+          Copy-Item lang\*.ini staging\lang\
           if ('${{ matrix.sanitize }}' -eq 'ON') {
               Copy-Item build\windows-x64\src\win\Release\*.dll staging\ -ErrorAction SilentlyContinue
               Copy-Item build\windows-x64\src\win\Release\*.pdb staging\ -ErrorAction SilentlyContinue
