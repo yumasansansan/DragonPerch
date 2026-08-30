@@ -157,6 +157,18 @@ internal sealed class TrayMenu
             ShowMode = FlyoutShowMode.Standard,
         });
 
+        // Twice: once now, and once when the flyout says it is open. The presenter sets these
+        // states as it realises the items, and doing it only here would lose a race that the
+        // path this can be driven from does not happen to run.
+        UseTheRoomierPadding(_flyout);
+        _flyout.Opened += (sender, _) =>
+        {
+            if (sender is MenuFlyout opened)
+            {
+                UseTheRoomierPadding(opened);
+            }
+        };
+
         // See Native.ShowTheArrowCursor. The menu opens under a pointer that is not going to
         // move, over a window that does not set the cursor, so nothing else is going to.
         Native.ShowTheArrowCursor();
@@ -243,19 +255,34 @@ internal sealed class TrayMenu
     private static FontIcon MenuIcon(string glyph, int up)
         => new() { Glyph = glyph, Margin = new Thickness(0, -up, 0, 0) };
 
-    /// <summary>The taller of the two paddings WinUI gives a menu item.</summary>
+    /// <summary>
+    /// Puts every item back on the roomier of the two paddings WinUI switches between.
+    /// </summary>
     /// <remarks>
-    /// It gives them two, and picks between them by what opened the menu:
-    /// MenuFlyoutItemThemePadding is 11,8,11,9 and MenuFlyoutItemThemePaddingNarrow is
-    /// 11,4,11,5. Eight pixels an item apart, which is why the menu was noticeably shorter
-    /// from the second right-click onwards than it was the first time. Read out of the theme
-    /// at runtime to get these numbers rather than taken from documentation.
+    /// It has two, and chooses by what opened the menu: MenuFlyoutItemThemePadding is
+    /// 11,8,11,9 and MenuFlyoutItemThemePaddingNarrow is 11,4,11,5, eight pixels an item
+    /// apart. That is why the menu was shorter from the second right-click onwards than it
+    /// was the first time, and the first time is the one worth keeping.
     ///
-    /// Written out rather than looked up. Resources are keyed to a dictionary that hands back
-    /// a projected object, and casting one of those under Native AOT is a QueryInterface that
-    /// has already ended this process once; see MenuFont.
+    /// A visual state rather than the item's Padding property, which was tried first and is
+    /// a different thing: the template applies the state's value to its own layout root and
+    /// the control's Padding on top of it, so setting Padding made both variants taller and
+    /// left the eight pixels between them exactly where they were.
+    ///
+    /// Applied after the flyout is up, because the states are set as the items are realised
+    /// and there is nothing to talk to before that.
     /// </remarks>
-    private static readonly Thickness ItemPadding = new(11, 8, 11, 9);
+    private static void UseTheRoomierPadding(MenuFlyout flyout)
+    {
+        // By index, not foreach. flyout.Items is a WinRT-projected list, and asking one of
+        // those for an enumerator under Native AOT throws out of CsWinRT because the generic
+        // instantiation was never generated; SettingsWindow has the same loop for the same
+        // reason. Nothing says so until it runs, and only in a published build.
+        for (int i = 0; i < flyout.Items.Count; ++i)
+        {
+            _ = VisualStateManager.GoToState(flyout.Items[i], "DefaultPadding", false);
+        }
+    }
 
     private MenuFlyout BuildFlyout(bool paused)
     {
@@ -263,7 +290,6 @@ internal sealed class TrayMenu
         {
             Text = paused ? "Resume" : "Pause",
             Icon = MenuIcon(paused ? GlyphPlay : GlyphPause, 1),
-            Padding = ItemPadding,
             FontFamily = MenuFont,
         };
         pause.Click += (_, _) => _ = Daemon.Send("toggle-pause");
@@ -272,7 +298,6 @@ internal sealed class TrayMenu
         {
             Text = "Settings…",
             Icon = MenuIcon(GlyphSettings, 1),
-            Padding = ItemPadding,
             FontFamily = MenuFont,
         };
         settings.Click += (_, _) => ShowSettings();
@@ -281,7 +306,6 @@ internal sealed class TrayMenu
         {
             Text = "Quit DragonPerch",
             Icon = MenuIcon(GlyphQuit, 2),
-            Padding = ItemPadding,
             FontFamily = MenuFont,
         };
         quit.Click += (_, _) => _ = Daemon.Send("quit");
