@@ -43,5 +43,18 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data, std::size_t size
         std::abort();
     }
 
+    // walk-speed and idle-interval are left out above because they cannot be in it: they
+    // are written to two decimal places, so a value carrying more than that is allowed to
+    // come back rounded. Which is exactly why they need checking here instead -- they are
+    // the only two settings that pass through a lossy conversion, and the one real bug this
+    // file's format has had so far was in that conversion.
+    //
+    // The property that does hold is that the rounding settles. One more pass has to change
+    // nothing at all, doubles included, and this compares the whole struct to say so.
+    const dp::Settings settled = dp::parse_settings(dp::write_settings(again));
+    if (!(settled == again)) {
+        std::abort();
+    }
+
     return 0;
 }

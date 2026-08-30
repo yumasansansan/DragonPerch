@@ -9,9 +9,7 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
-#include <cstring>
-#include <stdexcept>
-#include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 
@@ -83,6 +81,34 @@ bool to_int(std::string_view text, int& out) noexcept
     return ec == std::errc{} && ptr == text.data() + text.size();
 }
 
+/// The largest coordinate, in the report's own units, that could describe a real desktop.
+///
+/// A 16K monitor is 15360 units wide and a wall of a hundred of them still fits in this
+/// with three orders of magnitude to spare, so nothing legitimate is turned away.
+constexpr int coordinate_limit = 1'000'000;
+
+/// A coordinate or a length, refused unless it could plausibly be one.
+///
+/// Update is published SD_BUS_VTABLE_UNPRIVILEGED, so the sender is not necessarily the
+/// script -- it is whatever in the session decided to call the method. The numbers go
+/// straight into PixelRect, whose right() and bottom() are a plain `x + width`, and int is
+/// nowhere near wide enough to absorb that when both halves are two billion. Signed
+/// overflow is undefined behaviour rather than a wrong answer, and it would happen four
+/// functions away inside the shared edge builder rather than here.
+///
+/// Refused rather than clamped: a line whose numbers cannot describe a screen is not a
+/// screen described badly, and inventing a plausible rectangle for it would put a ledge
+/// somewhere nobody asked for one.
+bool to_coordinate(std::string_view text, int& out) noexcept
+{
+    int value = 0;
+    if (!to_int(text, value) || value < -coordinate_limit || value > coordinate_limit) {
+        return false;
+    }
+    out = value;
+    return true;
+}
+
 } // namespace
 
 KWinGeometryProvider::KWinGeometryProvider() = default;
@@ -129,7 +155,11 @@ void KWinGeometryProvider::start()
     }
     started_ = true;
 
-    apply("v 1");
+    // An empty report, not `v 1`. This publishes the bootstrap floor and nothing else; the
+    // version line used to be spelled out here, which meant the day format_version became 2
+    // this call would announce a script speaking 1 -- before any script had said a word --
+    // and print the whole "reinstall it" warning against itself.
+    apply("");
 }
 
 int KWinGeometryProvider::on_update(sd_bus_message* message, void* userdata, sd_bus_error*)
@@ -161,12 +191,11 @@ void KWinGeometryProvider::apply(std::string_view report)
 
     std::vector<WindowCandidate> candidates;
     std::vector<WalkableEdge> edges;
-    std::vector<OutputInfo> outputs;
 
-    {
-        const std::lock_guard lock{mutex_};
-        outputs = outputs_;
-    }
+    // Gathered rather than applied as they are read, because the list they belong to is not
+    // this thread's to hold open across a parse -- see the merge at the bottom. Views into
+    // `report`, which outlives this function, so nothing is copied to hold a name.
+    std::vector<std::pair<std::string_view, PixelRect>> work_areas;
 
     std::size_t start = 0;
     while (start <= report.size()) {
@@ -213,18 +242,12 @@ void KWinGeometryProvider::apply(std::string_view report)
             int y = 0;
             int width = 0;
             int height = 0;
-            if (!to_int(fields.at[2], x) || !to_int(fields.at[3], y)
-                || !to_int(fields.at[4], width) || !to_int(fields.at[5], height)) {
+            if (!to_coordinate(fields.at[2], x) || !to_coordinate(fields.at[3], y)
+                || !to_coordinate(fields.at[4], width) || !to_coordinate(fields.at[5], height)) {
                 continue;
             }
 
-            // Matched by connector name -- "DP-1", "eDP-1" -- which is what wl_output.name
-            // reports on one side and what KWin calls the screen on the other. There is no
-            // other identifier the two halves share.
-            const auto it = std::ranges::find(outputs, fields.at[1], &OutputInfo::name);
-            if (it != outputs.end()) {
-                it->work_area = PixelRect{x, y, width, height};
-            }
+            work_areas.emplace_back(fields.at[1], PixelRect{x, y, width, height});
             continue;
         }
 
@@ -235,8 +258,8 @@ void KWinGeometryProvider::apply(std::string_view report)
             int height = 0;
             int z = 0;
             int kind = 0;
-            if (!to_int(fields.at[2], x) || !to_int(fields.at[3], y)
-                || !to_int(fields.at[4], width) || !to_int(fields.at[5], height)
+            if (!to_coordinate(fields.at[2], x) || !to_coordinate(fields.at[3], y)
+                || !to_coordinate(fields.at[4], width) || !to_coordinate(fields.at[5], height)
                 || !to_int(fields.at[6], z) || !to_int(fields.at[7], kind)) {
                 continue;
             }
@@ -255,27 +278,44 @@ void KWinGeometryProvider::apply(std::string_view report)
     // compositor is doing the covering.
     append_window_edges(candidates, minimum_window_width, edges);
 
-    for (const OutputInfo& output : outputs) {
-        edges.push_back(WalkableEdge{
-            .owner_id = -output.id - 1,
-            .y = output.work_area.bottom(),
-            .left = output.work_area.left(),
-            .right = output.work_area.right(),
-            .kind = EdgeKind::screen_floor,
-            .z_order = 0,
-        });
-    }
-
-    // Into the order the core's lookups assume: by y, then front to back. Skipping this
-    // does not fail loudly -- edge_below simply returns the wrong ledge, and a pet lands
-    // on the window behind the one it was standing over.
-    WorldSnapshot::sort(edges);
-
     WorldSnapshot snapshot;
     {
         const std::lock_guard lock{mutex_};
-        outputs_ = outputs;
-        snapshot_ = WorldSnapshot{++version_, std::move(edges), outputs};
+
+        // Merged into the list as it is now, rather than into a copy taken before the parse
+        // and written back over the top of it. set_outputs runs on the Wayland thread while
+        // this runs on the session bus worker, so a monitor plugged in while a report was
+        // being read used to be discarded -- and nothing said so, because the next report
+        // arrived a sixtieth of a second later and looked perfectly healthy without it. The
+        // screen was simply missing its floor until some later output event put it back.
+        //
+        // Matched by connector name -- "DP-1", "eDP-1" -- which is what wl_output.name
+        // reports on one side and what KWin calls the screen on the other. There is no other
+        // identifier the two halves share.
+        for (const auto& [name, area] : work_areas) {
+            const auto it = std::ranges::find(outputs_, name, &OutputInfo::name);
+            if (it != outputs_.end()) {
+                it->work_area = area;
+            }
+        }
+
+        for (const OutputInfo& output : outputs_) {
+            edges.push_back(WalkableEdge{
+                .owner_id = -output.id - 1,
+                .y = output.work_area.bottom(),
+                .left = output.work_area.left(),
+                .right = output.work_area.right(),
+                .kind = EdgeKind::screen_floor,
+                .z_order = 0,
+            });
+        }
+
+        // Into the order the core's lookups assume: by y, then front to back. Skipping this
+        // does not fail loudly -- edge_below simply returns the wrong ledge, and a pet lands
+        // on the window behind the one it was standing over.
+        WorldSnapshot::sort(edges);
+
+        snapshot_ = WorldSnapshot{++version_, std::move(edges), outputs_};
         snapshot = snapshot_;
     }
 

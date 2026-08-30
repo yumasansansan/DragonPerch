@@ -20,6 +20,41 @@ import sys
 RELEASE_JOB = "nightly"
 WORKFLOW = pathlib.Path(".github/workflows/ci.yml")
 
+JOB_HEADING = re.compile(r"^  ([A-Za-z][A-Za-z0-9_-]*):$", re.MULTILINE)
+
+
+def job_blocks(body: str) -> dict[str, str]:
+    """Every job's own text, split at the two-space-indented keys that name them.
+
+    Each job is looked at on its own rather than the file being searched as a whole. The
+    first version did the latter -- one regex for `needs:` across everything -- and a job
+    that has a `needs:` line of its own placed above the release job was enough to make it
+    report on the wrong list entirely. Given a workflow whose release job had quietly lost
+    `analyse`, it answered that everything was gated and exited 0.
+    """
+    headings = [(match.start(), match.group(1)) for match in JOB_HEADING.finditer(body)]
+    return {
+        name: body[start : headings[index + 1][0] if index + 1 < len(headings) else len(body)]
+        for index, (start, name) in enumerate(headings)
+    }
+
+
+def declared_needs(block: str) -> set[str] | None:
+    """The job's `needs:`, in either spelling YAML allows, or None if it has none."""
+    flow = re.search(r"^    needs: \[(.*)\]$", block, re.MULTILINE)
+    if flow is not None:
+        return {name.strip() for name in flow.group(1).split(",") if name.strip()}
+
+    listed = re.search(r"^    needs:\n((?:      - .+\n)+)", block, re.MULTILINE)
+    if listed is not None:
+        return {line.strip(" -\n") for line in listed.group(1).splitlines() if line.strip()}
+
+    single = re.search(r"^    needs: ([A-Za-z][A-Za-z0-9_-]*)$", block, re.MULTILINE)
+    if single is not None:
+        return {single.group(1)}
+
+    return None
+
 
 def main() -> int:
     text = WORKFLOW.read_text(encoding="utf-8")
@@ -31,19 +66,26 @@ def main() -> int:
         print(f"{WORKFLOW}: no jobs: block found", file=sys.stderr)
         return 2
 
-    jobs = set(re.findall(r"^  ([A-Za-z][A-Za-z0-9_-]*):$", body, re.MULTILINE))
+    jobs = job_blocks(body)
     if RELEASE_JOB not in jobs:
         print(f"{WORKFLOW}: no job called {RELEASE_JOB}", file=sys.stderr)
         return 2
 
-    needs_line = re.search(r"^    needs: \[(.*)\]$", body, re.MULTILINE)
-    if needs_line is None:
-        print(f"{WORKFLOW}: {RELEASE_JOB} has no `needs: [...]` line", file=sys.stderr)
+    needs = declared_needs(jobs[RELEASE_JOB])
+    if needs is None:
+        print(f"{WORKFLOW}: {RELEASE_JOB} has no `needs:` line", file=sys.stderr)
         return 2
 
-    needs = {name.strip() for name in needs_line.group(1).split(",") if name.strip()}
-    ungated = jobs - needs - {RELEASE_JOB}
+    unknown = needs - set(jobs)
+    if unknown:
+        print(
+            f"{WORKFLOW}: {RELEASE_JOB} needs {', '.join(sorted(unknown))}, which "
+            f"{'is not a job' if len(unknown) == 1 else 'are not jobs'} in this workflow.",
+            file=sys.stderr,
+        )
+        return 2
 
+    ungated = set(jobs) - needs - {RELEASE_JOB}
     if ungated:
         print(
             f"{WORKFLOW}: {RELEASE_JOB} does not wait for: {', '.join(sorted(ungated))}.\n"

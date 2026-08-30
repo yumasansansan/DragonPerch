@@ -32,6 +32,40 @@ TEST_CASE("settings survive a round trip", "[settings]")
     CHECK(parse_settings(write_settings(written)) == written);
 }
 
+TEST_CASE("rounding to two places settles", "[settings]")
+{
+    // walk-speed and idle-interval are the two settings the file cannot hold exactly: they
+    // are written to two decimal places, so a value carrying more than that comes back
+    // rounded. That is fine. What would not be fine is the rounding failing to settle --
+    // the settings window saves the whole file every time, so a value that moved a little
+    // on each pass would walk away from what anybody typed just by being opened and saved.
+    Settings written;
+    written.walk_speed = 63.456;
+    written.idle_interval = 7.891;
+
+    const Settings once = parse_settings(write_settings(written));
+    CHECK(once.walk_speed == Catch::Approx(63.46));
+    CHECK(once.idle_interval == Catch::Approx(7.89));
+
+    // Exactly equal, not approximately: the second pass must change nothing at all.
+    const Settings twice = parse_settings(write_settings(once));
+    CHECK(twice.walk_speed == once.walk_speed);
+    CHECK(twice.idle_interval == once.idle_interval);
+    CHECK(twice == once);
+}
+
+TEST_CASE("a clamped value is written back as the clamp, not as it was typed", "[settings]")
+{
+    // The clamp happens on the way in, so what the file says next time is the value the
+    // pets are actually using rather than the one that was refused.
+    const Settings settings = parse_settings(R"(
+[DragonPerch]
+walk-speed = 99999
+)");
+    CHECK(settings.walk_speed == Catch::Approx(1000.0));
+    CHECK(parse_settings(write_settings(settings)) == settings);
+}
+
 TEST_CASE("a value that cannot be read keeps its default", "[settings]")
 {
     // This file is edited by hand and written by two other programs. Losing every setting

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 using System.Diagnostics;
+using System.Globalization;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 
@@ -66,7 +67,8 @@ public partial class App : Application
         // whether the shell works at all.
         string[] argv = Environment.GetCommandLineArgs();
         if (argv.Length == 5 && argv[1] == "--menu"
-            && int.TryParse(argv[2], out int x) && int.TryParse(argv[3], out int y))
+            && int.TryParse(argv[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int x)
+            && int.TryParse(argv[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out int y))
         {
             Log.Line($"showing the menu at {x},{y}");
             try

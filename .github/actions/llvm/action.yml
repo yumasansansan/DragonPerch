@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Install the newest LLVM
+description: >
+  Installs the newest Clang, LLD and friends that apt.llvm.org publishes a release branch
+  for, and then makes sure the LLD matches whichever Clang turns out to be newest on the
+  machine -- which is not necessarily the one this installed.
+
+# Shared rather than repeated. This was the same forty lines in two jobs, and the copy in
+# the analysis job had already lost the second step: it installed an LLD for the Clang it
+# fetched and nothing for the Clang the runner image ships, so the day the image is ahead
+# of apt.llvm.org's newest release branch, that job alone stops configuring.
+
+inputs:
+  analysis-tools:
+    description: >
+      Also install clang-tidy and scan-build. They ship in clang-tools-NN and clang-tidy-NN
+      rather than in clang-NN, so a job that wants them has to ask.
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    # The newest LLVM release branch apt.llvm.org publishes for this distribution.
+    #
+    # Its layout is worth writing down, because it is the opposite way round from what the
+    # names suggest. The *unversioned* suite, llvm-toolchain-<codename>, carries the main
+    # branch -- rebuilt nightly, and 24 at the time of writing. The numbered suites,
+    # llvm-toolchain-<codename>-NN, carry release branch NN. So the numbered ones are the
+    # conservative ones, and this takes the highest of those and leaves main alone.
+    #
+    # Measured rather than assumed, against http://apt.llvm.org/resolute/dists/ :
+    #
+    #   llvm-toolchain-resolute      clang-24  1:24~++20260819112932+d141332bd2ae
+    #   llvm-toolchain-resolute-23   clang-23  1:23.1.0~++20260818083945+55feb0a3b6b7
+    #   llvm-toolchain-resolute-22   clang-22  1:22.1.8~++20260714015917+ca7933e47d3a
+    #
+    # Note that every one of them is a dated branch snapshot: this archive never publishes
+    # a clean release version, so the `~++<date>+<hash>` on 23 does not make it less
+    # finished than 22. Ubuntu's own archive has no clang-23 at all.
+    #
+    # Neither llvm-NN nor libclang-rt-NN-dev is an extra, and clang-NN depends on neither:
+    # it pulls llvm-NN-linker-tools and stops there. Both were found out the hard way, one
+    # after the other.
+    #
+    #   llvm-NN             holds llvm-ar and llvm-ranlib, which CMake wants at the
+    #                       compiler's own version to build static libraries under ThinLTO.
+    #                       Without it CMAKE_CXX_COMPILER_AR is NOTFOUND, the LTO check
+    #                       fails, and Release quietly stops being LTO.
+    #   libclang-rt-NN-dev  holds libclang_rt.asan.a and its friends. Without it every file
+    #                       compiles and the first link fails naming a path that does not
+    #                       exist and no package at all.
+    #
+    # Both now stop the configure with a message naming the package to install, instead of
+    # where they used to stop: silently, and at the last link.
+    #
+    # No version is named anywhere here. A -24 suite appearing is used the day it does.
+    - name: Install the newest Clang and LLD from apt.llvm.org
+      shell: bash
+      run: |
+        set -o pipefail
+        codename=$(lsb_release -cs)
+
+        # curl with --compressed, and that is not a preference. This server answers the
+        # directory listing with Content-Encoding: gzip even when the client did not ask
+        # for it, so `wget -qO-` pipes gzip bytes into grep, matches nothing, and the build
+        # stops on the emptiness check below with no hint as to why. Measured, not guessed:
+        # the response begins 1f 8b with no Accept-Encoding sent at all. The key is
+        # application/octet-stream and is not compressed; only text/html is.
+        #
+        # And -L, because http:// on this host is a 301 to https://.
+        newest=$(curl -fsSL --compressed "https://apt.llvm.org/$codename/dists/" \
+                 | grep -oE "llvm-toolchain-$codename-[0-9]+" \
+                 | sed 's/.*-//' | sort -n | tail -1)
+        test -n "$newest"
+        echo "newest release-branch suite for $codename: $newest"
+
+        curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+          | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+        echo "deb https://apt.llvm.org/$codename/ llvm-toolchain-$codename-$newest main" \
+          | sudo tee /etc/apt/sources.list.d/apt.llvm.org.list > /dev/null
+
+        packages="clang-$newest lld-$newest llvm-$newest libclang-rt-$newest-dev"
+        if [ "${{ inputs.analysis-tools }}" = "true" ]; then
+          packages="$packages clang-tools-$newest clang-tidy-$newest"
+        fi
+
+        sudo apt-get update
+        sudo apt-get install --no-install-recommends -y $packages
+        clang++-$newest --version | head -1
+
+    # The archive is not the only place a Clang can come from -- the runner image ships one
+    # too -- and cmake/ClangLatest.cmake picks the newest of everything installed. If that
+    # turns out to be the image's rather than the one above, its LLD has to be here as
+    # well, or configure stops with a message about a missing ld.lld-NN.
+    - name: Make sure the LLD matches whichever Clang is newest
+      shell: bash
+      run: |
+        major=$(ls /usr/bin/clang++-* 2>/dev/null | sed 's/.*clang++-//' | sort -n | tail -1)
+
+        # The unsuffixed one too, and by asking it rather than assuming, because the
+        # toolchain file considers it as well.
+        plain=$(clang++ --version 2>/dev/null | grep -om1 'clang version [0-9]*' | grep -o '[0-9]*$')
+        if [ "${plain:-0}" -gt "${major:-0}" ]; then major=$plain; fi
+
+        echo "newest clang++ installed: ${major:-none}"
+        test -n "$major"
+
+        packages="lld-$major llvm-$major libclang-rt-$major-dev"
+        if [ "${{ inputs.analysis-tools }}" = "true" ]; then
+          packages="$packages clang-tools-$major clang-tidy-$major"
+        fi
+        sudo apt-get install --no-install-recommends -y $packages

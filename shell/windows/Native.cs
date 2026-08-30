@@ -85,10 +85,54 @@ internal static partial class Native
     [LibraryImport("user32.dll", EntryPoint = "GetWindowThreadProcessId")]
     public static partial uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
 
+    [LibraryImport("user32.dll", EntryPoint = "GetMonitorInfoW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool GetMonitorInfo(IntPtr monitor, IntPtr info);
+
     /// <summary>
-    /// Reads the text out of a WM_COPYDATA. The daemon sends UTF-8 with no terminator, the
-    /// same as it sends to its own control window; `cbData` is the length.
+    /// The name Windows knows a monitor by: <c>\\.\DISPLAY1</c> and friends.
     /// </summary>
+    /// <remarks>
+    /// This is what the daemon puts in <c>OutputInfo::name</c> -- src/win/desktop_scanner.cpp
+    /// reads it out of MONITORINFOEX -- and therefore what the <c>outputs</c> line of the
+    /// settings file has to contain for the daemon to match it against anything.
+    ///
+    /// DisplayArea.DisplayId.Value is not that. It is the HMONITOR, and on the machine this
+    /// was measured on the two were 65537 and \\.\DISPLAY1. Saving the number matched no
+    /// monitor at all, and because an empty list is what means "every monitor", the effect
+    /// of unticking one screen was that the pets disappeared from every screen.
+    ///
+    /// Read out of a raw buffer rather than a marshalled struct, because MONITORINFOEXW ends
+    /// in a fixed thirty-two character array, and neither ByValTStr nor a fixed buffer is
+    /// something LibraryImport will generate marshalling code for.
+    /// </remarks>
+    public static string MonitorDeviceName(ulong monitor)
+    {
+        // cbSize(4) + rcMonitor(16) + rcWork(16) + dwFlags(4), and then szDevice as UTF-16.
+        const int deviceOffset = 40;
+        const int deviceChars = 32;
+        const int size = deviceOffset + (deviceChars * 2);
+
+        IntPtr buffer = Marshal.AllocHGlobal(size);
+        try
+        {
+            Marshal.WriteInt32(buffer, 0, size);
+            if (!GetMonitorInfo((IntPtr)(long)monitor, buffer))
+            {
+                return string.Empty;
+            }
+
+            string device = Marshal.PtrToStringUni(buffer + deviceOffset, deviceChars)
+                            ?? string.Empty;
+            int end = device.IndexOf('\0');
+            return end >= 0 ? device[..end] : device;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
+        }
+    }
+
     /// <summary>The largest request worth reading.</summary>
     /// <remarks>
     /// The one message this program accepts is about thirty bytes. Anything can send this
@@ -97,6 +141,10 @@ internal static partial class Native
     /// </remarks>
     private const uint LargestRequest = 4096;
 
+    /// <summary>
+    /// Reads the text out of a WM_COPYDATA. The daemon sends UTF-8 with no terminator, the
+    /// same as it sends to its own control window; `cbData` is the length.
+    /// </summary>
     public static string ReadCopyData(IntPtr lparam)
     {
         COPYDATASTRUCT data = Marshal.PtrToStructure<COPYDATASTRUCT>(lparam);

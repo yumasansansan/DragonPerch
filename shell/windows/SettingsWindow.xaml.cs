@@ -123,7 +123,18 @@ internal sealed partial class SettingsWindow : Window
         for (int i = 0; i < areas.Count; ++i)
         {
             DisplayArea area = areas[i];
-            string name = area.DisplayId.Value.ToString();
+
+            // The device name, not the DisplayId. See Native.MonitorDeviceName: the daemon
+            // matches the saved list against MONITORINFOEX::szDevice and nothing else, so
+            // saving the HMONITOR here matched no monitor and emptied every screen.
+            string name = Native.MonitorDeviceName(area.DisplayId.Value);
+            if (name.Length == 0)
+            {
+                Log.Line($"could not name the monitor at {area.OuterBounds.X},{area.OuterBounds.Y}"
+                         + "; leaving it out of the list");
+                continue;
+            }
+
             CheckBox box = new()
             {
                 Content = $"{area.OuterBounds.Width} x {area.OuterBounds.Height}"

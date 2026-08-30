@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+using System.Globalization;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
 
@@ -104,8 +105,13 @@ internal sealed class ShellServer
         string text = Native.ReadCopyData(lparam);
         string[] parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
+        // InvariantCulture, because these came off a wire rather than from a person. The
+        // daemon writes plain ASCII integers; parsing them against whatever culture this
+        // machine is set to is asking a question nobody meant to ask, and Settings.cs is
+        // careful about exactly this for exactly the same reason.
         if (parts.Length == 4 && parts[0] == "menu"
-            && int.TryParse(parts[1], out int x) && int.TryParse(parts[2], out int y))
+            && int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int x)
+            && int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int y))
         {
             bool paused = parts[3] == "paused";
 
